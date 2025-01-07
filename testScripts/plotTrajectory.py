@@ -73,7 +73,6 @@ def plotTrajectory(fileName,gt):
 
 
 
-plotTrajectory('C:\\Users\\Administrator\\Documents\\YogoSlam\\build\\Release\\outputPose.csv','Y:\\Euroc\\V101\\mav0\\state_groundtruth_estimate0\\data.csv')
 
 
 

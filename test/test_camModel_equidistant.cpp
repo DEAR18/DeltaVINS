@@ -3,7 +3,6 @@
 //
 
 #include <precompile.h>
-#include <IO/dataSource/DataSource_YogoOffline.h>
 #include <utils/Config.h>
 #include <Algorithm/vision/camModel/camModel.h>
 #include <utils/log.h>
@@ -112,7 +111,6 @@ int main(){
     logInit();
     Config::loadConfigFile("","");
     CamModel::loadCalibrations();
-    dataSourcePtr = std::static_pointer_cast<DataSource>(std::make_shared<DataSource_YogoOffline>());
     TestFisheyeCamModel test;
     dataSourcePtr->addImageObserver(&test);
     dataSourcePtr->start();

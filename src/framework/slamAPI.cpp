@@ -14,11 +14,9 @@
 #endif
 
 #include <IO/dataOuput/DataRecorder.h>
-#include <IO/dataSource/dataSource_Yogo.h>
 
 
 #include "IO/dataSource/dataSource_Synthetic.h"
-#include "IO/dataSource/DataSource_YogoOffline.h"
 #include "utils/TickTock.h"
 
 
@@ -49,12 +47,6 @@ void initSlamSystem(const char* datasetDir, const char* testName)
 
 	if (Config::DataSourceType == DataSrcEuroc)
 		dataSourcePtr = std::static_pointer_cast<DataSource>(std::make_shared<DataSource_Euroc>());
-#if defined(PLATFORM_ARM)
-	else if (Config::DataSourceType == DataSrcYogo)
-		dataSourcePtr = std::static_pointer_cast<DataSource>(std::make_shared<DataSource_Yogo>());
-#endif
-	else if (Config::DataSourceType == DataSrcYogoOffline)
-		dataSourcePtr = std::static_pointer_cast<DataSource>(std::make_shared<DataSource_YogoOffline>());
 	else if (Config::DataSourceType == DataSrcSynthetic)
 		dataSourcePtr = std::static_pointer_cast<DataSource>(std::make_shared<DataSource_Synthetic>());
 	

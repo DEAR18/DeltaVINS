@@ -23,7 +23,6 @@ YG_TCP_Client::~YG_TCP_Client()
 bool YG_TCP_Client::InitTcpClient(const char* ip, unsigned short port,
                                   unsigned int recvTime)
 {
-    //YOGO_LOG_INFO("start tcp client.ip: %s port: %d ",ip,port);
     if(inet_addr(ip)==INADDR_NONE)
     {
         LOGE(" ip error:%s.ip: %s ",strerror(errno),ip);
@@ -94,7 +93,6 @@ long YG_TCP_Client::RecvData(char* data, int length, int msg)
 {
     if(socket_fd<0)
     {
-        //YOGO_LOG_ERROR("tcp client recive error.socket not created.");
         return -1;
     }
 
@@ -161,7 +159,6 @@ bool YG_TCP_Server::InitTcpServer(unsigned short port,unsigned int size)
     res = listen(socket_server,size);
     if(res < 0)
     {
-        //YOGO_LOG_ERROR("tcp server listen port error:%s.port: %d ",strerror(errno),port);
         return false;
     }
     return true;

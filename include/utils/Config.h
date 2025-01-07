@@ -8,8 +8,6 @@ namespace DeltaVins
 	enum DataSrcType
 	{
 		DataSrcEuroc,
-		DataSrcYogo,
-		DataSrcYogoOffline,
 		DataSrcSynthetic
 	};
 

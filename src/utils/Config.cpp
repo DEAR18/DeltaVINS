@@ -63,11 +63,7 @@ namespace DeltaVins
         _clear();
         std::string _configFilePath;
 
-#if defined(PLATFORM_ARM)
-        _configFilePath = "/home/yogo/Config/Config.yaml";
-#else
         _configFilePath = "Config/Config.yaml";
-#endif
 
         m_configFile.open(_configFilePath, FileStorage::READ);
         if (!m_configFile.isOpened())
@@ -83,14 +79,6 @@ namespace DeltaVins
         m_configFile["DataSourceType"] >> temp;
         if (temp == "EUROC" || temp == "Euroc")
             DataSourceType = DataSrcEuroc;
-        else if (temp == "Yogo" || temp == "YOGO") {
-            DataSourceType = DataSrcYogo;
-            PlaneConstraint = true;
-        }
-        else  if (temp == "YogoOffline") {
-            DataSourceType = DataSrcYogoOffline;
-            PlaneConstraint = true;
-        }
         else if (temp == "Synthetic")
             DataSourceType = DataSrcSynthetic;
         else

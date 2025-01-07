@@ -46,22 +46,6 @@ namespace DeltaVins
                 1e-4, 1e-4, 1e-4,
                 1e-2, 1e-2, 1e-2;
             break;
-        case DataSrcYogoOffline:
-            p << 1e-4, 1e-4, 1e-4,
-                1e-4, 1e-4, 1e-4,
-                1e-2, 1e-2, 1e-2,
-                1e-3, 1e-3, 1e-3,
-                1e-4, 1e-4, 1e-4,
-                1e-2, 1e-2, 1e-2;
-            break;
-        case DataSrcYogo:
-            p << 1e-4, 1e-4, 1e-4,
-                1e-4, 1e-4, 1e-4,
-                1e-2, 1e-2, 1e-2,
-                1e-3, 1e-3, 1e-3,
-                1e-4, 1e-4, 1e-4,
-                1e-2, 1e-2, 1e-2;
-            break;
         default:
             p << 1e-4, 1e-4, 1e-4,
                 1e-4, 1e-4, 1e-4,
@@ -85,21 +69,6 @@ namespace DeltaVins
 				1e-4, 1e-4, 1e-4,
 				1e-2, 1e-2, 1e-2;
         	break;
-			case DataSrcYogoOffline:
-                p <<    1e-4, 1e-4, 1e-4,
-                        1e-2, 1e-2, 1e-2,
-                        1e-3, 1e-3, 1e-3,
-                        1e-4, 1e-4, 1e-4,
-                        1e-2, 1e-2, 1e-2;
-                break;
-            case DataSrcYogo:
-                p <<
-                        1e-4, 1e-4, 1e-4,
-                        1e-2, 1e-2, 1e-2,
-                        1e-3, 1e-3, 1e-3,
-                        1e-4, 1e-4, 1e-4,
-                        1e-2, 1e-2, 1e-2;
-                break;
             default:
                 p << 1e-4, 1e-4, 1e-4,
                     1e-2, 1e-2, 1e-2,
