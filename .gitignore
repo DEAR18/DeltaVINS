@@ -1,0 +1,57 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+build/NoOpt/
+build/
+linuxslution/cmake-build-debug/
+linuxslution/.idea/
+3rdParty/serial/cmake-build-debug/
+cmake-build-debug/
+.idea/
+cmake-build-debug-board/
+cmake-build-debug-remote-host/
+cmake-build-debug-wsl/
+cmake-build-release-board/
+cmake-build-release-wsl/
+testScripts/__pycache__/
+cmake-build-release-server/
+cmake-build-release-remote-host/
+cmake-build-relwithdebinfo-board/
+cmake-build-release-board2/
+cmake-build-debug-server/
+cmake-build-release-localboard/
+cmake-build-debug-board2/
+buildLinux/
+SlamAdapter/SlamAdapter/x64/
+.vscode
+CMakeUserPresets.json
+CMakeUserPresets.json

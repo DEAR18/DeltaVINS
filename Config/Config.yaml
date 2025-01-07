@@ -1,0 +1,40 @@
+%YAML:1.0
+---
+PixelNoise: 0.7
+ImuSampleFps: 200
+ImageSampleFps: 20
+SerialRun: 1
+RecordImage: 0
+RecordImu: 0
+NoGUI: 0
+NoDebugOutput : 0
+DataFps : 60
+RunVIO: 1
+
+
+# Yogo
+# GyroNoise: 2.4e-4  # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+# AccNoise: 1.7e-3   # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+# GyroBiasNoise: 2e-5 # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+# AccBiasNoise: 4e-5 # [ rad / s^3 / sqrt(Hz) ]   ( gyro "white noise" )
+# CameraCalibrationPath: "D:\\Data\\Yogo\\Config"
+# # DataSourcePath: "D:/Data/Yogo/4.2pureRotation/"
+# DataSourcePath: "D:/Data/Yogo/3.27robotCircle/"
+
+# DataSourceType: YogoOffline
+# ImageStartIdx: 5
+
+
+#Euroc
+
+GyroNoise: 2e-4  # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+AccNoise: 2e-3   # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+GyroBiasNoise: 2e-5 # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+AccBiasNoise: 3e-3 # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+CameraCalibrationPath: "Config"
+DataSourcePath: "/data/V101/mav0"
+DataSourceType: EUROC
+ImageStartIdx: 5
+
+
+
