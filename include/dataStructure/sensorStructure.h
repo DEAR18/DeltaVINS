@@ -7,70 +7,50 @@
 
 namespace DeltaVins {
 
+struct ImuData {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Vector3f gyro;
+    Vector3f acc;
+    int idx;
+    bool syncFlag;
+    long long timestamp;
 
-    struct ImuData {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-        Vector3f gyro;
-        Vector3f acc;
-        int idx;
-        bool syncFlag;
-        long long timestamp;
+    bool operator<(long long t) { return timestamp < t; }
 
-        bool operator<(long long t) {
-            return timestamp < t;
-        }
+    bool operator>(long long t) { return timestamp > t; }
 
-        bool operator>(long long t) {
-            return timestamp > t;
-        }
+    bool operator==(long long t) { return timestamp == t; }
 
-        bool operator==(long long t) {
-            return timestamp == t;
-        }
+    bool operator<=(long long t) { return timestamp <= t; }
 
-        bool operator<=(long long t) {
-            return timestamp <= t;
-        }
+    bool operator<(int t) { return idx < t; }
 
-        bool operator<(int t) {
-            return idx < t;
-        }
+    bool operator>(int t) { return idx > t; }
 
-        bool operator>(int t) {
-            return idx > t;
-        }
+    bool operator==(int t) { return idx == t; }
 
-        bool operator==(int t) {
-            return idx == t;
-        }
+    bool operator<=(int t) { return idx <= t; }
+};
 
-        bool operator<=(int t) {
-            return idx <= t;
-        }
+struct ImageData {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    long long timestamp;
 
-    };
+    cv::Mat image;
+    using Ptr = std::shared_ptr<ImageData>;
+};
 
-    struct ImageData {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+struct OdometerData {
+    long long timestamp;
 
-        long long timestamp;
+    int encoderL;
+    int encoderR;
+    float dEncoderL;
+    float dEncoderR;
 
-        cv::Mat image;
-        using Ptr = std::shared_ptr<ImageData>;
-    };
+    float velocity;
+    float angularVelocity;
+};
 
-    struct OdometerData {
-        long long timestamp;
-
-        int encoderL;
-        int encoderR;
-        float dEncoderL;
-        float dEncoderR;
-
-        float velocity;
-        float angularVelocity;
-
-    };
-
-}
+}  // namespace DeltaVins

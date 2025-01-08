@@ -19,5 +19,7 @@ class ProjectRecipe(ConanFile):
     def build(self):
         # using cmake to build
         cmake = CMake(self)
-        cmake.configure()
+        definitions = {}
+        definitions['CMAKE_EXPORT_COMPILE_COMMANDS'] = "ON"
+        cmake.configure(definitions)
         cmake.build()

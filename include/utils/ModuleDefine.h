@@ -1,12 +1,10 @@
 #pragma once
 
-
 #ifndef ENABLE_VISUALIZER
 #ifdef PLATFORM_WINDOWS
 #define ENABLE_VISUALIZER 1
 #endif
 #endif
-
 
 #define USE_STABLE_SORT 1
 #define NEW_TWO_POINT 0
@@ -47,6 +45,5 @@
 #define USE_VELOCITY_DETECT_ROTATION 0
 
 #define USE_POSITION_DETECT_ROTATION 0
-
 
 #define USE_Z_AXIS 1

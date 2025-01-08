@@ -1,13 +1,12 @@
 #pragma once
 
-
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
-	void initSlamSystem(const char* datasetDir, const char* testName);
-	void startAndJoin();
-	void stopSystem();
+void initSlamSystem(const char* datasetDir, const char* testName);
+void startAndJoin();
+void stopSystem();
 
 #ifdef __cplusplus
 }
