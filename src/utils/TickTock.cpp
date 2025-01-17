@@ -6,9 +6,9 @@ namespace DeltaVins {
 
 std::unordered_map<std::string, cv::TickMeter> TickTock::m_tickMap;
 
-void TickTock::start(std::string name) { m_tickMap[name].start(); }
+void TickTock::Start(std::string name) { m_tickMap[name].start(); }
 
-void TickTock::stop(std::string name) { m_tickMap[name].stop(); }
+void TickTock::Stop(std::string name) { m_tickMap[name].stop(); }
 
 void TickTock::outputResult() {
     FILE* fout = fopen("Time.txt", "w");

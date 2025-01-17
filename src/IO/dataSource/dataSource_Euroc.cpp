@@ -8,21 +8,21 @@ using namespace std;
 
 namespace DeltaVins {
 DataSource_Euroc::DataSource_Euroc() : DataSource() {
-    m_dataSetDir = Config::DataSourcePath;
-    m_camDir = m_dataSetDir + "/cam0";
-    m_imuDir = m_dataSetDir + "/imu0";
+    dataset_dir_ = Config::DataSourcePath;
+    cam_dir_ = dataset_dir_ + "/cam0";
+    imu_dir_ = dataset_dir_ + "/imu0";
 
-    m_iImageIdx = Config::ImageStartIdx;
-    m_iImuIndex = 0;
-    _loadImage();
-    _loadIMU();
+    image_idx_ = Config::ImageStartIdx;
+    imu_index_ = 0;
+    _LoadImage();
+    _LoadIMU();
 }
 
 DataSource_Euroc::~DataSource_Euroc() {}
 
-void DataSource_Euroc::_loadIMU() {
+void DataSource_Euroc::_LoadIMU() {
     ifstream imuCsv;
-    imuCsv.open(m_imuDir + "/data.csv");
+    imuCsv.open(imu_dir_ + "/data.csv");
     static Matrix3f Rci = CamModel::getCamModel()->getRci();
     ImuData imuData;
     std::string s;
@@ -48,13 +48,13 @@ void DataSource_Euroc::_loadIMU() {
         imuData.acc = Rci * imuData.acc;
         imuData.gyro = Rci * imuData.gyro;
 
-        m_vIMU.push_back(imuData);
+        imus_.push_back(imuData);
     }
     imuCsv.close();
 }
 
-void DataSource_Euroc::_loadImage() {
-    const string path = m_camDir + "/data.csv";
+void DataSource_Euroc::_LoadImage() {
+    const string path = cam_dir_ + "/data.csv";
     ifstream camCsv;
     camCsv.open(path);
     if (!camCsv.is_open()) {
@@ -70,36 +70,36 @@ void DataSource_Euroc::_loadImage() {
 
         std::vector<std::string> nums = split(s, ',');
         image_data.timestamp = strtoll(nums[0].c_str(), nullptr, 10);
-        image_data.imagePath = m_camDir + "/data/" + nums[0] + ".png";
+        image_data.imagePath = cam_dir_ + "/data/" + nums[0] + ".png";
 
-        m_vImages.push_back(image_data);
+        images_.push_back(image_data);
     }
 
     camCsv.close();
 }
 
-bool DataSource_Euroc::haveThingsTodo() {
-    if (m_iImageIdx < m_vImages.size()) {
+bool DataSource_Euroc::HaveThingsTodo() {
+    if (image_idx_ < images_.size()) {
         return true;
     } else {
-        keepRunning.store(false);
+        keep_running_.store(false);
         return false;
     }
 }
 
-void DataSource_Euroc::doWhatYouNeedToDo() {
-    auto& imageInput = m_vImages[m_iImageIdx];
+void DataSource_Euroc::DoWhatYouNeedToDo() {
+    auto& imageInput = images_[image_idx_];
     ImageData::Ptr imageData = std::make_shared<ImageData>();
     long long ddt = 5e7;
     imageData->timestamp = imageInput.timestamp;
 
-    while (m_iImuIndex < m_vIMU.size() &&
-           m_vIMU[m_iImuIndex].timestamp < imageData->timestamp + ddt) {
-        auto& imuInput = m_vIMU[m_iImuIndex++];
-        std::lock_guard<std::mutex> lck(m_mtx_ImuObserver);
+    while (imu_index_ < imus_.size() &&
+           imus_[imu_index_].timestamp < imageData->timestamp + ddt) {
+        auto& imuInput = imus_[imu_index_++];
+        std::lock_guard<std::mutex> lck(mtx_imu_observer_);
 
-        for (auto& imu_listener : m_v_imuObservers) {
-            imu_listener->onImuReceived(imuInput);
+        for (auto& imu_listener : imu_observers_) {
+            imu_listener->OnImuReceived(imuInput);
         }
     }
 
@@ -111,12 +111,12 @@ void DataSource_Euroc::doWhatYouNeedToDo() {
     if (img.cols > 640) width_crop = (img.cols - 640) / 2;
     imageData->image = img.colRange(width_crop, width_crop + 640).clone();
     {
-        std::lock_guard<std::mutex> lck(m_mtx_imageObserver);
-        for (auto& image_listener : m_v_imageObservers) {
-            image_listener->onImageReceived(imageData);
+        std::lock_guard<std::mutex> lck(mtx_image_observer_);
+        for (auto& image_listener : image_observers_) {
+            image_listener->OnImageReceived(imageData);
         }
     }
-    m_iImageIdx++;
+    image_idx_++;
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }

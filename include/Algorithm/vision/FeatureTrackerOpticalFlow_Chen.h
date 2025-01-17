@@ -5,30 +5,30 @@ namespace DeltaVins {
 class FeatureTrackerOpticalFlow_Chen {
    public:
     FeatureTrackerOpticalFlow_Chen(int nMax2Track, int nMaskSize = 31);
-    void _setMask(int x, int y);
+    void _SetMask(int x, int y);
 
-    void _extractMorePoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
-    void _trackPoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
-    void matchNewFrame(std::list<TrackedFeaturePtr>& vTrackedFeatures,
+    void _ExtractMorePoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
+    void _TrackPoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
+    void MatchNewFrame(std::list<TrackedFeaturePtr>& vTrackedFeatures,
                        cv::Mat& image, Frame* camState);
 
     ~FeatureTrackerOpticalFlow_Chen();
 
    private:
-    void _extractFast(const int imgStride, const int halfMaskSize,
+    void _ExtractFast(const int imgStride, const int halfMaskSize,
                       std::vector<cv::Point2f>& vTemp);
-    void _extractHarris(std::vector<cv::Point2f>& corners, int max_num);
+    void _ExtractHarris(std::vector<cv::Point2f>& corners, int max_num);
 
-    unsigned char* m_pMask = nullptr;
-    int m_iFeature;
-    int m_nMax2Track;
-    int m_nMaskSize;
-    int m_nTracked;
-    int m_nMaskBufferSize;
-    cv::Mat m_image;
-    Frame* m_pCamState = nullptr;
-    Frame* m_pCamState0 = nullptr;
-    cv::Mat lastImage;
+    unsigned char* mask_ = nullptr;
+    int num_features_;
+    int max_num_to_track_;
+    int mask_size_;
+    int num_features_tracked_;
+    int mask_buffer_size_;
+    cv::Mat image_;
+    Frame* cam_state_ = nullptr;
+    Frame* cam_state0_ = nullptr;
+    cv::Mat last_image_;
 };
 
 }  // namespace DeltaVins

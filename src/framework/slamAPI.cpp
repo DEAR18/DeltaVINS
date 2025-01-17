@@ -28,7 +28,7 @@ SlamVisualizer::Ptr slamVisualizerPtr = nullptr;
 #elif ENABLE_VISUALIZER_TCP
 PoseOutputTcp::Ptr tcpPtr = nullptr;
 #endif
-void initSlamSystem(const char* datasetDir, const char* testName) {
+void InitSlamSystem(const char* datasetDir, const char* testName) {
     // Init Log
     logInit();
 
@@ -52,67 +52,67 @@ void initSlamSystem(const char* datasetDir, const char* testName) {
 
     if (Config::RecordData) {
         dataRecorderPtr = std::make_shared<DataRecorder>();
-        dataSourcePtr->addImageObserver(dataRecorderPtr.get());
+        dataSourcePtr->AddImageObserver(dataRecorderPtr.get());
     }
 
 #if ENABLE_VISUALIZER
     if (!Config::NoGUI) {
         slamVisualizerPtr = std::make_shared<SlamVisualizer>(640, 480);
         if (Config::RunVIO) {
-            vioModulePtr->setFrameAdapter(slamVisualizerPtr.get());
-            vioModulePtr->setPointAdapter(slamVisualizerPtr.get());
+            vioModulePtr->SetFrameAdapter(slamVisualizerPtr.get());
+            vioModulePtr->SetPointAdapter(slamVisualizerPtr.get());
         } else if (Config::RecordData) {
-            dataRecorderPtr->addFrameAdapter(slamVisualizerPtr.get());
-            dataRecorderPtr->addWorldPointAdapter(slamVisualizerPtr.get());
+            dataRecorderPtr->AddFrameAdapter(slamVisualizerPtr.get());
+            dataRecorderPtr->AddWorldPointAdapter(slamVisualizerPtr.get());
         }
     }
 #elif ENABLE_VISUALIZER_TCP
     if (!Config::NoGUI) {
         tcpPtr = std::make_shared<PoseOutputTcp>();
         if (Config::RunVIO) {
-            vioModulePtr->setFrameAdapter(tcpPtr.get());
-            vioModulePtr->setPointAdapter(tcpPtr.get());
+            vioModulePtr->SetFrameAdapter(tcpPtr.get());
+            vioModulePtr->SetPointAdapter(tcpPtr.get());
         } else if (Config::RecordData) {
-            dataRecorderPtr->addFrameAdapter(tcpPtr.get());
-            dataRecorderPtr->addWorldPointAdapter(tcpPtr.get());
+            dataRecorderPtr->AddFrameAdapter(tcpPtr.get());
+            dataRecorderPtr->AddWorldPointAdapter(tcpPtr.get());
         }
     }
 #endif
 
     // add links between modules
-    if (Config::RunVIO) dataSourcePtr->addImageObserver(vioModulePtr.get());
-    dataSourcePtr->addImuObserver(&ImuBuffer::getInstance());
+    if (Config::RunVIO) dataSourcePtr->AddImageObserver(vioModulePtr.get());
+    dataSourcePtr->AddImuObserver(&ImuBuffer::Instance());
 }
 
-void startAndJoin() {
+void StartAndJoin() {
     if (Config::CameraCalibration) return;
 
-    // start all modules
+    // Start all modules
     if (Config::RunVIO) {
         LOGI("Start VIO");
-        vioModulePtr->start();
+        vioModulePtr->Start();
     }
     if (Config::RecordData) {
         LOGI("Start Record Data\"");
-        dataRecorderPtr->start();
+        dataRecorderPtr->Start();
     }
 #if ENABLE_VISUALIZER
-    if (!Config::NoGUI && slamVisualizerPtr) slamVisualizerPtr->start();
+    if (!Config::NoGUI && slamVisualizerPtr) slamVisualizerPtr->Start();
 #endif
-    // join
-    dataSourcePtr->start();
+    // Join
+    dataSourcePtr->Start();
 
-    dataSourcePtr->join();
+    dataSourcePtr->Join();
 
 #if ENABLE_VISUALIZER
-    if (slamVisualizerPtr) slamVisualizerPtr->join();
+    if (slamVisualizerPtr) slamVisualizerPtr->Join();
 #endif
 }
 
-void stopSystem() {
+void StopSystem() {
     if (Config::CameraCalibration) return;
     TickTock::outputResult();
-    dataSourcePtr->stop();
-    if (Config::RunVIO) vioModulePtr->stop();
+    dataSourcePtr->Stop();
+    if (Config::RunVIO) vioModulePtr->Stop();
     finishLogging();
 }

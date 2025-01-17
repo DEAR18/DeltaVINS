@@ -13,84 +13,84 @@
 namespace DeltaVins {
 
 DataRecorder::DataRecorder() {
-    m_datDir = Config::DataSourcePath;
-    if (m_datDir.empty()) m_datDir = "./data";
-    LOGI("Data Recorder Path:%s", m_datDir.c_str());
-    existOrMkdir(m_datDir);
+    dat_dir_ = Config::DataSourcePath;
+    if (dat_dir_.empty()) dat_dir_ = "./data";
+    LOGI("Data Recorder Path:%s", dat_dir_.c_str());
+    existOrMkdir(dat_dir_);
 
-    existOrMkdir(m_datDir + "/cam0");
-    existOrMkdir(m_datDir + "/imu0");
-    m_imuFile = fopen((m_datDir + "/imu0/data.csv").c_str(), "w");
-    m_camFile = fopen((m_datDir + "/cam0/data.csv").c_str(), "w");
-    haveImage = false;
+    existOrMkdir(dat_dir_ + "/cam0");
+    existOrMkdir(dat_dir_ + "/imu0");
+    imu_file_ = fopen((dat_dir_ + "/imu0/data.csv").c_str(), "w");
+    cam_file_ = fopen((dat_dir_ + "/cam0/data.csv").c_str(), "w");
+    flag_have_image_ = false;
 }
 
 DataRecorder::~DataRecorder() {
-    fclose(m_imuFile);
-    fclose(m_camFile);
-    m_thread->join();
-    delete m_thread;
+    fclose(imu_file_);
+    fclose(cam_file_);
+    thread_->join();
+    delete thread_;
 }
 
-void DataRecorder::onImageReceived(ImageData::Ptr imageData) {
-    //        std::lock_guard<std::mutex> lck(imageMutex);
+void DataRecorder::OnImageReceived(ImageData::Ptr imageData) {
+    //        std::lock_guard<std::mutex> lck(image_mutex_);
     if (Config::RunVIO) {
-        this->imageData = imageData;
-        haveImage = true;
+        this->image_data_ = imageData;
+        flag_have_image_ = true;
     } else {
-        static ImageBuffer &buffer = ImageBuffer::getInstance();
-        buffer.pushImage(imageData);
+        static ImageBuffer &buffer = ImageBuffer::Instance();
+        buffer.PushImage(imageData);
     }
-    wakeUpMovers();
+    WakeUpMovers();
 }
 
-void DataRecorder::doWhatYouNeedToDo() {
-    static ImuBuffer &imuBuffer = ImuBuffer::getInstance();
-    static ImageBuffer &imageBuffer = ImageBuffer::getInstance();
+void DataRecorder::DoWhatYouNeedToDo() {
+    static ImuBuffer &imuBuffer = ImuBuffer::Instance();
+    static ImageBuffer &imageBuffer = ImageBuffer::Instance();
 
     char fileName[100];
 
     static int imuTail = -1;
     if (Config::RecordIMU) {
-        if (imuTail == -1) imuTail = imuBuffer.m_tail;
+        if (imuTail == -1) imuTail = imuBuffer.tail_;
         for (int i = 0; i < Config::nImuPerImage + 10; ++i) {
-            if (imuTail == imuBuffer.m_head) {
+            if (imuTail == imuBuffer.head_) {
                 break;
             }
-            ImuData &data = imuBuffer._buf[imuTail];
-            fprintf(m_imuFile, "%lld,%d,%d,%f,%f,%f,%f,%f,%f\n", data.timestamp,
+            ImuData &data = imuBuffer.buf_[imuTail];
+            fprintf(imu_file_, "%lld,%d,%d,%f,%f,%f,%f,%f,%f\n", data.timestamp,
                     data.idx, data.syncFlag, data.gyro(0), data.gyro(1),
                     data.gyro(2), data.acc(0), data.acc(1), data.acc(2));
             imuTail = imuBuffer.getDeltaIndex(imuTail, 1);
         }
-        fflush(m_imuFile);
+        fflush(imu_file_);
     }
 
-    static ImageBuffer &buffer = ImageBuffer::getInstance();
-    if (!Config::RunVIO) imageData = buffer.popTailImage();
+    static ImageBuffer &buffer = ImageBuffer::Instance();
+    if (!Config::RunVIO) image_data_ = buffer.PopTailImage();
     if (Config::RecordImage) {
         {
-            std::lock_guard<std::mutex> lck(imageMutex);
-            sprintf(fileName, "cam0/%lld.png", imageData->timestamp);
-            fprintf(m_camFile, "%lld,%s\n", imageData->timestamp, fileName);
-            cv::imwrite(m_datDir + "/" + fileName, imageData->image);
+            std::lock_guard<std::mutex> lck(image_mutex_);
+            sprintf(fileName, "cam0/%lld.png", image_data_->timestamp);
+            fprintf(cam_file_, "%lld,%s\n", image_data_->timestamp, fileName);
+            cv::imwrite(dat_dir_ + "/" + fileName, image_data_->image);
         }
     }
-    if (!Config::NoGUI && m_frameAdapter) {
-        if (imageData->image.channels() == 1)
-            cv::cvtColor(imageData->image, imageData->image, CV_GRAY2BGR);
-        m_frameAdapter->pushImageTexture(
-            imageData->image.data, imageData->image.cols, imageData->image.rows,
-            imageData->image.channels());
+    if (!Config::NoGUI && frame_adapter_) {
+        if (image_data_->image.channels() == 1)
+            cv::cvtColor(image_data_->image, image_data_->image, CV_GRAY2BGR);
+        frame_adapter_->PushImageTexture(
+            image_data_->image.data, image_data_->image.cols, image_data_->image.rows,
+            image_data_->image.channels());
     }
-    haveImage = false;
-    fflush(m_camFile);
+    flag_have_image_ = false;
+    fflush(cam_file_);
 }
 
-bool DataRecorder::haveThingsTodo() {
-    static ImageBuffer &buffer = ImageBuffer::getInstance();
+bool DataRecorder::HaveThingsTodo() {
+    static ImageBuffer &buffer = ImageBuffer::Instance();
     if (Config::RunVIO)
-        return haveImage;
+        return flag_have_image_;
     else
         return !buffer.empty();
 }

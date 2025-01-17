@@ -7,9 +7,9 @@ namespace DeltaVins {
 class TickTock {
    public:
     static cv::TickMeter& get(std::string name);
-    static void start(std::string name);
+    static void Start(std::string name);
     static void restart(std::string name);
-    static void stop(std::string name);
+    static void Stop(std::string name);
     static void outputResult();
     static void outputResultConsole();
 

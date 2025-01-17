@@ -12,27 +12,27 @@ class DataRecorder : public DataSource::ImageObserver, public AbstractModule {
     DataRecorder();
     ~DataRecorder();
     using Ptr = std::shared_ptr<DataRecorder>;
-    void addFrameAdapter(FrameAdapter* adapter) { m_frameAdapter = adapter; }
-    void addWorldPointAdapter(WorldPointAdapter* adapter) {
-        m_worldPointAdapter = adapter;
+    void AddFrameAdapter(FrameAdapter* adapter) { frame_adapter_ = adapter; }
+    void AddWorldPointAdapter(WorldPointAdapter* adapter) {
+        world_point_adapter_ = adapter;
     }
-    void onImageReceived(const ImageData::Ptr imageData) override;
+    void OnImageReceived(const ImageData::Ptr imageData) override;
 
    private:
-    void doWhatYouNeedToDo() override;
+    void DoWhatYouNeedToDo() override;
 
-    bool haveThingsTodo() override;
+    bool HaveThingsTodo() override;
 
-    std::string m_datDir;
-    FILE* m_imuFile = nullptr;
-    FILE* m_camFile = nullptr;
+    std::string dat_dir_;
+    FILE* imu_file_ = nullptr;
+    FILE* cam_file_ = nullptr;
 
-    std::thread* m_thread = nullptr;
-    FrameAdapter* m_frameAdapter = nullptr;
-    WorldPointAdapter* m_worldPointAdapter = nullptr;
-    ImageData::Ptr imageData;
-    std::atomic<bool> haveImage;
-    std::mutex imageMutex;
+    std::thread* thread_ = nullptr;
+    FrameAdapter* frame_adapter_ = nullptr;
+    WorldPointAdapter* world_point_adapter_ = nullptr;
+    ImageData::Ptr image_data_;
+    std::atomic<bool> flag_have_image_;
+    std::mutex image_mutex_;
 };
 
 }  // namespace DeltaVins

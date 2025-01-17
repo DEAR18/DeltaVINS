@@ -22,9 +22,9 @@
 
 namespace DeltaVins {
 
-TwoPointRansac::TwoPointRansac(float maxReprojErr, int maxIterNum) {
-    max_iter_num_ = maxIterNum;
-    max_sqr_reproj_err_ = maxReprojErr * maxReprojErr;
+TwoPointRansac::TwoPointRansac(float max_reproject_err, int max_iter_num) {
+    max_iter_num_ = max_iter_num;
+    max_sqr_reproj_err_ = max_reproject_err * max_reproject_err;
 }
 
 void TwoPointRansac::ComputeEssentialMatrix() {

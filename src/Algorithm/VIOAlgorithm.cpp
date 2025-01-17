@@ -11,115 +11,115 @@
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
-    mp_featureTracker = new FeatureTrackerOpticalFlow_Chen(350);
-    mp_solver = new SquareRootEKFSolver();
-    DataAssociation::InitDataAssociation(mp_solver);
-    mb_Initialized = false;
+    feature_trakcer_ = new FeatureTrackerOpticalFlow_Chen(350);
+    solver_ = new SquareRootEKFSolver();
+    DataAssociation::InitDataAssociation(solver_);
+    initialized_ = false;
 }
 
 VIOAlgorithm::~VIOAlgorithm() {
-    if (mp_featureTracker) {
-        delete mp_featureTracker;
-        mp_featureTracker = nullptr;
+    if (feature_trakcer_) {
+        delete feature_trakcer_;
+        feature_trakcer_ = nullptr;
     }
-    if (mp_solver) {
-        delete mp_solver;
-        mp_solver = nullptr;
+    if (solver_) {
+        delete solver_;
+        solver_ = nullptr;
     }
 }
 
-void VIOAlgorithm::addNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose) {
-    TickTock::start("AddFrame");
+void VIOAlgorithm::AddNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose) {
+    TickTock::Start("AddFrame");
     // Process input data
-    _preProcess(imageData);
+    _PreProcess(imageData);
 
-    if (!mb_Initialized) {
-        mb_Initialized = true;
+    if (!initialized_) {
+        initialized_ = true;
         return;
     }
 
 #if TEST_VISION_MODULE
 
-    _testVisionModule(imageData, pose);
+    _TestVisionModule(imageData, pose);
 
 #else
-    TickTock::start("Propagate");
+    TickTock::Start("Propagate");
     // Propagate states
-    _addImuInformation();
+    _AddImuInformation();
 
-    TickTock::stop("Propagate");
+    TickTock::Stop("Propagate");
 
-    TickTock::start("TrackFeature");
+    TickTock::Start("TrackFeature");
 
     // Track Feature
-    mp_featureTracker->matchNewFrame(m_states.ml_tfs, imageData->image,
-                                     mp_frameNow.get());
-    TickTock::stop("TrackFeature");
+    feature_trakcer_->MatchNewFrame(states_.tfs_, imageData->image,
+                                     frame_now_.get());
+    TickTock::Stop("TrackFeature");
 
-    TickTock::start("Update");
+    TickTock::Start("Update");
 
 #if USE_KEYFRAME
-    _selectKeyframe();
+    _SelectKeyframe();
 #endif
 
     // Update vision measurement
-    _addMeasurement();
-    TickTock::stop("Update");
+    _AddMeasurement();
+    TickTock::Stop("Update");
 
-    TickTock::stop("AddFrame");
+    TickTock::Stop("AddFrame");
 
     // Process output data
-    _postProcess(imageData, pose);
+    _PostProcess(imageData, pose);
 #endif
 }
-void VIOAlgorithm::setWorldPointAdapter(WorldPointAdapter* adapter) {
-    mp_WorldPointAdapter = adapter;
+void VIOAlgorithm::SetWorldPointAdapter(WorldPointAdapter* adapter) {
+    world_point_adapter_ = adapter;
 }
 
-void VIOAlgorithm::setFrameAdapter(FrameAdapter* adapter) {
-    mp_FrameAdapter = adapter;
+void VIOAlgorithm::SetFrameAdapter(FrameAdapter* adapter) {
+    frame_adapter_ = adapter;
 }
-void VIOAlgorithm::_preProcess(const ImageData::Ptr imageData) {
+void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
     auto timestamp = imageData->timestamp;
 
-    mp_frameNow = std::make_shared<Frame>();
-    mp_frameNow->timestamp = timestamp;
+    frame_now_ = std::make_shared<Frame>();
+    frame_now_->timestamp = timestamp;
 
 #if ENABLE_VISUALIZER && !defined(PLATFORM_ARM)
-    mp_frameNow->image = imageData->image.clone();  // Only used for debugging
+    frame_now_->image = imageData->image.clone();  // Only used for debugging
 #endif
-    static auto& imuBuffer = ImuBuffer::getInstance();
+    static auto& imuBuffer = ImuBuffer::Instance();
     // Init system
-    if (m_states.mv_frames.empty()) {
+    if (states_.frames_.empty()) {
         // Get Gravity
-        Vector3f g = imuBuffer.getGravity(timestamp);
+        Vector3f g = imuBuffer.GetGravity(timestamp);
         LOGI("Gravity:%f %f %f\n", g.x(), g.y(), g.z());
         Matrix3f R = getRotFromGravAndMag(g, Eigen::Vector3f(0, 0, 1));
-        imuBuffer.setZeroBias();
-        initialize(R);
-        m_preintergration.t0 = timestamp;
+        imuBuffer.SetZeroBias();
+        Initialize(R);
+        preintergration_.t0 = timestamp;
         return;
     }
-    m_preintergration.t1 = timestamp;
-    imuBuffer.imuPreIntegration(m_preintergration);
+    preintergration_.t1 = timestamp;
+    imuBuffer.ImuPreIntegration(preintergration_);
 
-    m_preintergration.t0 = m_preintergration.t1;
+    preintergration_.t0 = preintergration_.t1;
 }
 
-void VIOAlgorithm::_postProcess(ImageData::Ptr data, Pose::Ptr pose) {
+void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     Vector3f Pwi, Vwi;
     Vector3f bg, ba;
-    auto* camState = mp_frameNow->state;
-    Matrix3f Rwi = camState->m_Rwi;
+    auto* camState = frame_now_->state;
+    Matrix3f Rwi = camState->Rwi;
 
-    Pwi = camState->m_Pwi;
-    Vwi = m_states.vel;
-    pose->timestamp = mp_frameNow->timestamp;
+    Pwi = camState->Pwi;
+    Vwi = states_.vel;
+    pose->timestamp = frame_now_->timestamp;
 
     pose->Pwb = Pwi * 1e3;
     pose->Rwb = Rwi;
 
-    ImuBuffer::getInstance().getBias(bg, ba);
+    ImuBuffer::Instance().GetBias(bg, ba);
 
     Quaternionf _q(Rwi);
 
@@ -151,13 +151,13 @@ void VIOAlgorithm::_postProcess(ImageData::Ptr data, Pose::Ptr pose) {
 #if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP
     if (!Config::NoGUI) {
         cv::Mat trackImage;
-        _drawTrackImage(data, trackImage);
+        _DrawTrackImage(data, trackImage);
         cv::imshow("track", trackImage);
-        assert(mp_FrameAdapter);
-        mp_FrameAdapter->pushImageTexture(trackImage.data, trackImage.cols,
+        assert(frame_adapter_);
+        frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols,
                                           trackImage.rows,
                                           trackImage.channels());
-        mp_FrameAdapter->finishFrame();
+        frame_adapter_->FinishFrame();
     }
 #endif
     // imshow("FeatureTrack",trackImage);
@@ -165,7 +165,7 @@ void VIOAlgorithm::_postProcess(ImageData::Ptr data, Pose::Ptr pose) {
     TickTock::outputResultConsole();
 }
 
-void VIOAlgorithm::_updatePointsAndCamsToVisualizer() {
+void VIOAlgorithm::_UpdatePointsAndCamsToVisualizer() {
 #if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP
 
     static std::vector<WorldPointGL> vPointsGL;
@@ -177,150 +177,150 @@ void VIOAlgorithm::_updatePointsAndCamsToVisualizer() {
 
     static int visCounter = 0;
 
-    for (auto lTrack : m_states.ml_tfs) {
-        if (lTrack->m_pState && lTrack->m_pState->bSlamPoint) {
-            if (lTrack->m_pState->m_idVis < 0)
-                lTrack->m_pState->m_idVis = visCounter++;
-            vPointsGL.emplace_back(lTrack->m_pState->m_Pw * 1e3,
-                                   lTrack->m_pState->m_idVis);
+    for (auto lTrack : states_.tfs_) {
+        if (lTrack->point_state_ && lTrack->point_state_->flag_slam_point) {
+            if (lTrack->point_state_->m_idVis < 0)
+                lTrack->point_state_->m_idVis = visCounter++;
+            vPointsGL.emplace_back(lTrack->point_state_->Pw * 1e3,
+                                   lTrack->point_state_->m_idVis);
         }
     }
 
-    for (auto frame : m_states.mv_frames) {
-        vFramesGL.emplace_back(frame->state->m_Rwi.matrix(),
-                               frame->state->m_Pwi * 1e3, frame->state->m_id);
+    for (auto frame : states_.frames_) {
+        vFramesGL.emplace_back(frame->state->Rwi.matrix(),
+                               frame->state->Pwi * 1e3, frame->state->m_id);
     }
     if (!Config::NoGUI) {
-        assert(mp_FrameAdapter && mp_WorldPointAdapter);
-        mp_FrameAdapter->pushViewMatrix(vFramesGL);
-        mp_WorldPointAdapter->pushWorldPoint(vPointsGL);
+        assert(frame_adapter_ && world_point_adapter_);
+        frame_adapter_->PushViewMatrix(vFramesGL);
+        world_point_adapter_->PushWorldPoint(vPointsGL);
     }
 #endif
 }
 
-void VIOAlgorithm::_drawTrackImage(ImageData::Ptr dataPtr,
+void VIOAlgorithm::_DrawTrackImage(ImageData::Ptr dataPtr,
                                    cv::Mat& trackImage) {
     cvtColor(dataPtr->image, trackImage, CV_GRAY2BGR);
 
-    for (auto lTrack : m_states.ml_tfs) {
-        if (!lTrack->m_bDead) {
-            if (lTrack->m_pState && lTrack->m_pState->bSlamPoint)
-                lTrack->drawFeatureTrack(trackImage, _GREEN_SCALAR);
-            else if (lTrack->m_nObs > 5)
-                lTrack->drawFeatureTrack(trackImage, _BLUE_SCALAR);
+    for (auto lTrack : states_.tfs_) {
+        if (!lTrack->flag_dead) {
+            if (lTrack->point_state_ && lTrack->point_state_->flag_slam_point)
+                lTrack->DrawFeatureTrack(trackImage, _GREEN_SCALAR);
+            else if (lTrack->num_obs > 5)
+                lTrack->DrawFeatureTrack(trackImage, _BLUE_SCALAR);
             else
-                lTrack->drawFeatureTrack(trackImage, _RED_SCALAR);
+                lTrack->DrawFeatureTrack(trackImage, _RED_SCALAR);
         }
     }
 }
 
-void VIOAlgorithm::_drawPredictImage(ImageData::Ptr dataPtr,
+void VIOAlgorithm::_DrawPredictImage(ImageData::Ptr dataPtr,
                                      cv::Mat& predictImage) {
     static std::ofstream fout("Predict.txt");
     cvtColor(dataPtr->image, predictImage, CV_GRAY2BGR);
 
-    for (auto lTrack : m_states.ml_tfs) {
-        if (!lTrack->m_bDead) {
-            if (lTrack->m_vVisualObs.size() >= 2) {
-                int nSize = lTrack->m_vVisualObs.size();
+    for (auto lTrack : states_.tfs_) {
+        if (!lTrack->flag_dead) {
+            if (lTrack->visual_obs.size() >= 2) {
+                int nSize = lTrack->visual_obs.size();
                 cv::line(predictImage,
-                         cv::Point(lTrack->m_vVisualObs[nSize - 2].m_px.x(),
-                                   lTrack->m_vVisualObs[nSize - 2].m_px.y()),
-                         cv::Point(lTrack->m_vVisualObs[nSize - 1].m_px.x(),
-                                   lTrack->m_vVisualObs[nSize - 1].m_px.y()),
+                         cv::Point(lTrack->visual_obs[nSize - 2].px.x(),
+                                   lTrack->visual_obs[nSize - 2].px.y()),
+                         cv::Point(lTrack->visual_obs[nSize - 1].px.x(),
+                                   lTrack->visual_obs[nSize - 1].px.y()),
                          _GREEN_SCALAR);
                 cv::line(predictImage,
-                         cv::Point(lTrack->m_vVisualObs[nSize - 2].m_px.x(),
-                                   lTrack->m_vVisualObs[nSize - 2].m_px.y()),
-                         cv::Point(lTrack->m_PredictedPx.x(),
-                                   lTrack->m_PredictedPx.y()),
+                         cv::Point(lTrack->visual_obs[nSize - 2].px.x(),
+                                   lTrack->visual_obs[nSize - 2].px.y()),
+                         cv::Point(lTrack->predicted_px.x(),
+                                   lTrack->predicted_px.y()),
                          _BLUE_SCALAR);
                 cv::circle(predictImage,
-                           cv::Point(lTrack->m_vVisualObs[nSize - 2].m_px.x(),
-                                     lTrack->m_vVisualObs[nSize - 2].m_px.y()),
+                           cv::Point(lTrack->visual_obs[nSize - 2].px.x(),
+                                     lTrack->visual_obs[nSize - 2].px.y()),
                            2, _RED_SCALAR);
                 cv::circle(predictImage,
-                           cv::Point(lTrack->m_vVisualObs[nSize - 1].m_px.x(),
-                                     lTrack->m_vVisualObs[nSize - 1].m_px.y()),
+                           cv::Point(lTrack->visual_obs[nSize - 1].px.x(),
+                                     lTrack->visual_obs[nSize - 1].px.y()),
                            2, _GREEN_SCALAR);
                 cv::circle(predictImage,
-                           cv::Point(lTrack->m_PredictedPx.x(),
-                                     lTrack->m_PredictedPx.y()),
+                           cv::Point(lTrack->predicted_px.x(),
+                                     lTrack->predicted_px.y()),
                            2, _BLUE_SCALAR);
 
-                fout << lTrack->m_vVisualObs[nSize - 1].m_px.x() -
-                            lTrack->m_vVisualObs[nSize - 2].m_px.x()
+                fout << lTrack->visual_obs[nSize - 1].px.x() -
+                            lTrack->visual_obs[nSize - 2].px.x()
                      << " "
-                     << lTrack->m_vVisualObs[nSize - 1].m_px.y() -
-                            lTrack->m_vVisualObs[nSize - 2].m_px.y()
+                     << lTrack->visual_obs[nSize - 1].px.y() -
+                            lTrack->visual_obs[nSize - 2].px.y()
                      << " "
-                     << lTrack->m_PredictedPx.x() -
-                            lTrack->m_vVisualObs[nSize - 2].m_px.x()
+                     << lTrack->predicted_px.x() -
+                            lTrack->visual_obs[nSize - 2].px.x()
                      << " "
-                     << lTrack->m_PredictedPx.x() -
-                            lTrack->m_vVisualObs[nSize - 2].m_px.x()
+                     << lTrack->predicted_px.x() -
+                            lTrack->visual_obs[nSize - 2].px.x()
                      << std::endl;
             }
         }
     }
 }
 
-void VIOAlgorithm::initialize(const Matrix3f& Rwi) {
-    auto* camState = mp_frameNow->state;
+void VIOAlgorithm::Initialize(const Matrix3f& Rwi) {
+    auto* camState = frame_now_->state;
 
-    camState->m_Rwi = Rwi;
-    camState->m_Pwi.setZero();
-    camState->m_Pw_FEJ.setZero();
-    camState->m_idx = 0;
-    m_states.mv_frames.push_back(mp_frameNow);
-    m_states.vel.setZero();
-    m_states.bStatic = false;
+    camState->Rwi = Rwi;
+    camState->Pwi.setZero();
+    camState->Pw_FEJ.setZero();
+    camState->index_in_window = 0;
+    states_.frames_.push_back(frame_now_);
+    states_.vel.setZero();
+    states_.static_ = false;
 #if USE_PLANE_PRIOR
 #if USE_Z_AXIS
-    m_states.n = Vector3f(0, 0, 1);
+    states_.n = Vector3f(0, 0, 1);
 #else
-    m_states.n = Vector3f(0, 1, 0);
+    states_.n = Vector3f(0, 1, 0);
 #endif
 
-    m_states.m_PlaneCoeff.setZero();
-    mp_solver->init(mp_frameNow->state, &m_states.vel, &m_states.m_PlaneCoeff,
-                    m_states.n, &m_states.bStatic);
+    states_.m_PlaneCoeff.setZero();
+    solver_->init(frame_now_->state, &states_.vel, &states_.m_PlaneCoeff,
+                    states_.n, &states_.static_);
 #else
-    mp_solver->Init(mp_frameNow->state, &m_states.vel, &m_states.bStatic);
+    solver_->Init(frame_now_->state, &states_.vel, &states_.static_);
 #endif
 }
 
-void VIOAlgorithm::_addImuInformation() {
-    mp_solver->AddCamState(mp_frameNow->state);
+void VIOAlgorithm::_AddImuInformation() {
+    solver_->AddCamState(frame_now_->state);
 
-    mp_solver->PropagateStatic(&m_preintergration);
+    solver_->PropagateStatic(&preintergration_);
 #if 0
-		mp_solver->PropagateNew(&m_preintergration);
+		solver_->PropagateNew(&preintergration_);
 #endif
 }
 
-void VIOAlgorithm::_removeDeadFeatures() {
-    m_states.ml_tfs.remove_if([](const TrackedFeature::Ptr& tracked_feature) {
-        return tracked_feature->m_bDead;
+void VIOAlgorithm::_RemoveDeadFeatures() {
+    states_.tfs_.remove_if([](const TrackedFeature::Ptr& tracked_feature) {
+        return tracked_feature->flag_dead;
     });
 }
 
-void VIOAlgorithm::_addMeasurement() {
+void VIOAlgorithm::_AddMeasurement() {
     _DetectStill();
 
-    TickTock::start("Margin");
-    _marginFrames();
-    TickTock::stop("Margin");
+    TickTock::Start("Margin");
+    _MarginFrames();
+    TickTock::Stop("Margin");
 
-    if (m_states.ml_tfs.empty()) return;
+    if (states_.tfs_.empty()) return;
 
-    TickTock::start("DataAssociation");
-    DataAssociation::DoDataAssociation(m_states.ml_tfs, m_states.bStatic);
+    TickTock::Start("DataAssociation");
+    DataAssociation::DoDataAssociation(states_.tfs_, states_.static_);
 
-    TickTock::stop("DataAssociation");
+    TickTock::Stop("DataAssociation");
 #if ENABLE_VISUALIZER && !defined(PLATFORM_ARM)
 #if USE_KEYFRAME
-    DataAssociation::DrawPointsBeforeUpdates(mp_solver->m_vSlamPoint);
+    DataAssociation::DrawPointsBeforeUpdates(solver_->slam_point_);
 #else
     std::vector<PointState*> a;
     DataAssociation::DrawPointsBeforeUpdates(a);
@@ -328,17 +328,17 @@ void VIOAlgorithm::_addMeasurement() {
 
 #endif
 
-    TickTock::start("Stack");
-    _stackInformationFactorMatrix();
+    TickTock::Start("Stack");
+    _StackInformationFactorMatrix();
 
-    TickTock::stop("Stack");
+    TickTock::Stop("Stack");
 
-    TickTock::start("Solve");
-    mp_solver->solveAndUpdateStates();
-    TickTock::stop("Solve");
+    TickTock::Start("Solve");
+    solver_->SolveAndUpdateStates();
+    TickTock::Stop("Solve");
 #if ENABLE_VISUALIZER && !defined(PLATFORM_ARM)
 #if USE_KEYFRAME
-    DataAssociation::DrawPointsAfterUpdates(mp_solver->m_vSlamPoint);
+    DataAssociation::DrawPointsAfterUpdates(solver_->slam_point_);
 
 #else
     DataAssociation::DrawPointsAfterUpdates(a);
@@ -347,29 +347,29 @@ void VIOAlgorithm::_addMeasurement() {
     if (!Config::NoGUI) cv::waitKey(5);
 #endif
 #if ENABLE_VISUALIZER_TCP || ENABLE_VISUALIZER
-    if (!Config::NoGUI) _updatePointsAndCamsToVisualizer();
+    if (!Config::NoGUI) _UpdatePointsAndCamsToVisualizer();
 #endif
-    _removeDeadFeatures();
+    _RemoveDeadFeatures();
 }
 
-void VIOAlgorithm::_selectFrames2Margin() {
-    int nCams = m_states.mv_frames.size();
+void VIOAlgorithm::_SelectFrames2Margin() {
+    int nCams = states_.frames_.size();
     int cnt = 0;
 #if USE_KEYFRAME
     int nKF = 0;
 #endif
-    for (auto& frame : m_states.mv_frames) {
+    for (auto& frame : states_.frames_) {
 #if USE_KEYFRAME
-        if (frame->m_bKeyframe) {
+        if (frame->flag_keyframe) {
             nKF++;
         }
 
 #endif
 
-        if (frame->m_vTrackedFeatures.empty()) {
+        if (frame->tracked_features.empty()) {
             cnt++;
-            frame->removeAllFeatures();
-            frame->state->m_bToMargin = true;
+            frame->RemoveAllFeatures();
+            frame->state->flag_to_marginalize = true;
         }
     }
     if (!cnt && nCams >= MAX_WINDOW_SIZE) {
@@ -379,7 +379,7 @@ void VIOAlgorithm::_selectFrames2Margin() {
 #if USE_KEYFRAME
         if (nKF > 4) {
             for (int i = 0, j = 0; i < nCams; ++i) {
-                if (m_states.mv_frames[i]->m_bKeyframe) {
+                if (states_.frames_[i]->flag_keyframe) {
                     if (j) {
                         camIdxToMargin = i;
                         break;
@@ -389,77 +389,77 @@ void VIOAlgorithm::_selectFrames2Margin() {
             }
         } else {
             while (camIdxToMargin < nCams &&
-                   m_states.mv_frames[camIdxToMargin]->m_bKeyframe) {
+                   states_.frames_[camIdxToMargin]->flag_keyframe) {
                 camIdxToMargin++;
             }
             if (camIdxToMargin >= nCams - 1) camIdxToMargin = 1;
         }
 #endif
-        m_states.mv_frames[camIdxToMargin]->removeAllFeatures();
-        m_states.mv_frames[camIdxToMargin]->state->m_bToMargin = true;
+        states_.frames_[camIdxToMargin]->RemoveAllFeatures();
+        states_.frames_[camIdxToMargin]->state->flag_to_marginalize = true;
     }
 }
 
 #if USE_KEYFRAME
-void VIOAlgorithm::_selectKeyframe() {
-    if (m_states.ml_tfs.empty()) return;
+void VIOAlgorithm::_SelectKeyframe() {
+    if (states_.tfs_.empty()) return;
 
     auto setkeyframe = [&]() {
-        mp_lastKeyframe->m_bKeyframe = true;
-        for (auto& point : m_states.ml_tfs) {
-            if (!point->m_pHostFrame)
-                point->m_pHostFrame = mp_lastKeyframe.get();
+        last_keyframe_->flag_keyframe = true;
+        for (auto& point : states_.tfs_) {
+            if (!point->host_frame)
+                point->host_frame = last_keyframe_.get();
         }
     };
 
-    if (mp_lastKeyframe == nullptr) {
-        mp_lastKeyframe = mp_frameNow;
+    if (last_keyframe_ == nullptr) {
+        last_keyframe_ = frame_now_;
         setkeyframe();
         return;
     }
 
-    float nLastKeyframePoints = mp_lastKeyframe->m_vTrackedFeatures.size();
+    float nLastKeyframePoints = last_keyframe_->tracked_features.size();
 
-    float nPointsNow = mp_frameNow->m_vTrackedFeatures.size();
+    float nPointsNow = frame_now_->tracked_features.size();
 
     if (nPointsNow == 0) {
-        mp_lastKeyframe = nullptr;
+        last_keyframe_ = nullptr;
         return;
     }
 
     if (nLastKeyframePoints / nPointsNow < 0.6) {
-        mp_lastKeyframe = mp_frameNow;
+        last_keyframe_ = frame_now_;
         setkeyframe();
     }
 }
 #endif
-void VIOAlgorithm::_marginFrames() {
+void VIOAlgorithm::_MarginFrames() {
     std::vector<Frame::Ptr> vCamStatesNew;
 
-    _selectFrames2Margin();
+    _SelectFrames2Margin();
 
 #if USE_GIVENS_MARGIN
-    mp_solver->marginalizeGivens();
+    solver_->MarginalizeGivens();
 #else
-    mp_solver->marginalizeStatic();
+    solver_->MarginalizeStatic();
 #endif
 
-    for (auto frame : m_states.mv_frames)
-        if (!frame->state->m_bToMargin) vCamStatesNew.push_back(frame);
-    m_states.mv_frames = vCamStatesNew;
-    m_states.mv_frames.push_back(mp_frameNow);
+    for (auto frame : states_.frames_)
+        if (!frame->state->flag_to_marginalize) vCamStatesNew.push_back(frame);
+    states_.frames_ = vCamStatesNew;
+    states_.frames_.push_back(frame_now_);
 }
 
-void VIOAlgorithm::_stackInformationFactorMatrix() {
-    int nDIM = mp_solver->stackInformationFactorMatrix();
+void VIOAlgorithm::_StackInformationFactorMatrix() {
+    int nDIM = solver_->StackInformationFactorMatrix();
     if (!nDIM) {
-        if (m_states.bStatic) {
-            mp_solver->addVelocityConstraint(nDIM);
+        if (states_.static_) {
+            solver_->AddVelocityConstraint(nDIM);
         }
     }
 }
 
-bool VIOAlgorithm::_visionStatic() {
+bool VIOAlgorithm::_VisionStatic() {
 #if USE_NEW_STATIC_DETECT
 
     int nPxStatic = 0;
@@ -468,9 +468,9 @@ bool VIOAlgorithm::_visionStatic() {
 
     float pxThresh = 0.5 * 0.5;
 
-    for (auto ftTrack : m_states.ml_tfs) {
-        if (ftTrack->m_vVisualObs.size() >= 2) {
-            if (ftTrack->m_LastMovedPx < pxThresh) nPxStatic++;
+    for (auto ftTrack : states_.tfs_) {
+        if (ftTrack->visual_obs.size() >= 2) {
+            if (ftTrack->last_moved_px < pxThresh) nPxStatic++;
             nAllPx++;
         }
     }
@@ -483,9 +483,9 @@ bool VIOAlgorithm::_visionStatic() {
 #else
     float max_parallax = 0;
     int n = 0;
-    for (auto ftTrack : m_states.ml_tfs) {
-        if (ftTrack->m_vVisualObs.size() >= 2) {
-            max_parallax += sqrt(ftTrack->m_LastMovedPx);
+    for (auto ftTrack : states_.tfs_) {
+        if (ftTrack->visual_obs.size() >= 2) {
+            max_parallax += sqrt(ftTrack->last_moved_px);
             ++n;
         }
     }
@@ -513,47 +513,47 @@ bool VIOAlgorithm::_visionStatic() {
 
 void VIOAlgorithm::_DetectStill() {
 #if USE_NEW_STATIC_DETECT
-    static auto& buffer = ImuBuffer::getInstance();
-    bool bStatic = buffer.detectStatic(mp_frameNow->timestamp);
+    static auto& buffer = ImuBuffer::Instance();
+    bool bStatic = buffer.DetectStatic(frame_now_->timestamp);
 
     if (bStatic) {
-        if (_visionStatic()) {
-            m_states.bStatic = true;
+        if (_VisionStatic()) {
+            states_.static_ = true;
             return;
         }
     }
 
-    m_states.bStatic = false;
+    states_.static_ = false;
 #else
 
-    m_states.bStatic = _visionStatic();
+    states_.bStatic = _VisionStatic();
 #endif
 }
 
-void VIOAlgorithm::_testVisionModule(const ImageData::Ptr data,
+void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
                                      Pose::Ptr pose) {
-    _addImuInformation();
-    _marginFrames();
-    if (!mp_featureTracker)
-        mp_featureTracker = new FeatureTrackerOpticalFlow_Chen(350);
+    _AddImuInformation();
+    _MarginFrames();
+    if (!feature_trakcer_)
+        feature_trakcer_ = new FeatureTrackerOpticalFlow_Chen(350);
 
-    mp_featureTracker->matchNewFrame(m_states.ml_tfs, data->image,
-                                     mp_frameNow.get());
+    feature_trakcer_->MatchNewFrame(states_.tfs_, data->image,
+                                     frame_now_.get());
 
-    m_states.ml_tfs.remove_if(
-        [](TrackedFeature::Ptr& lf) { return lf->m_bDead; });
+    states_.tfs_.remove_if(
+        [](TrackedFeature::Ptr& lf) { return lf->flag_dead; });
 
-    LOGI("%d Point remain", m_states.ml_tfs.size());
+    LOGI("%d Point remain", states_.tfs_.size());
 
 #if ENABLE_VISUALIZER
     cv::Mat trackImage;
     cv::Mat PredictImage;
-    _drawTrackImage(data, trackImage);
-    _drawPredictImage(data, PredictImage);
+    _DrawTrackImage(data, trackImage);
+    _DrawPredictImage(data, PredictImage);
     cv::imshow("Predict", PredictImage);
     cv::waitKey(0);
 #endif
-    _postProcess(data, pose);
+    _PostProcess(data, pose);
 }
 
 }  // namespace DeltaVins

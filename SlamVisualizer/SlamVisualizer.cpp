@@ -33,70 +33,70 @@ std::istream& operator>>(std::istream& is, CustomType& o) {
 pangolin::Var<bool> FollowCamera("ui.A_Button", false, true);
 std::vector<pangolin::Viewport> v2Save;
 
-void SlamVisualizer::finishFrame() {
-    if (m_bFrameByFrame) {
-        std::unique_lock<std::mutex> lck(m_mtxFrameByFrame);
-        m_cvFrameByFrame.wait(lck);
+void SlamVisualizer::FinishFrame() {
+    if (flag_frame_by_frame_) {
+        std::unique_lock<std::mutex> lck(mtx_frame_by_frame_);
+        cv_frame_by_frame_.wait(lck);
     }
 }
 
-void SlamVisualizer::pushViewMatrix(std::vector<FrameGL>& v_Frames) {
-    std::lock_guard<std::mutex> lck(m_mtxFrame);
-    std::for_each(m_vFrames.begin(), m_vFrames.end(),
-                  [](FrameGL& frame) { frame.m_type = 0; });
+void SlamVisualizer::PushViewMatrix(std::vector<FrameGL>& v_Frames) {
+    std::lock_guard<std::mutex> lck(mtx_frame_);
+    std::for_each(frames_.begin(), frames_.end(),
+                  [](FrameGL& frame) { frame.type = 0; });
     for (auto& frame : v_Frames) {
-        if (frame.m_id >= m_vFrames.size()) {
-            m_vFrames.reserve(frame.m_id * 1.5);
-            m_vFrames.resize(frame.m_id + 1);
+        if (frame.m_id >= frames_.size()) {
+            frames_.reserve(frame.m_id * 1.5);
+            frames_.resize(frame.m_id + 1);
         }
-        m_vFrames[frame.m_id] = std::move(frame);
+        frames_[frame.m_id] = std::move(frame);
     }
-    T_wc = OpenGlMatrix::ColMajor4x4(m_vFrames.back().m_Twc.data());
+    T_wc = OpenGlMatrix::ColMajor4x4(frames_.back().Twc.data());
 }
 
-void SlamVisualizer::pushImageTexture(unsigned char* imageTexture,
+void SlamVisualizer::PushImageTexture(unsigned char* imageTexture,
                                       const int width, const int height,
                                       const int channels) {
-    std::lock_guard<std::mutex> lck(m_mtxImageTexture);
-    if (m_height * m_width * m_channels < width * height * channels) {
-        m_height = height;
-        m_width = width;
-        m_channels = channels;
-        delete[] m_pImageTexture;
-        m_pImageTexture = new unsigned char[m_width * m_height * m_channels];
+    std::lock_guard<std::mutex> lck(mtx_image_texture_);
+    if (height_ * width_ * channels_ < width * height * channels) {
+        height_ = height;
+        width_ = width;
+        channels_ = channels;
+        delete[] image_texture_;
+        image_texture_ = new unsigned char[width_ * height_ * channels_];
     }
 
-    memcpy(m_pImageTexture, imageTexture, m_width * m_height * m_channels);
+    memcpy(image_texture_, imageTexture, width_ * height_ * channels_);
 }
 
-void SlamVisualizer::pushWorldPoint(
+void SlamVisualizer::PushWorldPoint(
     const std::vector<WorldPointGL>& v_Point3f) {
-    std::lock_guard<std::mutex> lck(m_mtxPoint);
+    std::lock_guard<std::mutex> lck(mtx_point_);
 
     for (auto& p : v_Point3f) {
-        if (p.m_id * 3 > m_iPointBufferSize) {
-            m_iPointBufferSize = int(p.m_id * 4);
-            m_pWorldPoints.resize(m_iPointBufferSize);
+        if (p.m_id * 3 > num_point_buffer_size_) {
+            num_point_buffer_size_ = int(p.m_id * 4);
+            world_points_.resize(num_point_buffer_size_);
         }
 
-        m_pWorldPoints[p.m_id * 3] = p.m_P.x();
-        m_pWorldPoints[p.m_id * 3 + 1] = p.m_P.y();
-        m_pWorldPoints[p.m_id * 3 + 2] = p.m_P.z();
-        if (p.m_id >= m_iPointSize) m_iPointSize = p.m_id + 1;
+        world_points_[p.m_id * 3] = p.P.x();
+        world_points_[p.m_id * 3 + 1] = p.P.y();
+        world_points_[p.m_id * 3 + 2] = p.P.z();
+        if (p.m_id >= point_size_) point_size_ = p.m_id + 1;
     }
 }
 
 SlamVisualizer::SlamVisualizer(int width, int height)
-    : m_width(width), m_height(height) {
-    m_channels = 3;
-    m_pImageTexture = new unsigned char[m_height * m_width * m_channels];
-    m_iPointBufferSize = 1000;
-    m_pWorldPoints.resize(m_iPointBufferSize);
-    m_iPointSize = 0;
-    m_bFrameByFrame.store(false);
+    : width_(width), height_(height) {
+    channels_ = 3;
+    image_texture_ = new unsigned char[height_ * width_ * channels_];
+    num_point_buffer_size_ = 1000;
+    world_points_.resize(num_point_buffer_size_);
+    point_size_ = 0;
+    flag_frame_by_frame_.store(false);
 }
 
-SlamVisualizer::~SlamVisualizer() { delete[] m_pImageTexture; }
+SlamVisualizer::~SlamVisualizer() { delete[] image_texture_; }
 // float view[16] = { -0.770377,       0.124414,        -0.625332, 213.769,
 //-0.590902,       0.229077,        0.773537,        1396.4,
 // 0.239488,        0.965425 ,       -0.102959  ,     -5354.47,
@@ -109,35 +109,35 @@ float view[16] = {0.970367,    0.033256,    0.239337,      0.000000,
 void SlamVisualizer::render() {
     const int UI_WIDTH = 180;
     // Create OpenGL window in single line
-    pangolin::CreateWindowAndBind("SlamVisualizer", m_width * 2 + UI_WIDTH,
-                                  m_height);
+    pangolin::CreateWindowAndBind("SlamVisualizer", width_ * 2 + UI_WIDTH,
+                                  height_);
     // 3D Mouse handler requires depth testing to be enabled
     glEnable(GL_DEPTH_TEST);
 
     OpenGlMatrix v = OpenGlMatrix::ColMajor4x4(view);
     // v = v.Transpose();
     //  Define Camera Render Object (for view / scene browsing)
-    m_viewMatrix.SetProjectionMatrix(
+    view_matrix_.SetProjectionMatrix(
         pangolin::ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.1, 100000));
-    // m_viewMatrix.SetModelViewMatrix(pangolin::ModelViewLookAt(-0, 0, -100, 0,
+    // view_matrix_.SetModelViewMatrix(pangolin::ModelViewLookAt(-0, 0, -100, 0,
     // 0, 0, pangolin::AxisY));
-    m_viewMatrix.SetModelViewMatrix(v);
+    view_matrix_.SetModelViewMatrix(v);
 
-    m_FollowMatrix = m_viewMatrix;
+    follow_matrix_ = view_matrix_;
 
-    pangolin::Handler3D handler3D(m_viewMatrix);
+    pangolin::Handler3D handler3D(view_matrix_);
 
     View& view3D = pangolin::Display("Geometry");
 
     view3D
         .SetBounds(0., 1., pangolin::Attach::Pix(UI_WIDTH),
-                   pangolin::Attach::Pix(UI_WIDTH + m_width), 640. / 480.)
+                   pangolin::Attach::Pix(UI_WIDTH + width_), 640. / 480.)
         .SetHandler(&handler3D);
 
     View& viewImageTexture = pangolin::Display("ImageTexture");
 
     viewImageTexture
-        .SetBounds(0., 1., pangolin::Attach::Pix(UI_WIDTH + m_width), 1.,
+        .SetBounds(0., 1., pangolin::Attach::Pix(UI_WIDTH + width_), 1.,
                    -640. / 480.)
         .SetLock(pangolin::LockRight, pangolin::LockBottom);
 
@@ -176,15 +176,15 @@ void SlamVisualizer::render() {
     pangolin::RegisterKeyPressCallback('s', SaveMvpMatrixMethod);
 
     pangolin::RegisterKeyPressCallback('d', [this]() {
-        std::unique_lock<std::mutex> lck(m_mtxFrameByFrame);
-        m_cvFrameByFrame.notify_all();
+        std::unique_lock<std::mutex> lck(mtx_frame_by_frame_);
+        cv_frame_by_frame_.notify_all();
     });
 
     pangolin::RegisterKeyPressCallback('e', [this]() {
-        if (m_bFrameByFrame)
-            m_bFrameByFrame.store(false);
+        if (flag_frame_by_frame_)
+            flag_frame_by_frame_.store(false);
         else
-            m_bFrameByFrame.store(true);
+            flag_frame_by_frame_.store(true);
     });
 
     while (!pangolin::ShouldQuit()) {
@@ -203,14 +203,14 @@ void SlamVisualizer::render() {
 }
 
 void SlamVisualizer::_drawImageTexture() {
-    std::lock_guard<std::mutex> lck(m_mtxImageTexture);
+    std::lock_guard<std::mutex> lck(mtx_image_texture_);
     glColor3f(1.0, 1.0, 1.0);
     // Activate efficiently by object
-    m_GLTexture.Reinitialise(m_width, m_height, GL_RGB, 0, 0, GL_BGR,
-                             GL_UNSIGNED_BYTE, m_pImageTexture);
+    gl_texture_.Reinitialise(width_, height_, GL_RGB, 0, 0, GL_BGR,
+                             GL_UNSIGNED_BYTE, image_texture_);
 
     pangolin::Display("ImageTexture").Activate();
-    m_GLTexture.RenderToViewportFlipY();
+    gl_texture_.RenderToViewportFlipY();
     if (bRecord) {
         auto& textView = pangolin::Display("ImageTexture");
         const Viewport tosave = textView.v.Intersect(textView.vp);
@@ -223,17 +223,17 @@ void SlamVisualizer::_drawGeometry() {
 
     pangolin::Display("Geometry").Activate();
     if (FollowCamera.Get()) {
-        m_FollowMatrix.SetModelViewMatrix(m_viewMatrix.GetModelViewMatrix() *
+        follow_matrix_.SetModelViewMatrix(view_matrix_.GetModelViewMatrix() *
                                           T_wc.Inverse());
 
     } else {
-        m_FollowMatrix.SetModelViewMatrix(m_viewMatrix.GetModelViewMatrix());
+        follow_matrix_.SetModelViewMatrix(view_matrix_.GetModelViewMatrix());
     }
     if (saveMvp) {
-        std::cout << m_FollowMatrix.GetModelViewMatrix() << std::endl;
+        std::cout << follow_matrix_.GetModelViewMatrix() << std::endl;
         saveMvp.store(false);
     }
-    m_FollowMatrix.Apply();
+    follow_matrix_.Apply();
     _drawWorldAxis();
 
     glDrawColouredCube(-50, 50);
@@ -255,26 +255,26 @@ void SlamVisualizer::_clear() {
 }
 
 void SlamVisualizer::_drawWorldPoints() {
-    std::lock_guard<std::mutex> lck(m_mtxPoint);
+    std::lock_guard<std::mutex> lck(mtx_point_);
 
     glPointSize(5);
     glEnableClientState(GL_VERTEX_ARRAY);
     glColor4f(1, 0, 0, 1);
-    glVertexPointer(3, GL_FLOAT, 0, &m_pWorldPoints[0]);
-    glDrawArrays(GL_POINTS, 0, m_iPointSize);
+    glVertexPointer(3, GL_FLOAT, 0, &world_points_[0]);
+    glDrawArrays(GL_POINTS, 0, point_size_);
     glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 void SlamVisualizer::_drawCameraFrustum() {
-    std::lock_guard<std::mutex> lck(m_mtxFrame);
+    std::lock_guard<std::mutex> lck(mtx_frame_);
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
-    for (int i = 1, n = m_vFrames.size(); i < n; ++i) {
+    for (int i = 1, n = frames_.size(); i < n; ++i) {
         glLoadIdentity();
-        glMultMatrixd((m_FollowMatrix.GetModelViewMatrix() *
-                       OpenGlMatrix::ColMajor4x4(m_vFrames[i].m_Twc.data()))
+        glMultMatrixd((follow_matrix_.GetModelViewMatrix() *
+                       OpenGlMatrix::ColMajor4x4(frames_[i].Twc.data()))
                           .m);
-        if (m_vFrames[i].m_type == 1)
+        if (frames_[i].type == 1)
             glColor4f(0, 0, 1, 1);
         else
             glColor4f(0, 1, 0, 1);
@@ -283,19 +283,19 @@ void SlamVisualizer::_drawCameraFrustum() {
     glPopMatrix();
 }
 
-void SlamVisualizer::start() {
-    m_thread = new std::thread(std::mem_fn(&SlamVisualizer::render), this);
+void SlamVisualizer::Start() {
+    thread_ = new std::thread(std::mem_fn(&SlamVisualizer::render), this);
 }
 
-void SlamVisualizer::join() {
-    if (m_thread->joinable()) {
-        m_thread->join();
+void SlamVisualizer::Join() {
+    if (thread_->joinable()) {
+        thread_->join();
     }
 }
 
-void SlamVisualizer::stop() {}
+void SlamVisualizer::Stop() {}
 
-void SlamVisualizer::detach() { m_thread->detach(); }
+void SlamVisualizer::detach() { thread_->detach(); }
 const float world_axis[] = {0, 0,   0, 100, 0, 0, 0, 0, 0,
                             0, 100, 0, 0,   0, 0, 0, 0, 100};
 

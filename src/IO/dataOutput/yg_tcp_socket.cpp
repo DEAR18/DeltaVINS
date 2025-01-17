@@ -30,7 +30,7 @@ bool YG_TCP_Client::InitTcpClient(const char* ip, unsigned short port,
     host_addr.sin_port = htons(port);
 
     if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        LOGE("start tcp client error:%s.ip: %s port: %d", strerror(errno), ip,
+        LOGE("Start tcp client error:%s.ip: %s port: %d", strerror(errno), ip,
              port);
         return false;
     }
@@ -111,7 +111,7 @@ YG_TCP_Server::~YG_TCP_Server() {
     socket_len = -1;
 }
 bool YG_TCP_Server::InitTcpServer(unsigned short port, unsigned int size) {
-    printf("start tcp server.port: %d listen buffer:%d\n", port, size);
+    printf("Start tcp server.port: %d listen buffer:%d\n", port, size);
     if (socket_server != -1) {
         close(socket_server);
     }
@@ -121,7 +121,7 @@ bool YG_TCP_Server::InitTcpServer(unsigned short port, unsigned int size) {
     host_addr.sin_port = htons(port);
 
     if ((socket_server = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("start tcp server error:%s.port: %d\n", strerror(errno), port);
+        printf("Start tcp server error:%s.port: %d\n", strerror(errno), port);
         return false;
     }
 

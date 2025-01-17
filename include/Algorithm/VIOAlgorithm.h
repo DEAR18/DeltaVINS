@@ -14,17 +14,17 @@ class VIOAlgorithm {
     VIOAlgorithm();
     ~VIOAlgorithm();
 
-    void addNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose);
+    void AddNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose);
 
-    void setWorldPointAdapter(WorldPointAdapter* adapter);
-    void setFrameAdapter(FrameAdapter* adapter);
+    void SetWorldPointAdapter(WorldPointAdapter* adapter);
+    void SetFrameAdapter(FrameAdapter* adapter);
 
    private:
     struct SystemStates {
         Vector3f vel;
-        std::vector<Frame::Ptr> mv_frames;
-        std::list<TrackedFeature::Ptr> ml_tfs;
-        bool bStatic;
+        std::vector<Frame::Ptr> frames_;
+        std::list<TrackedFeature::Ptr> tfs_;
+        bool static_;
 #if USE_PLANE_PRIOR
         Vector3f m_PlaneCoeff;
         Vector3f n;
@@ -32,42 +32,42 @@ class VIOAlgorithm {
 #endif
     };
 
-    void _preProcess(const ImageData::Ptr imageData);
-    void _postProcess(ImageData::Ptr data, Pose::Ptr pose);
-    void _updatePointsAndCamsToVisualizer();
-    void _drawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage);
-    void _drawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage);
-    void initialize(const Matrix3f& Rwi);
+    void _PreProcess(const ImageData::Ptr imageData);
+    void _PostProcess(ImageData::Ptr data, Pose::Ptr pose);
+    void _UpdatePointsAndCamsToVisualizer();
+    void _DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage);
+    void _DrawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage);
+    void Initialize(const Matrix3f& Rwi);
 
-    void _addImuInformation();
-    void _removeDeadFeatures();
-    void _marginFrames();
-    void _stackInformationFactorMatrix();
+    void _AddImuInformation();
+    void _RemoveDeadFeatures();
+    void _MarginFrames();
+    void _StackInformationFactorMatrix();
     void _DetectStill();
-    void _testVisionModule(const ImageData::Ptr data, Pose::Ptr pose);
-    void _addMeasurement();
-    void _selectFrames2Margin();
+    void _TestVisionModule(const ImageData::Ptr data, Pose::Ptr pose);
+    void _AddMeasurement();
+    void _SelectFrames2Margin();
 
-    bool _visionStatic();
+    bool _VisionStatic();
 
-    FeatureTrackerOpticalFlow_Chen* mp_featureTracker = nullptr;
-    SquareRootEKFSolver* mp_solver = nullptr;
-    SystemStates m_states;
-    Frame::Ptr mp_frameNow = nullptr;
+    FeatureTrackerOpticalFlow_Chen* feature_trakcer_ = nullptr;
+    SquareRootEKFSolver* solver_ = nullptr;
+    SystemStates states_;
+    Frame::Ptr frame_now_ = nullptr;
 
-    ImuPreintergration m_preintergration;
+    ImuPreintergration preintergration_;
 
-    bool mb_Initialized;
+    bool initialized_;
 
 #if USE_KEYFRAME
-    Frame::Ptr mp_lastKeyframe = nullptr;
-    void _selectKeyframe();
+    Frame::Ptr last_keyframe_ = nullptr;
+    void _SelectKeyframe();
 #endif
 
     /************* Output **********************/
 
-    FrameAdapter* mp_FrameAdapter = nullptr;
-    WorldPointAdapter* mp_WorldPointAdapter = nullptr;
+    FrameAdapter* frame_adapter_ = nullptr;
+    WorldPointAdapter* world_point_adapter_ = nullptr;
 };
 
 }  // namespace DeltaVins

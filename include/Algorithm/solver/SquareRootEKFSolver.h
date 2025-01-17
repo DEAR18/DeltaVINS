@@ -22,7 +22,7 @@ class SquareRootEKFSolver {
               Vector3f *planeCoeff, Vector3f n
 #endif
               ,
-              bool *bStatic);
+              bool *static_);
     void AddCamState(CamState *state);
 
     void Propagate(const ImuPreintergration *pImuTerm);
@@ -31,39 +31,39 @@ class SquareRootEKFSolver {
 
     void PropagateNew(const ImuPreintergration *pImuTerm);
 
-    void marginalize();
+    void Marginalize();
 
-    void marginalizeNew();
+    void MarginalizeNew();
 
-    void marginalizeStatic();
+    void MarginalizeStatic();
 
-    void marginalizeGivens();
+    void MarginalizeGivens();
 
     bool MahalanobisTest(PointState *state);
 
-    int computeJacobians(TrackedFeature *track);
+    int ComputeJacobians(TrackedFeature *track);
 
-    void addMsckfPoint(PointState *state);
+    void AddMsckfPoint(PointState *state);
 
-    void addSlamPoint(PointState *state);
+    void AddSlamPoint(PointState *state);
 
-    void addVelocityConstraint(int nRows);
+    void AddVelocityConstraint(int nRows);
 
-    int _addPlaneContraint();
-    int stackInformationFactorMatrix();
+    int _AddPlaneContraint();
+    int StackInformationFactorMatrix();
 
-    void solveAndUpdateStates();
+    void SolveAndUpdateStates();
 
-    int _addNewSlamPointConstraint();
+    int _AddNewSlamPointConstraint();
 
-    int addSlamPointConstraint();
+    int AddSlamPointConstraint();
 
    private:
-    void _updateByGivensRotations(int row, int col);
+    void _UpdateByGivensRotations(int row, int col);
 
-    bool _detectPureRotation();
+    bool _DetectPureRotation();
 
-    int _addPositionContraint(int nRows);
+    int _AddPositionContraint(int nRows);
 
 #if USE_NEW_MOVED_PIXEL
 
@@ -79,7 +79,7 @@ class SquareRootEKFSolver {
     void _updateByGivensRotationsNeon();
 
 #endif
-    void _marginByGivensRotation();
+    void _MarginByGivensRotation();
 
     // MatrixMf m_infoFactorInverseMatrix;
 
@@ -91,40 +91,40 @@ class SquareRootEKFSolver {
 #endif
 
 #if USE_GIVENS_MARGIN
-    MatrixMfR m_infoFactorMatrixToMarginal;
+    MatrixMfR info_factor_matrix_to_marginal_;
 #else
-    MatrixXf m_infoFactorMatrixToMarginal;
+    MatrixXf info_factor_matrix_to_marginal_;
 #endif
 
 #if USE_STATIC_STACK
-    MatrixOfR m_StackedMatrix;
+    MatrixOfR stacked_matrix_;
 #if REMOVE_RESIDUAL_STACK
-    VectorOf m_obsResidual;
+    VectorOf obs_residual_;
 #endif
 
-    int m_nStackRows = 0;
+    int stacked_rows_ = 0;
 #else
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
-        m_StackedMatrix;
+        stacked_matrix_;
 #endif
 
-    MatrixMf m_infoFactorMatrix;  // Upper Triangle Matrix
+    MatrixMf info_factor_matrix_;  // Upper Triangle Matrix
 
 #if USE_KEYFRAME
-    MatrixMf m_infoFactorMatrixAfterMarigin;
+    MatrixMf info_factor_matrix_after_mariginal_;
 #endif
-    VectorMf m_residual;
+    VectorMf residual_;
 
     int CURRENT_DIM = 0;
-    std::vector<CamState *> m_vCamStates;
-    std::vector<PointState *> m_vMsckfPoints;
+    std::vector<CamState *> cam_states_;
+    std::vector<PointState *> msckf_points_;
 #if USE_KEYFRAME
-    std::vector<PointState *> m_vSlamPoint;
-    std::vector<PointState *> m_vNewSlamPoint;
+    std::vector<PointState *> slam_point_;
+    std::vector<PointState *> new_slam_point_;
 #endif
-    Vector3f *m_pVel;
-    bool *m_bStatic;
-    CamState *m_pNewState = nullptr;
-    CamState *m_pLastState = nullptr;
+    Vector3f *vel_;
+    bool *static_;
+    CamState *new_state_ = nullptr;
+    CamState *last_state_ = nullptr;
 };
 }  // namespace DeltaVins

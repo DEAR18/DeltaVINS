@@ -12,24 +12,24 @@ class VIOModule : public AbstractModule, public DataSource::ImageObserver {
    public:
     using Ptr = std::shared_ptr<VIOModule>;
     struct PoseObserver {
-        virtual void onPoseAvailable(const Pose& pose) = 0;
+        virtual void OnPoseAvailable(const Pose& pose) = 0;
     };
 
    public:
     VIOModule();
     ~VIOModule();
 
-    void onImageReceived(const ImageData::Ptr imageData) override;
+    void OnImageReceived(const ImageData::Ptr imageData) override;
 
-    void setFrameAdapter(FrameAdapter* adapter);
-    void setPointAdapter(WorldPointAdapter* adapter);
+    void SetFrameAdapter(FrameAdapter* adapter);
+    void SetPointAdapter(WorldPointAdapter* adapter);
 
    private:
-    bool haveThingsTodo() override;
-    void doWhatYouNeedToDo() override;
-    VIOAlgorithm m_vioAlgorithm;
+    bool HaveThingsTodo() override;
+    void DoWhatYouNeedToDo() override;
+    VIOAlgorithm vio_algorithm_;
 
-    std::vector<PoseObserver*> m_v_PoseObservers;
+    std::vector<PoseObserver*> pose_observers_;
 };
 
 }  // namespace DeltaVins

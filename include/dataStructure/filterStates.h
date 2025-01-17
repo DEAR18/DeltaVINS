@@ -11,37 +11,37 @@ typedef std::shared_ptr<TrackedFeature> TrackedFeaturePtr;
 
 struct PointState {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-    Vector3f m_Pw;      //	point position in world frame
-    Vector3f m_Pw_FEJ;  //	point position First Estimate Jacobian
+    Vector3f Pw;      //	point position in world frame
+    Vector3f Pw_FEJ;  //	point position First Estimate Jacobian
 
     MatrixXfR H;  //	Observation Matrix
     TrackedFeature* host = nullptr;
 
-    bool m_bToMargin = false;
-    bool m_bNextMargin = false;
-    bool bSlamPoint;
-    int m_idx;  // point idx in sliding window
+    bool flag_to_marginalize = false;
+    bool flag_to_next_marginalize = false;
+    bool flag_slam_point;
+    int index_in_window;  // point idx in sliding window
 
     int m_id = 0;  // only used in visualizer
     int m_idVis = -1;
     PointState() {
         static int counter = 0;
         m_id = counter++;
-        bSlamPoint = false;
+        flag_slam_point = false;
     }
 };
 
 struct CamState {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
-    Matrix3f m_Rwi;     // rotation matrix from imu frame to world frame
-    Vector3f m_Pwi;     // imu position in world frame
-    Vector3f m_Pw_FEJ;  // First Estimate Jacobian Imu Position in world frame
+    Matrix3f Rwi;     // rotation matrix from imu frame to world frame
+    Vector3f Pwi;     // imu position in world frame
+    Vector3f Pw_FEJ;  // First Estimate Jacobian Imu Position in world frame
 
-    int m_idx;                 // camera idx in sliding window
-    bool m_bToMargin = false;  // flag to marginalize
-    Frame* m_pHost = nullptr;  // pointer to host frame
-    Vector3f m_vel;
+    int index_in_window;                 // camera idx in sliding window
+    bool flag_to_marginalize = false;  // flag to marginalize
+    Frame* host_frame = nullptr;  // pointer to host frame
+    Vector3f vel;
 
     int m_id = 0;  // only used in visualizer
 
@@ -58,7 +58,7 @@ struct CamState {
 struct MsckfState {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
-    std::vector<FramePtr> m_vFrames;  // All frames in sliding window
+    std::vector<FramePtr> frames;  // All frames in sliding window
     Vector3f vel;                     // linear velocity
 };
 

@@ -24,51 +24,51 @@
 
 namespace DeltaVins {
 ImuBuffer::ImuBuffer() : CircularBuffer<ImuData, 10>() {
-    m_GyroBias.setZero();
-    m_AccBias.setZero();
+    gyro_bias_.setZero();
+    acc_bias_.setZero();
 
-    m_NoiseCov.setIdentity(6, 6);
-    m_NoiseCov.topLeftCorner(3, 3) *= Config::GyroNoise2;
-    m_NoiseCov.bottomRightCorner(3, 3) *= Config::AccNoise2;
+    noise_cov_.setIdentity(6, 6);
+    noise_cov_.topLeftCorner(3, 3) *= Config::GyroNoise2;
+    noise_cov_.bottomRightCorner(3, 3) *= Config::AccNoise2;
 }
 
-void ImuBuffer::updateBias(const Vector3f& dBg, const Vector3f& dBa) {
-    m_GyroBias += dBg;
-    m_AccBias += dBa;
+void ImuBuffer::UpdateBias(const Vector3f& dBg, const Vector3f& dBa) {
+    gyro_bias_ += dBg;
+    acc_bias_ += dBa;
 }
 
-void ImuBuffer::setBias(const Vector3f& bg, const Vector3f& ba) {
-    m_GyroBias = bg;
-    m_AccBias = ba;
+void ImuBuffer::SetBias(const Vector3f& bg, const Vector3f& ba) {
+    gyro_bias_ = bg;
+    acc_bias_ = ba;
 }
 
-void ImuBuffer::setZeroBias() {
-    m_GyroBias.setZero();
-    m_AccBias.setZero();
+void ImuBuffer::SetZeroBias() {
+    gyro_bias_.setZero();
+    acc_bias_.setZero();
 }
 
-void ImuBuffer::getBias(Vector3f& bg, Vector3f& ba) const {
-    bg = m_GyroBias;
-    ba = m_AccBias;
+void ImuBuffer::GetBias(Vector3f& bg, Vector3f& ba) const {
+    bg = gyro_bias_;
+    ba = acc_bias_;
 }
 
-Vector3f ImuBuffer::getGravity() {
-    std::lock_guard<std::mutex> lck(m_gMutex);
-    return mGravity;
+Vector3f ImuBuffer::GetGravity() {
+    std::lock_guard<std::mutex> lck(mutex_);
+    return gravity_;
 }
 
-bool ImuBuffer::getDataByBinarySearch(ImuData& imuData) const {
+bool ImuBuffer::GetDataByBinarySearch(ImuData& imuData) const {
     int index = binarySearch<long long>(imuData.timestamp, Left);
     if (index < 0) {
         LOGE("t:%lld,imu0:%lld,imu1:%lld\n", imuData.timestamp,
-             _buf[getDeltaIndex(m_tail, 3)].timestamp,
-             _buf[getDeltaIndex(m_head, -1)].timestamp);
+             buf_[getDeltaIndex(tail_, 3)].timestamp,
+             buf_[getDeltaIndex(head_, -1)].timestamp);
 
         throw std::runtime_error("No Imu data found,Please check timestamp1");
     }
 
-    auto& left = _buf[index];
-    auto& right = _buf[getDeltaIndex(index, 1)];
+    auto& left = buf_[index];
+    auto& right = buf_[getDeltaIndex(index, 1)];
 
     // linear interpolation
     float k = float(imuData.timestamp - left.timestamp) /
@@ -89,7 +89,7 @@ inline Matrix3f vector2Jac(const Vector3f& x) {
  * Maximum-a-Posteriori Estimation"
  * http://www.roboticsproceedings.org/rss11/p06.pdf
  */
-bool ImuBuffer::imuPreIntegration(ImuPreintergration& ImuTerm) const {
+bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
     if (ImuTerm.t0 >= ImuTerm.t1) {
         LOGW("t0:%lld t1:%lld", ImuTerm.t0, ImuTerm.t1);
         throw std::runtime_error("t0>t1");
@@ -103,16 +103,16 @@ bool ImuBuffer::imuPreIntegration(ImuPreintergration& ImuTerm) const {
     }
 
     if (Index0 < 0 || Index1 < 0) {
-        LOGW("dt0:%lld dt1:%lld,dT:%lld", ImuTerm.t0 - _buf[Index0].timestamp,
-             ImuTerm.t1 - _buf[Index1].timestamp, ImuTerm.t1 - ImuTerm.t0);
+        LOGW("dt0:%lld dt1:%lld,dT:%lld", ImuTerm.t0 - buf_[Index0].timestamp,
+             ImuTerm.t1 - buf_[Index1].timestamp, ImuTerm.t1 - ImuTerm.t0);
         if (Index0 < 0) {
             LOGW("Error Code:%d", Index0);
             LOGE("t0:%lld,imu0:%lld\n", ImuTerm.t0,
-                 _buf[getDeltaIndex(m_tail, 3)].timestamp);
+                 buf_[getDeltaIndex(tail_, 3)].timestamp);
         }
         if (Index1 < 0) {
             LOGE("t1:%lld,imu1:%lld\n", ImuTerm.t1,
-                 _buf[getDeltaIndex(m_head, -1)].timestamp);
+                 buf_[getDeltaIndex(head_, -1)].timestamp);
         }
         throw std::runtime_error("No Imu data found.Please check timestamp2");
     }
@@ -144,9 +144,9 @@ bool ImuBuffer::imuPreIntegration(ImuPreintergration& ImuTerm) const {
     Vector3f gyro, acc;
 
     while (index != indexEnd) {
-        auto& imuData = _buf[index];
+        auto& imuData = buf_[index];
         int nextIndex = getDeltaIndex(index, 1);
-        auto& nextImuData = _buf[nextIndex];
+        auto& nextImuData = buf_[nextIndex];
 
         if (index == Index0) {
             dt = nextImuData.timestamp - ImuTerm.t0;
@@ -169,8 +169,8 @@ bool ImuBuffer::imuPreIntegration(ImuPreintergration& ImuTerm) const {
         }
         dt *= 1e-9;
 
-        gyro -= m_GyroBias;
-        acc -= m_AccBias;
+        gyro -= gyro_bias_;
+        acc -= acc_bias_;
 
         Vector3f ddV0 = acc * dt;
         Vector3f ddR0 = gyro * dt;
@@ -187,7 +187,7 @@ bool ImuBuffer::imuPreIntegration(ImuPreintergration& ImuTerm) const {
         B.block<3, 3>(3, 3) = dR0 * dt;
         B.block<3, 3>(6, 3) = dR0 * (0.5 * dt * dt);
 
-        cov = A * cov * A.transpose() + B * m_NoiseCov * B.transpose();
+        cov = A * cov * A.transpose() + B * noise_cov_ * B.transpose();
 
         // update Jacobian Matrix iteratively
 
@@ -215,43 +215,43 @@ bool ImuBuffer::imuPreIntegration(ImuPreintergration& ImuTerm) const {
     return true;
 }
 
-void ImuBuffer::onImuReceived(const ImuData& imuData) {
-    _buf[m_head] = imuData;
+void ImuBuffer::OnImuReceived(const ImuData& imuData) {
+    buf_[head_] = imuData;
 
     // do low pass filter to get gravity
     static Eigen::Vector3f gravity = imuData.acc;
     gravity = 0.95f * gravity + 0.05f * imuData.acc;
     {
-        std::lock_guard<std::mutex> lck(m_gMutex);
-        mGravity = gravity;
+        std::lock_guard<std::mutex> lck(mutex_);
+        gravity_ = gravity;
     }
 
-    pushIndex();
+    PushIndex();
 }
 
-Vector3f ImuBuffer::getGravity(long long timestamp) {
+Vector3f ImuBuffer::GetGravity(long long timestamp) {
     BufferIndex index0 = binarySearch<long long>(timestamp, Left);
-    int nSize = index0 > m_tail ? index0 - m_tail : index0 + _END - m_tail;
+    int nSize = index0 > tail_ ? index0 - tail_ : index0 + _END - tail_;
     BufferIndex _index = getDeltaIndex(index0, nSize >= 21 ? -20 : -nSize + 1);
     BufferIndex index_ = index0;
     index0 = _index;
-    Vector3f gravity = _buf[index0].acc;
+    Vector3f gravity = buf_[index0].acc;
     while (index0 != index_) {
-        gravity = 0.95f * gravity + 0.05f * _buf[index0].acc;
+        gravity = 0.95f * gravity + 0.05f * buf_[index0].acc;
         index0 = getDeltaIndex(index0, 1);
     }
     return gravity;
 }
 
-long long ImuBuffer::getNextSyncTimestamp(int& imuIdx,
+long long ImuBuffer::GetNextSyncTimestamp(int& imuIdx,
                                           long long lastTimeStamp) {
     if (imuIdx == -1) {
         do {
-            BufferIndex _index = m_tail;
-            while (_index != m_head) {
-                if (_buf[_index].syncFlag) {
-                    imuIdx = _buf[_index].idx;
-                    return _buf[_index].timestamp;
+            BufferIndex _index = tail_;
+            while (_index != head_) {
+                if (buf_[_index].syncFlag) {
+                    imuIdx = buf_[_index].idx;
+                    return buf_[_index].timestamp;
                 }
                 _index = getDeltaIndex(_index, 1);
             }
@@ -263,8 +263,8 @@ long long ImuBuffer::getNextSyncTimestamp(int& imuIdx,
             int nextIndex = imuIdx + Config::nImuPerImage;
             int ret = binarySearch<int>(nextIndex, Exact);
             if (ret > 0) {
-                imuIdx = _buf[ret].idx;
-                return _buf[ret].timestamp;
+                imuIdx = buf_[ret].idx;
+                return buf_[ret].timestamp;
             } else if (ret == -2) {
                 imuIdx = nextIndex;
                 return lastTimeStamp + 1000000000 / Config::nImageSample;
@@ -277,9 +277,9 @@ long long ImuBuffer::getNextSyncTimestamp(int& imuIdx,
     return 0;
 }
 
-bool ImuBuffer::detectStatic(long long timestamp) const {
+bool ImuBuffer::DetectStatic(long long timestamp) const {
     BufferIndex index1 = binarySearch(timestamp, Left);
-    int nSize = index1 > m_tail ? index1 - m_tail : index1 + _END - m_tail;
+    int nSize = index1 > tail_ ? index1 - tail_ : index1 + _END - tail_;
     if (nSize < 100) return false;
 
     nSize = nSize < 200 ? nSize : 200;
@@ -288,7 +288,7 @@ bool ImuBuffer::detectStatic(long long timestamp) const {
     Vector3f sum_acc(0, 0, 0);
     Vector3f sum_gyro(0, 0, 0);
     for (int i = 0; i < nSize; ++i) {
-        auto& imu_data = _buf[getDeltaIndex(index0, i)];
+        auto& imu_data = buf_[getDeltaIndex(index0, i)];
         sum_acc += imu_data.acc;
         sum_gyro += imu_data.gyro;
     }
@@ -299,7 +299,7 @@ bool ImuBuffer::detectStatic(long long timestamp) const {
     float a_div = 0;
 
     for (int i = 0; i < nSize; ++i) {
-        auto& imu_data = _buf[getDeltaIndex(index0, i)];
+        auto& imu_data = buf_[getDeltaIndex(index0, i)];
         a_div += (imu_data.acc - mean_acc).norm();
         g_div += (imu_data.gyro - mean_gyro).norm();
     }

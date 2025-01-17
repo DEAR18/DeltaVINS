@@ -14,23 +14,23 @@
 class SlamVisualizer : public FrameAdapter, public WorldPointAdapter {
    public:
     typedef std::shared_ptr<SlamVisualizer> Ptr;
-    void pushViewMatrix(std::vector<FrameGL>& v_Rwc) override;
+    void PushViewMatrix(std::vector<FrameGL>& v_Rwc) override;
 
-    void pushImageTexture(unsigned char* imageTexture, const int width,
+    void PushImageTexture(unsigned char* imageTexture, const int width,
                           const int height, const int channels) override;
 
-    void pushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) override;
+    void PushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) override;
 
-    void finishFrame() override;
+    void FinishFrame() override;
 
     SlamVisualizer(int width, int height);
     ~SlamVisualizer();
 
-    void start();
+    void Start();
 
-    void join();
+    void Join();
 
-    void stop();
+    void Stop();
 
     void detach();
 
@@ -44,27 +44,27 @@ class SlamVisualizer : public FrameAdapter, public WorldPointAdapter {
     void _drawWorldPoints();
     void _drawCameraFrustum();
 
-    int m_width, m_height;
-    int m_channels;
+    int width_, height_;
+    int channels_;
 
-    unsigned char* m_pImageTexture = nullptr;
-    pangolin::GlTexture m_GLTexture;
+    unsigned char* image_texture_ = nullptr;
+    pangolin::GlTexture gl_texture_;
 
-    std::vector<float> m_pWorldPoints;
-    int m_iPointBufferSize;
-    int m_iPointSize;
-    std::vector<FrameGL> m_vFrames;
+    std::vector<float> world_points_;
+    int num_point_buffer_size_;
+    int point_size_;
+    std::vector<FrameGL> frames_;
 
-    std::mutex m_mtxPoint;
-    std::mutex m_mtxFrame;
-    std::mutex m_mtxImageTexture;
-    std::atomic_bool m_bFrameByFrame;
-    std::mutex m_mtxFrameByFrame;
-    std::condition_variable m_cvFrameByFrame;
+    std::mutex mtx_point_;
+    std::mutex mtx_frame_;
+    std::mutex mtx_image_texture_;
+    std::atomic_bool flag_frame_by_frame_;
+    std::mutex mtx_frame_by_frame_;
+    std::condition_variable cv_frame_by_frame_;
 
-    std::thread* m_thread = nullptr;
+    std::thread* thread_ = nullptr;
 
-    pangolin::OpenGlRenderState m_viewMatrix;
-    pangolin::OpenGlRenderState m_FollowMatrix;
+    pangolin::OpenGlRenderState view_matrix_;
+    pangolin::OpenGlRenderState follow_matrix_;
     pangolin::OpenGlMatrix T_wc;
 };

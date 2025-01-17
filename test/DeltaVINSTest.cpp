@@ -15,7 +15,7 @@ int main(int argc,char**argv)
 	parser.run_and_exit_if_error(); 
 	auto outputName = parser.get<std::string>("o");
 	auto datasetDir = parser.get<std::string>("d");
-	initSlamSystem(datasetDir.c_str(),outputName.c_str());
-	startAndJoin();
-	stopSystem();
+	InitSlamSystem(datasetDir.c_str(),outputName.c_str());
+	StartAndJoin();
+	StopSystem();
 }

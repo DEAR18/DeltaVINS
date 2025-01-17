@@ -8,17 +8,17 @@ class DataSource_Synthetic : public DataSource {
     ~DataSource_Synthetic();
 
    private:
-    void _loadIMU();
-    void _loadImage();
-    bool haveThingsTodo() override;
-    void doWhatYouNeedToDo() override;
-    std::string m_dataSetDir;
-    std::string m_camDir;
-    std::string m_imuDir;
-    int m_iImageIdx;
-    int m_iImuIndex;
-    std::vector<_ImageData> m_vImages;
-    std::vector<ImuData> m_vIMU;
+    void _LoadIMU();
+    void _LoadImage();
+    bool HaveThingsTodo() override;
+    void DoWhatYouNeedToDo() override;
+    std::string dataset_dir_;
+    std::string cam_dir_;
+    std::string imu_dir_;
+    int image_idx_;
+    int imu_index_;
+    std::vector<_ImageData> images_;
+    std::vector<ImuData> imus_;
 };
 
 }  // namespace DeltaVins

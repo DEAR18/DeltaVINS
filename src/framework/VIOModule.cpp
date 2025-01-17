@@ -8,38 +8,38 @@ VIOModule::VIOModule() {}
 
 VIOModule::~VIOModule() {}
 
-void VIOModule::onImageReceived(const ImageData::Ptr imageData) {
+void VIOModule::OnImageReceived(const ImageData::Ptr imageData) {
     static int counter = 0;
     counter++;
     if (counter < Config::ImageStartIdx) return;
 
-    static auto& imageBuffer = ImageBuffer::getInstance();
-    imageBuffer.pushImage(imageData);
+    static auto& imageBuffer = ImageBuffer::Instance();
+    imageBuffer.PushImage(imageData);
 
-    wakeUpMovers();
-    if (Config::SerialRun) waitForThingsToBeDone();
+    WakeUpMovers();
+    if (Config::SerialRun) WaitForThingsToBeDone();
 }
 
-void VIOModule::setFrameAdapter(FrameAdapter* adapter) {
-    m_vioAlgorithm.setFrameAdapter(adapter);
+void VIOModule::SetFrameAdapter(FrameAdapter* adapter) {
+    vio_algorithm_.SetFrameAdapter(adapter);
 }
 
-void VIOModule::setPointAdapter(WorldPointAdapter* adapter) {
-    m_vioAlgorithm.setWorldPointAdapter(adapter);
+void VIOModule::SetPointAdapter(WorldPointAdapter* adapter) {
+    vio_algorithm_.SetWorldPointAdapter(adapter);
 }
 
-bool VIOModule::haveThingsTodo() {
-    static auto& imageBuffer = ImageBuffer::getInstance();
+bool VIOModule::HaveThingsTodo() {
+    static auto& imageBuffer = ImageBuffer::Instance();
     return !imageBuffer.empty();
 }
 
-void VIOModule::doWhatYouNeedToDo() {
-    static auto& imageBuffer = ImageBuffer::getInstance();
+void VIOModule::DoWhatYouNeedToDo() {
+    static auto& imageBuffer = ImageBuffer::Instance();
 
-    auto image = imageBuffer.popTailImage();
+    auto image = imageBuffer.PopTailImage();
 
     auto pose = std::make_shared<Pose>();
-    m_vioAlgorithm.addNewFrame(image, pose);
-    if (Config::SerialRun) tellOthersThingsToBeDone();
+    vio_algorithm_.AddNewFrame(image, pose);
+    if (Config::SerialRun) TellOthersThingsToBeDone();
 }
 }  // namespace DeltaVins
