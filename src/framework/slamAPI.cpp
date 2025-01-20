@@ -13,10 +13,15 @@
 #include <IO/dataOuput/PoseOutputTCP.h>
 #endif
 
+#include <IO/dataOuput/DataOutputROS.h>
 #include <IO/dataOuput/DataRecorder.h>
 
 #include "IO/dataSource/dataSource_Synthetic.h"
 #include "utils/TickTock.h"
+
+#if USE_ROS2
+#include "IO/dataSource/dataSource_ROS2.h"
+#endif
 
 using namespace DeltaVins;
 
@@ -28,6 +33,11 @@ SlamVisualizer::Ptr slamVisualizerPtr = nullptr;
 #elif ENABLE_VISUALIZER_TCP
 PoseOutputTcp::Ptr tcpPtr = nullptr;
 #endif
+
+#if USE_ROS2
+DataOutputROS::Ptr rosPtr = nullptr;
+#endif
+
 void InitSlamSystem(const char* datasetDir, const char* testName) {
     // Init Log
     logInit();
@@ -37,14 +47,21 @@ void InitSlamSystem(const char* datasetDir, const char* testName) {
     CamModel::loadCalibrations();
     if (Config::CameraCalibration) return;
 
-    // Init DataSource
-
+        // Init DataSource
+#ifndef USE_ROS2
     if (Config::DataSourceType == DataSrcEuroc)
         dataSourcePtr = std::static_pointer_cast<DataSource>(
             std::make_shared<DataSource_Euroc>());
     else if (Config::DataSourceType == DataSrcSynthetic)
         dataSourcePtr = std::static_pointer_cast<DataSource>(
             std::make_shared<DataSource_Synthetic>());
+#else
+    if (Config::DataSourceType == DataSrcROS2)
+        dataSourcePtr = std::static_pointer_cast<DataSource>(
+            std::make_shared<DataSource_ROS2>());
+#endif
+    else
+        LOGE("Unknown DataSourceType");
 
     // Init VIO Module
 
@@ -77,6 +94,14 @@ void InitSlamSystem(const char* datasetDir, const char* testName) {
             dataRecorderPtr->AddWorldPointAdapter(tcpPtr.get());
         }
     }
+#elif USE_ROS2
+    if (!Config::NoGUI) {
+        rosPtr = std::make_shared<DataOutputROS>();
+        if (Config::RunVIO) {
+            vioModulePtr->SetFrameAdapter(rosPtr.get());
+            vioModulePtr->SetPointAdapter(rosPtr.get());
+        } 
+   }
 #endif
 
     // add links between modules
@@ -101,6 +126,10 @@ void StartAndJoin() {
 #endif
     // Join
     dataSourcePtr->Start();
+#if USE_ROS2
+    rclcpp::spin(std::static_pointer_cast<rclcpp::Node>(
+        std::static_pointer_cast<DataSource_ROS2>(dataSourcePtr)));
+#endif
 
     dataSourcePtr->Join();
 
@@ -110,6 +139,9 @@ void StartAndJoin() {
 }
 
 void StopSystem() {
+#if USE_ROS2
+    rclcpp::shutdown();
+#endif
     if (Config::CameraCalibration) return;
     TickTock::outputResult();
     dataSourcePtr->Stop();

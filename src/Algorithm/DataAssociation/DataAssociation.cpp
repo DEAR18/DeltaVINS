@@ -420,7 +420,7 @@ void _tryAddMsckfPoseConstraint(
         }
     }
 
-    LOGI("SlamCnt:%d %d %d %d %d", nSlamPoint, vPointsSLAMLeft[0],
+    LOGD("SlamCnt:%d %d %d %d %d", nSlamPoint, vPointsSLAMLeft[0],
          vPointsSLAMLeft[1], vPointsSLAMLeft[2], vPointsSLAMLeft[3]);
     nPointsLeft = (MAX_OBS_SIZE - MAX_ADDITIONAL_POINT * MAX_WINDOW_SIZE * 2 -
                    nSlamPoint * 5) /

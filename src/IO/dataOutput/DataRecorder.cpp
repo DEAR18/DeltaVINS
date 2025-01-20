@@ -78,7 +78,7 @@ void DataRecorder::DoWhatYouNeedToDo() {
     }
     if (!Config::NoGUI && frame_adapter_) {
         if (image_data_->image.channels() == 1)
-            cv::cvtColor(image_data_->image, image_data_->image, CV_GRAY2BGR);
+            cv::cvtColor(image_data_->image, image_data_->image, cv::COLOR_GRAY2BGR);
         frame_adapter_->PushImageTexture(
             image_data_->image.data, image_data_->image.cols, image_data_->image.rows,
             image_data_->image.channels());

@@ -10,7 +10,7 @@ struct TrackedFeature;
 typedef std::shared_ptr<TrackedFeature> TrackedFeaturePtr;
 
 struct PointState {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Vector3f Pw;      //	point position in world frame
     Vector3f Pw_FEJ;  //	point position First Estimate Jacobian
 
@@ -32,7 +32,7 @@ struct PointState {
 };
 
 struct CamState {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     Matrix3f Rwi;     // rotation matrix from imu frame to world frame
     Vector3f Pwi;     // imu position in world frame
@@ -56,7 +56,7 @@ struct CamState {
 };
 
 struct MsckfState {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     std::vector<FramePtr> frames;  // All frames in sliding window
     Vector3f vel;                     // linear velocity

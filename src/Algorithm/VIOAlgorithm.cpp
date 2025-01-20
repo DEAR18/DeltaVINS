@@ -148,7 +148,7 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     }
     // fflush(file);
 
-#if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP
+#if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP || USE_ROS2
     if (!Config::NoGUI) {
         cv::Mat trackImage;
         _DrawTrackImage(data, trackImage);
@@ -166,7 +166,7 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
 }
 
 void VIOAlgorithm::_UpdatePointsAndCamsToVisualizer() {
-#if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP
+#if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP||USE_ROS2
 
     static std::vector<WorldPointGL> vPointsGL;
     static std::vector<FrameGL> vFramesGL;
@@ -200,7 +200,7 @@ void VIOAlgorithm::_UpdatePointsAndCamsToVisualizer() {
 
 void VIOAlgorithm::_DrawTrackImage(ImageData::Ptr dataPtr,
                                    cv::Mat& trackImage) {
-    cvtColor(dataPtr->image, trackImage, CV_GRAY2BGR);
+    cvtColor(dataPtr->image, trackImage, cv::COLOR_GRAY2BGR);
 
     for (auto lTrack : states_.tfs_) {
         if (!lTrack->flag_dead) {
@@ -217,7 +217,7 @@ void VIOAlgorithm::_DrawTrackImage(ImageData::Ptr dataPtr,
 void VIOAlgorithm::_DrawPredictImage(ImageData::Ptr dataPtr,
                                      cv::Mat& predictImage) {
     static std::ofstream fout("Predict.txt");
-    cvtColor(dataPtr->image, predictImage, CV_GRAY2BGR);
+    cvtColor(dataPtr->image, predictImage, cv::COLOR_GRAY2BGR);
 
     for (auto lTrack : states_.tfs_) {
         if (!lTrack->flag_dead) {
@@ -346,7 +346,7 @@ void VIOAlgorithm::_AddMeasurement() {
 #endif
     if (!Config::NoGUI) cv::waitKey(5);
 #endif
-#if ENABLE_VISUALIZER_TCP || ENABLE_VISUALIZER
+#if ENABLE_VISUALIZER_TCP || ENABLE_VISUALIZER || USE_ROS2
     if (!Config::NoGUI) _UpdatePointsAndCamsToVisualizer();
 #endif
     _RemoveDeadFeatures();

@@ -18,6 +18,8 @@
 
 #include <utils/utils.h>
 
+#include <filesystem>
+
 #include "precompile.h"
 
 using namespace Eigen;
@@ -64,11 +66,16 @@ void Config::loadConfigFile(const std::string& datasetDir,
     _clear();
     std::string _configFilePath;
 
-    _configFilePath = "Config/Config.yaml";
+    // get current path
+    std::filesystem::path currentPath = std::filesystem::current_path();
+
+    _configFilePath = currentPath.string() + "/Config/Config.yaml";
+    // _configFilePath = "Config/Config.yaml";
 
     m_configFile.open(_configFilePath, FileStorage::READ);
     if (!m_configFile.isOpened()) {
-        throw std::runtime_error("fail to open config file");
+        throw std::runtime_error("fail to open config file at " +
+                                 _configFilePath);
     } else
         LOGI("Load config :%s", _configFilePath.c_str());
 
@@ -77,10 +84,14 @@ void Config::loadConfigFile(const std::string& datasetDir,
     string temp;
     PlaneConstraint = false;
     m_configFile["DataSourceType"] >> temp;
+#ifndef USE_ROS2
     if (temp == "EUROC" || temp == "Euroc")
         DataSourceType = DataSrcEuroc;
     else if (temp == "Synthetic")
         DataSourceType = DataSrcSynthetic;
+#else
+    if (temp == "ROS2") DataSourceType = DataSrcROS2;
+#endif
     else
         throw std::runtime_error("Unknown DataSource:" + temp);
 

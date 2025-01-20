@@ -1,7 +1,7 @@
 #pragma once
 
 namespace DeltaVins {
-enum DataSrcType { DataSrcEuroc, DataSrcSynthetic };
+enum DataSrcType { DataSrcEuroc, DataSrcSynthetic,DataSrcROS2 };
 
 struct Config {
     static void loadConfigFile(const std::string& datasetDir,

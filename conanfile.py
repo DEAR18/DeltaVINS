@@ -21,5 +21,6 @@ class ProjectRecipe(ConanFile):
         cmake = CMake(self)
         definitions = {}
         definitions['CMAKE_EXPORT_COMPILE_COMMANDS'] = 'ON'
+        definitions['USE_ROS'] = 'OFF'
         cmake.configure(definitions)
         cmake.build()

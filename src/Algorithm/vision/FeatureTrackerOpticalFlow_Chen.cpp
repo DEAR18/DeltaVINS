@@ -36,7 +36,7 @@ inline void FeatureTrackerOpticalFlow_Chen::_SetMask(int x, int y) {
 void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
     std::list<TrackedFeaturePtr>& vTrackedFeatures) {
     // ReSet Mask Pattern
-    memset(mask_, 1, mask_buffer_size_);
+    memset(mask_, 0xff, mask_buffer_size_);
 
     // Set Mask Pattern
     const int imgStride = CamModel::getCamModel()->width();
@@ -63,8 +63,8 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
 
 #endif
 
-    for (int i = 0, j = max_num_to_track_ - num_features_tracked_; i < corners.size() && j > 0;
-         ++i) {
+    for (int i = 0, j = max_num_to_track_ - num_features_tracked_;
+         i < corners.size() && j > 0; ++i) {
         int x = corners[i].x;
         int y = corners[i].y;
         assert(x + y * imgStride < mask_buffer_size_);
@@ -82,14 +82,8 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
 void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     std::list<TrackedFeaturePtr>& vTrackedFeatures) {
     if (last_image_.empty()) return;
-    Matrix3f dR =
-        cam_state_->state->Rwi.transpose() * cam_state0_->state->Rwi;
-
-#if CV_MAJOR_VERSION == 3
-    //        auto lkOpticalFlow =
-    //        cv::SparsePyrLKOpticalFlow::create(cv::Size(11,11),2,cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS,15,0.01));
+    Matrix3f dR = cam_state_->state->Rwi.transpose() * cam_state0_->state->Rwi;
     auto lkOpticalFlow = cv::SparsePyrLKOpticalFlow::create();
-#endif
     std::vector<cv::Point2f> pre, now;
     std::vector<unsigned char> status;
     std::vector<TrackedFeature*> goodTracks;
@@ -130,7 +124,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     }
     int nPrePoints = pre.size();
     if (pre.empty()) {
-        LOGW("No feature to track.")
+        LOGW("No feature to track.");
         return;
     }
     bool use_predict = false;

@@ -13,7 +13,7 @@ struct Frame;
 struct TrackedFeature;
 
 struct VisualObservation {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     VisualObservation(const Vector2f& px, const Vector3f& ray, Frame* frame)
         : px(px), ray(ray), link_frame(frame) {}
@@ -25,7 +25,7 @@ struct VisualObservation {
 };
 
 struct Frame {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     Frame();
 
@@ -46,13 +46,12 @@ struct Frame {
 
 #if USE_KEYFRAME
     bool flag_keyframe;
-    ;
 #endif
     using Ptr = std::shared_ptr<Frame>;
 };
 
 struct TrackedFeature : public NonLinear_LM<3, float> {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     TrackedFeature();
 

@@ -103,7 +103,7 @@ void DataSource_Euroc::DoWhatYouNeedToDo() {
         }
     }
 
-    auto img = cv::imread(imageInput.imagePath, CV_LOAD_IMAGE_GRAYSCALE);
+    auto img = cv::imread(imageInput.imagePath, cv::IMREAD_GRAYSCALE);
     if (img.empty()) {
         throw std::runtime_error("Failed to load images");
     }

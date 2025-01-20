@@ -3,7 +3,7 @@
 
 namespace DeltaVins {
 struct ImuPreintergration {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     long long t0;  // first data timestamp
     long long t1;  // last data timestamp
     long long dT;  // delta time

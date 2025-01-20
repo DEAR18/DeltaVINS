@@ -61,22 +61,22 @@ Eigen::VectorXd polyfit(Eigen::VectorXd& xVec, Eigen::VectorXd& yVec,
 
 FisheyeModel::FisheyeModel(int width, int height, float cx, float cy, float c,
                            float d, float e, float a0, float a2, float a3,
-                           float a4, bool aligment)
+                           float a4, bool alignment)
     : CamModel(width, height),
       ocamModel(c, d, e, cx, cy, a0, a2, a3, a4),
-      alignment(alignment) {
+      alignment_(alignment) {
     computeInvPoly();
-    fx = computeErrorMultiplier();
+    fx_ = computeErrorMultiplier();
 }
 
 FisheyeModel::FisheyeModel(int width, int height, float cx, float cy, float c,
                            float d, float e, float a0, float a2, float a3,
                            float a4, float ia0, float ia1, float ia2, float ia3,
-                           float ia4, bool aligment)
+                           float ia4, bool alignment)
     : CamModel(width, height),
       ocamModel(c, d, e, cx, cy, a0, a2, a3, a4, ia0, ia1, ia2, ia3, ia4),
-      alignment(alignment) {
-    fx = computeErrorMultiplier();
+      alignment_(alignment) {
+    fx_ = computeErrorMultiplier();
 }
 
 FisheyeModel* FisheyeModel::createFromConfig(cv::FileStorage& config) {
@@ -160,7 +160,7 @@ Vector3d FisheyeModel::imageToCam(const Vector2d& px) {
     // Important: we exchange x and y since regular pinhole model is working
     // with x along the columns and y along the rows Davide's framework is doing
     // exactly the opposite
-    if (alignment) {
+    if (alignment_) {
         double invdet = 1 / (ocamModel.c - ocamModel.d * ocamModel.e);
 
         xyz[0] = invdet * ((px.x() - ocamModel.cx) -
@@ -193,7 +193,7 @@ Vector3f FisheyeModel::imageToCam(const Vector2f& px) {
     // Important: we exchange x and y since regular pinhole model is working
     // with x along the columns and y along the rows Davide's framework is doing
     // exactly the opposite
-    if (alignment) {
+    if (alignment_) {
         float invdet = 1 / (ocamModel.c - ocamModel.d * ocamModel.e);
 
         xyz[0] = invdet * ((px.x() - ocamModel.cx) -
@@ -220,7 +220,7 @@ Vector3f FisheyeModel::imageToCam(const Vector2f& px) {
     return xyz;
 }
 
-float FisheyeModel::focal() { return fx; }
+float FisheyeModel::focal() { return fx_; }
 
 bool FisheyeModel::inView(const Vector3f& pCam) {
     return CamModel::inView(pCam);
@@ -244,7 +244,7 @@ Vector2d FisheyeModel::camToImage(const Vector3d& pCam) {
         temp.x() = pCam.x() / norm * rho;
         temp.y() = pCam.y() / norm * rho;
     }
-    if (alignment) {
+    if (alignment_) {
         uv.x() = ocamModel.c * temp.x() + ocamModel.d * temp.y() + ocamModel.cx;
         uv.y() = ocamModel.e * temp.x() + temp.y() + ocamModel.cy;
     } else {
@@ -272,7 +272,7 @@ Vector2f FisheyeModel::camToImage(const Vector3f& pCam) {
         temp.x() = pCam.x() / norm * rho;
         temp.y() = pCam.y() / norm * rho;
     }
-    if (alignment) {
+    if (alignment_) {
         uv.x() = ocamModel.c * temp.x() + ocamModel.d * temp.y() + ocamModel.cx;
         uv.y() = ocamModel.e * temp.x() + temp.y() + ocamModel.cy;
     } else {
@@ -303,7 +303,7 @@ Vector2f FisheyeModel::camToImage(const Vector3f& pCam, Matrix23f& J23) {
         temp.x() = pCam.x() / norm * rho;
         temp.y() = pCam.y() / norm * rho;
     }
-    if (alignment) {
+    if (alignment_) {
         uv.x() = ocamModel.c * temp.x() + ocamModel.d * temp.y() + ocamModel.cx;
         uv.y() = ocamModel.e * temp.x() + temp.y() + ocamModel.cy;
     } else {
@@ -339,7 +339,7 @@ Vector2f FisheyeModel::camToImage(const Vector3f& pCam, Matrix23f& J23) {
 
     J23 << dudx, dudy, dudz, dvdx, dvdy, dvdz;
 
-    if (alignment) {
+    if (alignment_) {
         Matrix2f A;
         A << ocamModel.c, ocamModel.d, ocamModel.e, 1;
         J23 = A * J23;

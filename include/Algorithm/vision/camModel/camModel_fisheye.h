@@ -12,11 +12,9 @@ namespace DeltaVins {
 struct OcamModel {
     OcamModel(float c_, float d_, float e_, float cx_, float cy_, float a0_,
               float a2_, float a3_, float a4_);
-    ;
     OcamModel(float c_, float d_, float e_, float cx_, float cy_, float a0_,
               float a2_, float a3_, float a4_, float ia0_, float ia1_,
               float ia2_, float ia3_, float ia4_);
-    ;
     float cx;           // row coordinate of the center
     float cy;           // column coordinate of the center
     float c;            // affine parameter
@@ -62,8 +60,8 @@ class FisheyeModel : public CamModel {
     void testJacobian();
 
    private:
-    bool alignment = true;
-    float fx;
+    bool alignment_ = true;
+    float fx_;
 };
 
 }  // namespace DeltaVins

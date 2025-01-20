@@ -1,7 +1,8 @@
 #pragma once
 #include <cstdio>
 
-#define OUTPUT_INFO 0
+#define OUTPUT_DEBUG 0
+#define OUTPUT_INFO 1
 #define OUTPUT_WARNING 1
 #define OUTPUT_ERROR 1
 
@@ -11,12 +12,44 @@
 extern void logInit();
 extern void finishLogging();
 
+#if !USE_ROS2
+
 #if OUTPUT_FILE
 
 extern FILE* infoLog;
 extern FILE* warnLog;
 extern FILE* errLog;
 
+#endif
+
+#if OUTPUT_DEBUG
+#if OUTPUT_CONSOLE && OUTPUT_FILE
+#define LOGD(...)                      \
+    {                                  \
+        printf("[Debug] ");            \
+        printf(__VA_ARGS__);           \
+        printf("\n");                  \
+        fprintf(infoLog, __VA_ARGS__); \
+        fprintf(infoLog, "\n");        \
+    }
+#elif OUTPUT_CONSOLE
+#define LOGD(...)            \
+    {                        \
+        printf("[Debug] ");  \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
+    }
+#elif OUTPUT_FILE
+#define LOGD(...)                      \
+    {                                  \
+        fprintf(infoLog, __VA_ARGS__); \
+        fprintf(infoLog, "\n");        \
+    }
+#else
+#define LOGD(...) void(0)
+#endif
+#else
+#define LOGD(...) void(0)
 #endif
 
 #if OUTPUT_INFO
@@ -106,4 +139,18 @@ extern FILE* errLog;
 #endif
 #else
 #define LOGE(...) void(0)
+#endif
+
+
+
+#else 
+#include <rclcpp/rclcpp.hpp>
+
+#define LOGD(...) RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
+#define LOGI(...) RCLCPP_INFO(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
+#define LOGW(...) RCLCPP_WARN(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
+#define LOGE(...) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
+
+
+
 #endif

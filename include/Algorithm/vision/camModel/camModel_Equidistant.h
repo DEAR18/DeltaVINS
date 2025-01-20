@@ -8,7 +8,7 @@ namespace DeltaVins {
 class EquiDistantModel : public CamModel {
     EquiDistantModel(int width, int height, float fx, float fy, float cx,
                      float cy, float k1, float k2, float k3, float k4)
-        : CamModel(width, height), cx(cx), cy(cy), fx(fx), fy(fy) {
+        : CamModel(width, height), fx(fx), fy(fy), cx(cx), cy(cy) {
         k[0] = k1;
         k[1] = k2;
         k[2] = k3;

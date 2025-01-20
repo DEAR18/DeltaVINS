@@ -353,7 +353,7 @@ void TrackedFeature::DrawObservationsAndReprojection(int time) {
     cv::Mat display;
     bool first = 1;
     for (auto& ob : visual_obs) {
-        cv::cvtColor(ob.link_frame->image, display, CV_GRAY2BGR);
+        cv::cvtColor(ob.link_frame->image, display, cv::COLOR_GRAY2BGR);
         if (first) {
             cv::circle(display, cv::Point(ob.px.x(), ob.px.y()), 8,
                        _GREEN_SCALAR);
