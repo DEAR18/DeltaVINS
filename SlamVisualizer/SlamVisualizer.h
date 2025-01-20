@@ -1,76 +1,70 @@
 #pragma once
 #include <pangolin/pangolin.h>
-#include <vector>
+
 #include <Eigen/Dense>
-#include <mutex>
 #include <atomic>
 #include <condition_variable>
+#include <mutex>
 #include <thread>
-
+#include <vector>
 
 #include "FrameAdapter.h"
 #include "WorldPointAdapter.h"
 
-class SlamVisualizer :public FrameAdapter, public WorldPointAdapter {
+class SlamVisualizer : public FrameAdapter, public WorldPointAdapter {
+   public:
+    typedef std::shared_ptr<SlamVisualizer> Ptr;
+    void PushViewMatrix(std::vector<FrameGL>& v_Rwc) override;
 
-public:
-	typedef std::shared_ptr<SlamVisualizer> Ptr;
-	void pushViewMatrix(std::vector<FrameGL>& v_Rwc) override;
+    void PushImageTexture(unsigned char* imageTexture, const int width,
+                          const int height, const int channels) override;
 
-	void pushImageTexture(unsigned char* imageTexture, const int width, const int height, const int channels) override;
+    void PushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) override;
 
-	void pushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) override;
+    void FinishFrame() override;
 
-	void finishFrame() override;
+    SlamVisualizer(int width, int height);
+    ~SlamVisualizer();
 
+    void Start();
 
-	SlamVisualizer(int width, int height);
-	~SlamVisualizer();
+    void Join();
 
-	void start();
+    void Stop();
 
-	void join();
+    void detach();
 
-	void stop();
+   private:
+    void _drawWorldAxis();
+    void _saveFrames();
+    void render();
+    void _drawImageTexture();
+    void _drawGeometry();
+    void _clear();
+    void _drawWorldPoints();
+    void _drawCameraFrustum();
 
-	void detach();
+    int width_, height_;
+    int channels_;
 
+    unsigned char* image_texture_ = nullptr;
+    pangolin::GlTexture gl_texture_;
 
-private:
+    std::vector<float> world_points_;
+    int num_point_buffer_size_;
+    int point_size_;
+    std::vector<FrameGL> frames_;
 
-	void _drawWorldAxis();
-	void _saveFrames();
-	void render();
-	void _drawImageTexture();
-	void _drawGeometry();
-	void _clear();
-	void _drawWorldPoints();
-	void _drawCameraFrustum();
+    std::mutex mtx_point_;
+    std::mutex mtx_frame_;
+    std::mutex mtx_image_texture_;
+    std::atomic_bool flag_frame_by_frame_;
+    std::mutex mtx_frame_by_frame_;
+    std::condition_variable cv_frame_by_frame_;
 
-	int m_width, m_height;
-	int m_channels;
+    std::thread* thread_ = nullptr;
 
-	unsigned char* m_pImageTexture = nullptr;
-	pangolin::GlTexture m_GLTexture;
-
-
-	std::vector<float> m_pWorldPoints;
-	int	m_iPointBufferSize;
-	int m_iPointSize;
-	std::vector<FrameGL> m_vFrames;
-
-
-	std::mutex m_mtxPoint;
-	std::mutex m_mtxFrame;
-	std::mutex m_mtxImageTexture;
-	std::atomic_bool m_bFrameByFrame;
-	std::mutex m_mtxFrameByFrame;
-	std::condition_variable m_cvFrameByFrame;
-
-	std::thread* m_thread = nullptr;
-
-
-	pangolin::OpenGlRenderState m_viewMatrix;
-	pangolin::OpenGlRenderState m_FollowMatrix;
-	pangolin::OpenGlMatrix T_wc;
+    pangolin::OpenGlRenderState view_matrix_;
+    pangolin::OpenGlRenderState follow_matrix_;
+    pangolin::OpenGlMatrix T_wc;
 };

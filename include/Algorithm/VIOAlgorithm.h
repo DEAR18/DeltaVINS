@@ -1,91 +1,73 @@
 #pragma once
 
+#include <FrameAdapter.h>
+#include <WorldPointAdapter.h>
 
-#include "dataStructure/IO_Structures.h"
 #include "IMU/ImuPreintergration.h"
+#include "dataStructure/IO_Structures.h"
 #include "solver/SquareRootEKFSolver.h"
 #include "vision/FeatureTrackerOpticalFlow.h"
 #include "vision/FeatureTrackerOpticalFlow_Chen.h"
+namespace DeltaVins {
+class VIOAlgorithm {
+   public:
+    VIOAlgorithm();
+    ~VIOAlgorithm();
 
-#include <WorldPointAdapter.h>
-#include <FrameAdapter.h>
-namespace DeltaVins
-{
-	class VIOAlgorithm
-	{
-	public:
+    void AddNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose);
 
+    void SetWorldPointAdapter(WorldPointAdapter* adapter);
+    void SetFrameAdapter(FrameAdapter* adapter);
 
-		VIOAlgorithm();
-		~VIOAlgorithm();
-
-
-
-		
-		void addNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose);
-
-		
-
-		void setWorldPointAdapter(WorldPointAdapter* adapter);
-		void setFrameAdapter(FrameAdapter* adapter);
-
-	private:
-
-		struct SystemStates
-		{
-			Vector3f vel;
-			std::vector<Frame::Ptr> mv_frames;
-			std::list<TrackedFeature::Ptr> ml_tfs;
-			bool bStatic;
+   private:
+    struct SystemStates {
+        Vector3f vel;
+        std::vector<Frame::Ptr> frames_;
+        std::list<TrackedFeature::Ptr> tfs_;
+        bool static_;
 #if USE_PLANE_PRIOR
-			Vector3f m_PlaneCoeff;
-			Vector3f n;
-			//  (exp(m_Riw)* n).dot(Pw) + d = 0
+        Vector3f m_PlaneCoeff;
+        Vector3f n;
+        //  (exp(m_Riw)* n).dot(Pw) + d = 0
 #endif
-			
-		};
-		
-		
-		void _preProcess(const ImageData::Ptr imageData);
-		void _postProcess(ImageData::Ptr data, Pose::Ptr pose);
-		void _updatePointsAndCamsToVisualizer();
-		void _drawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage);
-		void _drawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage);
-		void initialize(const Matrix3f& Rwi);
+    };
 
-		void _addImuInformation();
-		void _removeDeadFeatures();
-		void _marginFrames();
-		void _stackInformationFactorMatrix();
-		void _DetectStill();
-		void _testVisionModule(const ImageData::Ptr data, Pose::Ptr pose);
-		void _addMeasurement();
-		void _selectFrames2Margin();
+    void _PreProcess(const ImageData::Ptr imageData);
+    void _PostProcess(ImageData::Ptr data, Pose::Ptr pose);
+    void _UpdatePointsAndCamsToVisualizer();
+    void _DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage);
+    void _DrawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage);
+    void Initialize(const Matrix3f& Rwi);
 
-		bool _visionStatic();
-		
-		FeatureTrackerOpticalFlow_Chen* mp_featureTracker =nullptr;
-		SquareRootEKFSolver* mp_solver = nullptr;
-		SystemStates m_states;
-		Frame::Ptr mp_frameNow = nullptr;
+    void _AddImuInformation();
+    void _RemoveDeadFeatures();
+    void _MarginFrames();
+    void _StackInformationFactorMatrix();
+    void _DetectStill();
+    void _TestVisionModule(const ImageData::Ptr data, Pose::Ptr pose);
+    void _AddMeasurement();
+    void _SelectFrames2Margin();
 
-		ImuPreintergration m_preintergration;
+    bool _VisionStatic();
 
-		bool mb_Initialized;
+    FeatureTrackerOpticalFlow_Chen* feature_trakcer_ = nullptr;
+    SquareRootEKFSolver* solver_ = nullptr;
+    SystemStates states_;
+    Frame::Ptr frame_now_ = nullptr;
+
+    ImuPreintergration preintergration_;
+
+    bool initialized_;
 
 #if USE_KEYFRAME
-		Frame::Ptr  mp_lastKeyframe = nullptr;
-		void _selectKeyframe();
+    Frame::Ptr last_keyframe_ = nullptr;
+    void _SelectKeyframe();
 #endif
 
+    /************* Output **********************/
 
+    FrameAdapter* frame_adapter_ = nullptr;
+    WorldPointAdapter* world_point_adapter_ = nullptr;
+};
 
-		/************* Output **********************/
-
-		FrameAdapter* mp_FrameAdapter = nullptr;
-		WorldPointAdapter* mp_WorldPointAdapter = nullptr;
-
-	};
-
-	
-}
+}  // namespace DeltaVins

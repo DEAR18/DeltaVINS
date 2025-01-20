@@ -23,7 +23,7 @@ inline int fast_corner_score_10(const fast_byte* cache_0, const int offset[], in
 {
         b++;
         //This function computes the score for a pixel which is known to be
-        //a corner at barrier b. So we start looking at b+1 and above to
+        //a corner at barrier b. So we Start looking at b+1 and above to
         //establish where it stops becoming a corner.
         for(;;)
         {

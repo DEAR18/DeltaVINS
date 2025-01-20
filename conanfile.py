@@ -4,7 +4,7 @@ from conan.tools.cmake import cmake_layout, CMake
 
 class ProjectRecipe(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeToolchain", "CMakeDeps"
+    generators = "CMakeToolchain", "CMakeDeps","vscode"
     name = 'delta-vins'
     version = '1.0.0'
     
@@ -19,5 +19,8 @@ class ProjectRecipe(ConanFile):
     def build(self):
         # using cmake to build
         cmake = CMake(self)
-        cmake.configure()
+        definitions = {}
+        definitions['CMAKE_EXPORT_COMPILE_COMMANDS'] = 'ON'
+        definitions['USE_ROS'] = 'OFF'
+        cmake.configure(definitions)
         cmake.build()

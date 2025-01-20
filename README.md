@@ -1,6 +1,7 @@
 # DeltaVINS
 
-# How to Build
+
+# How to Build (Non ROS using Conan)
 
 ```
 # make build folder
@@ -10,14 +11,32 @@ cd build
 # make sure to install conan 1.x
 pip install conan==1.66.0
 
+# install dependencies
+sudo apt install libegl1-mesa-dev libgl-dev cmake gcc g++ pkg-config libva-dev libvdpau-dev libx11-xcb-dev libfontenc-dev libice-dev libsm-dev libxaw7-dev libxcomposite-dev libxcursor-dev libxdamage-dev libxext-dev libxfixes-dev libxi-dev libxinerama-dev libxkbfile-dev libxmu-dev libxmuu-dev libxpm-dev libxrandr-dev libxrender-dev libxres-dev libxss-dev libxt-dev libxtst-dev libxv-dev libxxf86vm-dev libxcb-glx0-dev libxcb-render0-dev libxcb-render-util0-dev libxcb-xkb-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-shape0-dev libxcb-sync-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-dri3-dev uuid-dev libxcb-cursor-dev libxcb-dri2-0-dev libxcb-dri3-dev libxcb-present-dev libxcb-composite0-dev libxcb-ewmh-dev libxcb-res0-dev libxcb-util-dev libxcb-util0-dev libgtk2.0-dev libglew-dev
+
 # install dependency
-conan install ..
+conan install .. --build=missing
 # if you get error for missing pangolin,try following in project home folder
 cd 3rdParty/pangolin
-conan create .
+conan create . --build=missing
 
 # run in build folder
 conan build ..
 
 
 ```
+
+
+## How to Build (ROS2 Humble)
+
+```
+# make workspace
+mkdir -p ~/delta_ws/src
+cd ~/delta_ws/src
+git clone https://github.com/cvidkal/DeltaVINS
+cd ~/delta_ws
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+```
+
+
+

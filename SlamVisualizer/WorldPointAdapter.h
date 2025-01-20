@@ -1,26 +1,17 @@
 #pragma once
 
-
-#include <vector>
 #include <Eigen/Core>
+#include <vector>
 
+struct WorldPointGL {
+    WorldPointGL() {};
+    WorldPointGL(const Eigen::Vector3f& p, int id) : m_id(id) { P = p; }
 
-struct WorldPointGL
-{
-	WorldPointGL() {};
-	WorldPointGL(const Eigen::Vector3f& p, int id) :m_id(id)
-	{
-		m_P = p;
-	}
-
-	int32_t m_id;
-	Eigen::Vector3f m_P;
+    int32_t m_id;
+    Eigen::Vector3f P;
 };
 
-
-
 struct WorldPointAdapter {
-	virtual ~WorldPointAdapter() = default;
-	virtual void pushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) {};
-
+    virtual ~WorldPointAdapter() = default;
+    virtual void PushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) {};
 };

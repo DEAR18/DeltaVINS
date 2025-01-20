@@ -1,29 +1,16 @@
 #pragma once
 
-
-
 // c++ stl
-#include <vector>
-#include <fstream>
-#include <thread>
+#include <Eigen/Dense>
 #include <condition_variable>
+#include <fstream>
+#include <memory>
 #include <mutex>
 #include <string>
-#include <memory>
-
-
-
-
-
+#include <thread>
+#include <vector>
 // opencv
 #include <opencv2/opencv.hpp>
 
-
 // eigen
-#include <Eigen/Dense>
-
-
-
-
-
 #include <utils/utils.h>

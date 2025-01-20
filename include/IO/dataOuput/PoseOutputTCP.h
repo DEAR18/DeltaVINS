@@ -1,45 +1,42 @@
 #pragma once
-#include "IO/dataOuput/yg_tcp_socket.h"
 #include <FrameAdapter.h>
 #include <WorldPointAdapter.h>
-#ifdef PLATFORM_LINUX
 
+#include "IO/dataOuput/yg_tcp_socket.h"
+#ifdef PLATFORM_LINUX
 
 namespace DeltaVins {
 
-    class PoseOutputTcp : public WorldPointAdapter, public FrameAdapter {
-    public:
-        void pushViewMatrix(std::vector<FrameGL> &v_Rcw) override;
+class PoseOutputTcp : public WorldPointAdapter, public FrameAdapter {
+   public:
+    void PushViewMatrix(std::vector<FrameGL> &v_Rcw) override;
 
-        void
-        pushImageTexture(unsigned char *imageTexture, const int width, const int height, const int channels) override;
+    void PushImageTexture(unsigned char *imageTexture, const int width,
+                          const int height, const int channels) override;
 
-        void pushWorldPoint(const std::vector<WorldPointGL> &v_Point3f) override;
+    void PushWorldPoint(const std::vector<WorldPointGL> &v_Point3f) override;
 
-        void finishFrame() override{};
+    void FinishFrame() override {};
 
-        using Ptr = std::shared_ptr<PoseOutputTcp>;
-        PoseOutputTcp();
+    using Ptr = std::shared_ptr<PoseOutputTcp>;
+    PoseOutputTcp();
 
-    private:
+   private:
+    void SendImage();
 
-        void sendImage();
+    std::thread *image_texture_thread_;
+    int width_;
+    int height_;
+    int channels_;
+    std::mutex image_mutex_;
 
-        std::thread* m_imageTextureThread;
-        int width;
-        int height;
-        int channels;
-        std::mutex imageMutex;
+    YG_TCP_Client tcp_client_world_point_;
+    YG_TCP_Client tcp_client_image_texture_;
+    YG_TCP_Client tcp_client_view_matrix_;
+    std::condition_variable imagecv_;
+    cv::Mat image_;
+};
 
-        YG_TCP_Client tcpClient_worldPoint;
-        YG_TCP_Client tcpClient_imageTexture;
-        YG_TCP_Client tcpClient_ViewMatrix;
-        std::condition_variable imagecv;
-        cv::Mat image;
+}  // namespace DeltaVins
 
-    };
-
-
-}
-
-#endif // PLATFORM_LINUX
+#endif  // PLATFORM_LINUX

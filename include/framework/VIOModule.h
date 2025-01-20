@@ -2,43 +2,34 @@
 
 #include <FrameAdapter.h>
 #include <WorldPointAdapter.h>
-#include "abstractModule.h"
+
 #include "Algorithm/VIOAlgorithm.h"
 #include "IO/dataSource/dataSource.h"
-namespace DeltaVins
-{
+#include "abstractModule.h"
+namespace DeltaVins {
 
+class VIOModule : public AbstractModule, public DataSource::ImageObserver {
+   public:
+    using Ptr = std::shared_ptr<VIOModule>;
+    struct PoseObserver {
+        virtual void OnPoseAvailable(const Pose& pose) = 0;
+    };
 
-	class VIOModule:public AbstractModule,public DataSource::ImageObserver
-	{
+   public:
+    VIOModule();
+    ~VIOModule();
 
-	public:
-		using Ptr = std::shared_ptr<VIOModule>;
-		struct PoseObserver
-		{
-			virtual void onPoseAvailable(const Pose& pose) = 0;
-		};
-		
-	public:
-		
-		VIOModule();
-		~VIOModule();
+    void OnImageReceived(const ImageData::Ptr imageData) override;
 
+    void SetFrameAdapter(FrameAdapter* adapter);
+    void SetPointAdapter(WorldPointAdapter* adapter);
 
-		void onImageReceived(const ImageData::Ptr imageData) override;
+   private:
+    bool HaveThingsTodo() override;
+    void DoWhatYouNeedToDo() override;
+    VIOAlgorithm vio_algorithm_;
 
-		void setFrameAdapter(FrameAdapter* adapter);
-		void setPointAdapter(WorldPointAdapter* adapter);
+    std::vector<PoseObserver*> pose_observers_;
+};
 
-	private:
-		bool haveThingsTodo() override;
-		void doWhatYouNeedToDo() override;
-		VIOAlgorithm m_vioAlgorithm;
-
-		std::vector<PoseObserver*> m_v_PoseObservers;
-	};
-
-
-
-	
-}
+}  // namespace DeltaVins

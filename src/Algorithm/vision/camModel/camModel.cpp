@@ -1,21 +1,19 @@
 /**
-* This file is part of Delta_VIO.
-*
-* Delta_VIO is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* Delta_VIO is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with Delta_VIO. If not, see <http://www.gnu.org/licenses/>.
-*/
-#include "precompile.h"
-
+ * This file is part of Delta_VIO.
+ *
+ * Delta_VIO is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Delta_VIO is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Delta_VIO. If not, see <http://www.gnu.org/licenses/>.
+ */
 #include "Algorithm/vision/camModel/camModel.h"
 
 #include <Algorithm/vision/camModel/camModel_Equidistant.h>
@@ -23,6 +21,7 @@
 
 #include "Algorithm/vision/camModel/camModel_Pinhole.h"
 #include "Algorithm/vision/camModel/camModel_RadTan.h"
+#include "precompile.h"
 namespace DeltaVins {
 CamModel* CamModel::camModel = nullptr;
 std::vector<Vector3f> CamModel::m_objectPoints;
@@ -30,7 +29,8 @@ std::vector<std::vector<Vector2f>> CamModel::m_imagePoints;
 
 void CamModel::loadCalibrations() {
     cv::FileStorage config;
-    config.open(Config::CameraCalibFile + "/calibrations.yaml", cv::FileStorage::READ);
+    config.open(Config::CameraCalibFile + "/calibrations.yaml",
+                cv::FileStorage::READ);
 
     if (Config::CameraCalibration) {
         std::string type;
@@ -38,10 +38,10 @@ void CamModel::loadCalibrations() {
 
         CamModel::loadChessboardPoints();
         config.release();
-        config.open(Config::CameraCalibFile + "/calibrations.yaml", cv::FileStorage::WRITE);
+        config.open(Config::CameraCalibFile + "/calibrations.yaml",
+                    cv::FileStorage::WRITE);
 
-        if (type == "Equidistant")
-            EquiDistantModel::calibrate(config);
+        if (type == "Equidistant") EquiDistantModel::calibrate(config);
         return;
     }
 
@@ -58,7 +58,7 @@ void CamModel::loadCalibrations() {
         camModel = EquiDistantModel::createFromConfig(config);
     }
 
-    //Transformation Matrix from imu frame to camera frame
+    // Transformation Matrix from imu frame to camera frame
     cv::Mat Tci;
 
     config["Tci"] >> Tci;
@@ -76,8 +76,10 @@ void CamModel::loadCalibrations() {
 }
 
 void CamModel::loadChessboardPoints() {
-    FILE* fimagePoints = fopen((Config::CameraCalibFile + "/imagePoints.txt").c_str(), "r");
-    FILE* fobjPoints   = fopen((Config::CameraCalibFile + "/worldPoints.txt").c_str(), "r");
+    FILE* fimagePoints =
+        fopen((Config::CameraCalibFile + "/imagePoints.txt").c_str(), "r");
+    FILE* fobjPoints =
+        fopen((Config::CameraCalibFile + "/worldPoints.txt").c_str(), "r");
     int nObjPoints, nImages, nImagePoints;
     fscanf(fobjPoints, "%d\n", &nObjPoints);
     fscanf(fimagePoints, "%d %d\n", &nImages, &nImagePoints);
@@ -103,8 +105,8 @@ void CamModel::loadChessboardPoints() {
     }
 }
 
-void CamModel::rectifyImage(cv::Mat& image, cv::Mat& rectifyImage, int width, int height, float focal, float cx,
-                            float cy) {
+void CamModel::rectifyImage(cv::Mat& image, cv::Mat& rectifyImage, int width,
+                            int height, float focal, float cx, float cy) {
     assert(image.channels() == 1);
     rectifyImage = cv::Mat(height, width, CV_8U);
 
@@ -117,7 +119,7 @@ void CamModel::rectifyImage(cv::Mat& image, cv::Mat& rectifyImage, int width, in
             ray.z() = 1;
             Matrix23f J23;
             Vector2f px = camToImage(ray);
-            *p          = getIntensitySubpix(image, cv::Point2f(px.x(), px.y()));
+            *p = getIntensitySubpix(image, cv::Point2f(px.x(), px.y()));
             ++p;
         }
     }

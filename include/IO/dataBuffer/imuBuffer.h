@@ -1,55 +1,49 @@
 #pragma once
 
-#include "dataStructure/ringBuffer.h"
 #include "IO/dataSource/dataSource.h"
+#include "dataStructure/ringBuffer.h"
 
 namespace DeltaVins {
-	struct ImuPreintergration;
+struct ImuPreintergration;
 
+class ImuBuffer : public CircularBuffer<ImuData, 10>,
+                  public DataSource::ImuObserver {
+   public:
+    friend class DataRecorder;
+    static ImuBuffer& Instance() {
+        static ImuBuffer imuBuffer;
+        return imuBuffer;
+    }
+    void OnImuReceived(const ImuData& imuData) override;
+    Vector3f GetGravity(long long timestamp);
+    Vector3f GetGravity();
 
-	class ImuBuffer: public CircularBuffer<ImuData,10>,public DataSource::ImuObserver
-	{
-	public:
-	    friend class DataRecorder;
-		static ImuBuffer& getInstance() {
-			static ImuBuffer imuBuffer;
-			return imuBuffer;
-		}
-		void onImuReceived(const ImuData& imuData) override;
-		Vector3f getGravity(long long timestamp);
-        Vector3f getGravity();
+    long long GetNextSyncTimestamp(int& imuIdx, long long lastTimeStamp);
+    bool GetDataByBinarySearch(ImuData& imuData) const;
 
-        long long getNextSyncTimestamp(int &imuIdx, long long lastTimeStamp);
-		bool getDataByBinarySearch(ImuData& imuData) const;
+    bool ImuPreIntegration(ImuPreintergration& ImuTerm) const;
 
-		bool imuPreIntegration(ImuPreintergration& ImuTerm) const;
+    void UpdateBias(const Vector3f& dBg, const Vector3f& dBa);
 
-		void updateBias(const Vector3f& dBg, const Vector3f& dBa);
+    void SetBias(const Vector3f& bg, const Vector3f& ba);
 
-		void setBias(const Vector3f& bg, const Vector3f& ba);
+    void SetZeroBias();
 
-		void setZeroBias();
+    void GetBias(Vector3f& bg, Vector3f& ba) const;
 
-		void getBias(Vector3f& bg, Vector3f& ba) const;
+    bool DetectStatic(long long timestamp) const;
 
-		bool detectStatic(long long timestamp) const;
-		
-	private:
-		ImuBuffer();
+   private:
+    ImuBuffer();
 
-		MatrixXf m_NoiseCov;
+    MatrixXf noise_cov_;
 
-		Vector3f m_GyroBias;
-		Vector3f m_AccBias;
+    Vector3f gyro_bias_;
+    Vector3f acc_bias_;
 
-		Vector3f mGravity;
+    Vector3f gravity_;
 
-		std::mutex m_gMutex;
+    std::mutex mutex_;
+};
 
-
-    };
-
-	
-
-
-}
+}  // namespace DeltaVins

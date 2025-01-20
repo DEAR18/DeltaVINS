@@ -7,14 +7,14 @@ namespace DeltaVins
 	namespace DataAssociation
 	{
 
-		void initDataAssociation(SquareRootEKFSolver* solver);
-		int removeOutlierBy2PointRansac(Matrix3f& dR, std::list<TrackedFeature::Ptr>& vTrackedFeatures);
+		void InitDataAssociation(SquareRootEKFSolver* solver);
+		int RemoveOutlierBy2PointRansac(Matrix3f& dR, std::list<TrackedFeature::Ptr>& trackedFeatures);
 
-		void doDataAssociation(std::list<TrackedFeature::Ptr>& vTrackedFeatures,
-		        bool bStatic);
-		void DrawPointsAfterUpdates(std::vector<PointState*>& m_PointStates);
-		void DrawPointsBeforeUpdates(std::vector<PointState*>& m_PointStates);
-		void clear();
+		void DoDataAssociation(std::list<TrackedFeature::Ptr>& trackedFeatures,
+		        bool bstatic);
+		void DrawPointsAfterUpdates(std::vector<PointState*>& pointStates);
+		void DrawPointsBeforeUpdates(std::vector<PointState*>& pointStates);
+		void Clear();
 
 		
 	}

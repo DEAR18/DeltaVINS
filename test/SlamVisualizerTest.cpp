@@ -13,8 +13,8 @@ int main()
 	visualizer->pushImageTexture(img2.data, img2.cols, img2.rows, img2.channels());
 
 
-	visualizer->start();
-	visualizer->join();
+	visualizer->Start();
+	visualizer->Join();
 
 
 }

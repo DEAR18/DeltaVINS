@@ -95,7 +95,7 @@ public:
 
     }
 
-    void onImageReceived(const ImageData::Ptr imageData) override{
+    void OnImageReceived(const ImageData::Ptr imageData) override{
 
         static CamModel* camModel = CamModel::getCamModel();
         cv::Mat rectifyImage;
@@ -112,10 +112,10 @@ int main(){
     Config::loadConfigFile("","");
     CamModel::loadCalibrations();
     TestFisheyeCamModel test;
-    dataSourcePtr->addImageObserver(&test);
-    dataSourcePtr->start();
-    dataSourcePtr->join();
-    dataSourcePtr->stop();
+    dataSourcePtr->AddImageObserver(&test);
+    dataSourcePtr->Start();
+    dataSourcePtr->Join();
+    dataSourcePtr->Stop();
 
 
 }

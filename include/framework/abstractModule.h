@@ -1,147 +1,110 @@
 #pragma once
-#include <thread>
-#include<condition_variable>
-#include <mutex>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 
 namespace DeltaVins {
 
-	class AbstractModule {
+class AbstractModule {
+   public:
+    AbstractModule() { keep_running_.store(true); }
 
+    virtual ~AbstractModule() {
+        Stop();
+        delete modules_thread_;
+    }
 
-	public:
-		AbstractModule()
-		{
-			keepRunning.store(true);
-		}
+    void Join() {
+        if (Joinable()) _join();
+    }
+    void Start() {
+        if (!run_) _start();
+    }
 
-		virtual ~AbstractModule()
-		{
-			stop();
-			delete modulesThread;
-		}
+    virtual void Stop() { this->_stop(); }
+    void detach() {
+        if (modules_thread_ != nullptr && run_)
+            if (!detached_) {
+                _detach();
+            }
+    }
 
-		void join()
-		{
-			if (joinable())_join();
-		}
-		void start()
-		{
-			if (!m_bRunning)
-				_start();
-		}
+    bool Joinable() const {
+        if (modules_thread_ != nullptr) return modules_thread_->joinable();
+        return false;
+    }
 
-		virtual void stop()
-		{
-			this->_stop();
-		}
-		void detach()
-		{
-			if (modulesThread != nullptr && m_bRunning)
-				if (!m_bDetached)
-				{
-					_detach();
-				}
-		}
+    void WakeUpMovers() {
+        std::lock_guard<std::mutex> lk(wake_up_mutex_);
+        wake_up_condition_variable_.notify_one();
+    }
 
-		bool joinable() const
-		{
-			if (modulesThread != nullptr)
-				return modulesThread->joinable();
-			return false;
-		}
+    virtual void RunThread() {
+        while (keep_running_) {
+            // check for wake up request
+            {
+                std::unique_lock<std::mutex> ul(wake_up_mutex_);
+                wake_up_condition_variable_.wait(ul, [this]() {
+                    return this->HaveThingsTodo() | !this->keep_running_;
+                });
+            }
+            // do something when wake up
+            while (HaveThingsTodo() & this->keep_running_) {
+                DoWhatYouNeedToDo();
+            }
+        }
+    }
 
+   protected:
+    std::thread* modules_thread_ = nullptr;
+    std::mutex wake_up_mutex_;
+    std::mutex serial_mutex_;
+    std::condition_variable wake_up_condition_variable_;
+    std::condition_variable serial_condition_variable_;
+    std::atomic_bool keep_running_;
+    bool run_ = false;
+    bool detached_ = false;
 
+    virtual bool HaveThingsTodo() = 0;
+    virtual void DoWhatYouNeedToDo() = 0;
 
-		void wakeUpMovers()
-		{
-			std::lock_guard<std::mutex> lk(wakeUpMutex);
-			wakeUpConditionVariable.notify_one();
-		}
+    void WaitForThingsToBeDone() {
+        std::unique_lock<std::mutex> lck(serial_mutex_);
+        serial_condition_variable_.wait(lck);
+    }
 
-		virtual void runThread()
-		{
-			while (keepRunning)
-			{
-				//check for wake up request
-				{
-					std::unique_lock<std::mutex> ul(wakeUpMutex);
-					wakeUpConditionVariable.wait(ul, [this]() { return this->haveThingsTodo() | !this->keepRunning; });
-				}
-				//do something when wake up
-				while (haveThingsTodo() & this->keepRunning)
-				{
-					doWhatYouNeedToDo();
-				}
-			}
-		}
+    void TellOthersThingsToBeDone() {
+        std::unique_lock<std::mutex> ul(serial_mutex_);
+        serial_condition_variable_.notify_all();
+    }
 
+   private:
+    void _stop() {
+        {
+            keep_running_.store(false);
+            std::lock_guard<std::mutex> lk(wake_up_mutex_);
+            wake_up_condition_variable_.notify_one();
+        }
+        Join();
+    }
 
-	protected:
-		std::thread* modulesThread = nullptr;
-		std::mutex wakeUpMutex;
-		std::mutex serialMutex;
-		std::condition_variable wakeUpConditionVariable;
-		std::condition_variable serialConditionVariable;
-		std::atomic_bool keepRunning;
-		bool m_bRunning = false;
-		bool m_bDetached = false;
+    void _detach() {
+        modules_thread_->detach();
+        detached_ = true;
+    }
 
-		virtual bool haveThingsTodo() = 0;
-		virtual void doWhatYouNeedToDo() = 0;
+    void _start() {
+        if (run_) return;
+        keep_running_.store(true);
 
-		void waitForThingsToBeDone()
-		{
+        modules_thread_ = new std::thread([&]() { this->RunThread(); });
+        run_ = true;
+    }
 
-			std::unique_lock<std::mutex> lck(serialMutex);
-			serialConditionVariable.wait(lck);
-
-		}
-
-		void tellOthersThingsToBeDone()
-		{
-
-			std::unique_lock<std::mutex> ul(serialMutex);
-			serialConditionVariable.notify_all();
-
-		}
-
-	private:
-
-		void _stop()
-		{
-			{
-				keepRunning.store(false);
-				std::lock_guard<std::mutex> lk(wakeUpMutex);
-				wakeUpConditionVariable.notify_one();
-			}
-			join();
-		}
-
-		void _detach()
-		{
-			modulesThread->detach();
-			m_bDetached = true;
-		}
-
-		void _start()
-		{
-			if (m_bRunning)return;
-			keepRunning.store(true);
-
-			modulesThread = new std::thread(
-				[&]()
-				{
-					this->runThread();
-				});
-			m_bRunning = true;
-		}
-
-		void _join()
-		{
-			modulesThread->join();
-			m_bRunning = false;
-		}
-
-	};
-}
+    void _join() {
+        modules_thread_->join();
+        run_ = false;
+    }
+};
+}  // namespace DeltaVins

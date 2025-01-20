@@ -137,7 +137,7 @@ int main(int argc,char**argv){
     bool change_flag = false;
     m_serial->flushInput();//Clear buffer to get real timestamp
 
-    //send start command
+    //send Start command
     m_serial->write(start_command);
 
     char s[3] = {0x59,0x53,0};

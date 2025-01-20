@@ -1,75 +1,65 @@
 #pragma once
 #include <memory>
+
 #include "utils/typedefs.h"
 
-namespace DeltaVins
-{
-    struct Frame;
-    typedef std::shared_ptr<Frame> FramePtr;
-    struct TrackedFeature;
-    typedef std::shared_ptr<TrackedFeature> TrackedFeaturePtr;
+namespace DeltaVins {
+struct Frame;
+typedef std::shared_ptr<Frame> FramePtr;
+struct TrackedFeature;
+typedef std::shared_ptr<TrackedFeature> TrackedFeaturePtr;
 
+struct PointState {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Vector3f Pw;      //	point position in world frame
+    Vector3f Pw_FEJ;  //	point position First Estimate Jacobian
 
-    struct PointState{
+    MatrixXfR H;  //	Observation Matrix
+    TrackedFeature* host = nullptr;
 
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        Vector3f				m_Pw;				//	point position in world frame
-        Vector3f				m_Pw_FEJ;			//	point position First Estimate Jacobian
+    bool flag_to_marginalize = false;
+    bool flag_to_next_marginalize = false;
+    bool flag_slam_point;
+    int index_in_window;  // point idx in sliding window
 
-        MatrixXfR			H;						//	Observation Matrix
-        TrackedFeature*		host = nullptr;
+    int m_id = 0;  // only used in visualizer
+    int m_idVis = -1;
+    PointState() {
+        static int counter = 0;
+        m_id = counter++;
+        flag_slam_point = false;
+    }
+};
 
-        bool                m_bToMargin = false;
-        bool                m_bNextMargin = false;
-        bool                bSlamPoint;
-        int m_idx;                                  // point idx in sliding window
-    	
-        int m_id = 0;								//only used in visualizer
-        int m_idVis = -1;
-        PointState()
-        {
-            static int counter = 0;
-            m_id = counter++;
-            bSlamPoint = false;
-        }
-    };
+struct CamState {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    Matrix3f Rwi;     // rotation matrix from imu frame to world frame
+    Vector3f Pwi;     // imu position in world frame
+    Vector3f Pw_FEJ;  // First Estimate Jacobian Imu Position in world frame
 
-    struct CamState{
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    int index_in_window;                 // camera idx in sliding window
+    bool flag_to_marginalize = false;  // flag to marginalize
+    Frame* host_frame = nullptr;  // pointer to host frame
+    Vector3f vel;
 
-        Matrix3f	m_Rwi;					// rotation matrix from imu frame to world frame
-        Vector3f	m_Pwi;					// imu position in world frame
-        Vector3f    m_Pw_FEJ;				// First Estimate Jacobian Imu Position in world frame
-
-        int			m_idx;					// camera idx in sliding window
-        bool		m_bToMargin = false;	// flag to marginalize
-        Frame*		m_pHost = nullptr;		// pointer to host frame
-        Vector3f    m_vel;
-
-
-        int m_id = 0;						//only used in visualizer
+    int m_id = 0;  // only used in visualizer
 
 #if USE_NEW_MOVED_PIXEL
-        std::vector<Matrix3f>           m_dR;
+    std::vector<Matrix3f> m_dR;
 #endif
-    	
-        CamState()
-        {
-            static int counter = 0;
-            m_id = counter++;
-        }
-    };
 
+    CamState() {
+        static int counter = 0;
+        m_id = counter++;
+    }
+};
 
+struct MsckfState {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+    std::vector<FramePtr> frames;  // All frames in sliding window
+    Vector3f vel;                     // linear velocity
+};
 
-
-    struct MsckfState {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-
-        std::vector<FramePtr>			m_vFrames;	//All frames in sliding window
-        Vector3f							vel;		// linear velocity
-    };
-
-}
+}  // namespace DeltaVins
