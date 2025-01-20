@@ -1,6 +1,7 @@
 # DeltaVINS
 
-# How to Build
+
+# How to Build (Non ROS using Conan)
 
 ```
 # make build folder
@@ -24,3 +25,18 @@ conan build ..
 
 
 ```
+
+
+## How to Build (ROS2 Humble)
+
+```
+# make workspace
+mkdir -p ~/delta_ws/src
+cd ~/delta_ws/src
+git clone https://github.com/cvidkal/DeltaVINS
+cd ~/delta_ws
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+```
+
+
+
