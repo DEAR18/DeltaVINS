@@ -103,7 +103,7 @@ def plot_traj(ax,stamps,traj,style,color,label):
     for i in range(len(stamps)):
         if stamps[i]-last < 2*interval:
             x.append(traj[i][0])
-            y.append(traj[i][2])
+            y.append(traj[i][1])
         elif len(x)>0:
             ax.plot(x,y,style,color=color,label=label)
             label=""
