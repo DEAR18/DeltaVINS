@@ -2,6 +2,8 @@
 // Created by chenguojun on 2020/4/15.
 //
 
+#ifdef PLATFORM_LINUX
+
 #include <FrameAdapter.h>
 #include <IO/dataOuput/PoseOutputTCP.h>
 #include <WorldPointAdapter.h>
@@ -136,3 +138,4 @@ void PoseOutputTcp::SendImage() {
 }
 
 }  // namespace DeltaVins
+#endif

@@ -600,7 +600,7 @@ int SquareRootEKFSolver::ComputeJacobians(TrackedFeature* track) {
 
         if (reprojErr > cutOffThresh) {
             track->Reproject();
-            track->DrawObservationsAndReprojection(1);
+            // track->DrawObservationsAndReprojection(1);
             printf("%f %f ->%f %f\n", ob->px.x(), ob->px.y(), px.x(),
                    px.y());
             return false;

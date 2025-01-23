@@ -38,12 +38,12 @@ PoseOutputTcp::Ptr tcpPtr = nullptr;
 DataOutputROS::Ptr rosPtr = nullptr;
 #endif
 
-void InitSlamSystem(const char* datasetDir, const char* testName) {
+void InitSlamSystem(const char* configFile) {
     // Init Log
     logInit();
 
     // load config file
-    Config::loadConfigFile(datasetDir, testName);
+    Config::loadConfigFile(configFile);
     CamModel::loadCalibrations();
     if (Config::CameraCalibration) return;
 

@@ -64,7 +64,7 @@ void DrawPointsAfterUpdates(std::vector<PointState*>& m_PointStates) {
                  cv::Point(ob.px_reprj.x(), ob.px_reprj.y()),
                  _GREEN_SCALAR);
     }
-    cv::imshow("Points After Updates", reprojImage2);
+    // cv::imshow("Points After Updates", reprojImage2);
 }
 void DrawPointsBeforeUpdates(std::vector<PointState*>& m_PointStates) {
     if (Config::NoGUI) return;
@@ -104,7 +104,7 @@ void DrawPointsBeforeUpdates(std::vector<PointState*>& m_PointStates) {
                  cv::Point(ob.px_reprj.x(), ob.px_reprj.y()),
                  _GREEN_SCALAR);
     }
-    cv::imshow("Points Before Updates", reprojImage);
+    // cv::imshow("Points Before Updates", reprojImage);
 }
 
 void InitDataAssociation(SquareRootEKFSolver* solver) {

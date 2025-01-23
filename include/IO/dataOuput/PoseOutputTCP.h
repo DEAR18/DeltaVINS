@@ -1,9 +1,10 @@
 #pragma once
+#ifdef PLATFORM_LINUX
+
 #include <FrameAdapter.h>
 #include <WorldPointAdapter.h>
 
 #include "IO/dataOuput/yg_tcp_socket.h"
-#ifdef PLATFORM_LINUX
 
 namespace DeltaVins {
 

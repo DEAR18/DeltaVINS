@@ -1,3 +1,4 @@
+#ifdef PLATFORM_LINUX
 #include <IO/dataOuput/yg_tcp_socket.h>
 
 #include "precompile.h"
@@ -171,3 +172,4 @@ long YG_TCP_Server::SendData(int socket, char* data, int length) {
 
     return recv(socket, data, length, 0);
 }
+#endif
