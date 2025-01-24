@@ -22,10 +22,10 @@ struct CircularBuffer {
 
     bool empty() const { return head_ == tail_; };
 
-    bool Full() const { return (head_ + 1 & _END) == tail_; };
+    bool Full() const { return ((head_ + 1) & _END) == tail_; };
 
     BufferIndex getDeltaIndex(BufferIndex index, BufferIndex delta) const {
-        return index + _BUFSIZE + delta & _END;
+        return (index + _BUFSIZE + delta) & _END;
     }
 
     T& getHeadNode() { return buf_[head_]; };
@@ -39,7 +39,7 @@ struct CircularBuffer {
     }
 
     //
-    void PopIndex() { tail_ = tail_ + 1 & _END; }
+    void PopIndex() { tail_ = (tail_ + 1) & _END; }
 
     enum BinarySearchResultType { Left = 0, Right = 1, Exact = -1 };
 

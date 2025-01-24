@@ -230,10 +230,13 @@ void ImuBuffer::OnImuReceived(const ImuData& imuData) {
 }
 
 Vector3f ImuBuffer::GetGravity(long long timestamp) {
-    return gravity_;
     BufferIndex index0 = binarySearch<long long>(timestamp, Left);
+    if (index0 < 0) {
+        return gravity_;
+    }
     int nSize = index0 > tail_ ? index0 - tail_ : index0 + _END - tail_;
-    BufferIndex index_start = getDeltaIndex(index0, nSize >= 21 ? -20 : -nSize + 1);
+    BufferIndex index_start =
+        getDeltaIndex(index0, nSize >= 21 ? -20 : -nSize + 1);
     BufferIndex index_end = index0;
     BufferIndex i = index_start;
     Vector3f gravity = buf_[i].acc;
