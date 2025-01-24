@@ -56,11 +56,12 @@ void DataSource_ROS2::ImageCallback(
     image_count_++;
     // Debug for Euroc data
 
-    int width_crop = 0;
-    if (cv_ptr->image.cols > 640) width_crop = (cv_ptr->image.cols - 640) / 2;
-    cv::cvtColor(cv_ptr->image.colRange(width_crop, width_crop + 640), image_data->image, cv::COLOR_BGR2GRAY);
+    // int width_crop = 0;
+    // if (cv_ptr->image.cols > 640) width_crop = (cv_ptr->image.cols - 640) / 2;
+    // cv::cvtColor(cv_ptr->image.colRange(width_crop, width_crop + 640), image_data->image, cv::COLOR_BGR2GRAY);
     // image_data->image =
     //     cv_ptr->image.colRange(width_crop, width_crop + 640).clone();
+    cv::cvtColor(cv_ptr->image, image_data->image, cv::COLOR_BGR2GRAY);
     {
         std::lock_guard<std::mutex> lck(mtx_image_observer_);
         for (auto& observer : image_observers_) {

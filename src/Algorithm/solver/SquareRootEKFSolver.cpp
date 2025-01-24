@@ -735,8 +735,8 @@ int SquareRootEKFSolver::AddSlamPointConstraint() {
 #endif
 
 void SquareRootEKFSolver::AddMsckfPoint(PointState* state) {
-    constexpr int MAX_DIM =
-        3 + (CAM_STATE_DIM * MAX_WINDOW_SIZE + IMU_STATE_DIM + 1);
+    // constexpr int MAX_DIM =
+        // 3 + (CAM_STATE_DIM * MAX_WINDOW_SIZE + IMU_STATE_DIM + 1);
     static MatrixHfR H;
     // do null space trick to get pose constraint
     int col = state->H.cols();
@@ -881,7 +881,6 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
     int nCamStartIdx = IMU_STATE_DIM;
     int nVisualObs = 0;
     int rffIdx = 0;
-    int num_cams = cam_states_.size();
 
 #if USE_PLANE_PRIOR
     nCamStartIdx += PLANE_DIM;
@@ -925,6 +924,7 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
 
 #if USE_PLANE_PRIOR
 
+    int num_cams = cam_states_.size();
     stacked_matrix_.topLeftCorner(num_cams, 3) = m_PlaneH.topLeftCorner(num_cams, 3);
     stacked_matrix_.block(0, nCamStartIdx, num_cams, CAM_STATE_DIM * num_cams) =
         m_PlaneH.middleCols(3, CAM_STATE_DIM * num_cams);

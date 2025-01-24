@@ -231,14 +231,18 @@ void ImuBuffer::OnImuReceived(const ImuData& imuData) {
 
 Vector3f ImuBuffer::GetGravity(long long timestamp) {
     BufferIndex index0 = binarySearch<long long>(timestamp, Left);
+    if (index0 < 0) {
+        return gravity_;
+    }
     int nSize = index0 > tail_ ? index0 - tail_ : index0 + _END - tail_;
-    BufferIndex _index = getDeltaIndex(index0, nSize >= 21 ? -20 : -nSize + 1);
-    BufferIndex index_ = index0;
-    index0 = _index;
-    Vector3f gravity = buf_[index0].acc;
-    while (index0 != index_) {
-        gravity = 0.95f * gravity + 0.05f * buf_[index0].acc;
-        index0 = getDeltaIndex(index0, 1);
+    BufferIndex index_start =
+        getDeltaIndex(index0, nSize >= 21 ? -20 : -nSize + 1);
+    BufferIndex index_end = index0;
+    BufferIndex i = index_start;
+    Vector3f gravity = buf_[i].acc;
+    while (i != index_end) {
+        gravity = 0.95f * gravity + 0.05f * buf_[i].acc;
+        i = getDeltaIndex(i, 1);
     }
     return gravity;
 }

@@ -241,7 +241,8 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractFast(
 
 void FeatureTrackerOpticalFlow_Chen::_ExtractHarris(
     std::vector<cv::Point2f>& corners, int max_num) {
-    cv::Mat mask(480, 640, CV_8UC1, mask_);
+    auto camModel = CamModel::getCamModel();
+    cv::Mat mask(camModel->height(), camModel->width(), CV_8UC1, mask_);
     cv::goodFeaturesToTrack(image_, corners, max_num, 0.1, 20, mask);
 }
 }  // namespace DeltaVins
