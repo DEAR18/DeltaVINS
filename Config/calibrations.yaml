@@ -4,7 +4,7 @@ Intrinsic: !!opencv-matrix
    rows: 1
    cols: 6
    dt: d
-   data: [ 640, 480, 458.654, 457.296, 311.215, 248.375 ]
+   data: [ 752, 480, 458.654, 457.296, 367.215, 248.375 ]
 Distortion: !!opencv-matrix
    rows: 1
    cols: 5
