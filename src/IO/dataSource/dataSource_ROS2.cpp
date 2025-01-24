@@ -2,7 +2,7 @@
 
 #include "IO/dataSource/dataSource_ROS2.h"
 
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 
 #include "Algorithm/vision/camModel/camModel.h"
 

@@ -8,7 +8,7 @@
 
 #endif
 
-#ifdef PLATFORM_LINUX
+#if defined(PLATFORM_LINUX) || defined(PLATFORM_MAC)
 #include <dirent.h>
 #include <sys/stat.h>
 #include <zconf.h>
@@ -221,16 +221,15 @@ bool existOrMkdir(const std::string& dir) {
         _mkdir(dir.c_str());
         return false;
     }
-    return true;
 #endif
-#if defined(PLATFORM_LINUX)
+#if defined(PLATFORM_LINUX) || defined(PLATFORM_MAC)
     opendir(dir.c_str());
     if (ENOENT == errno) {
         mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         return false;
     }
-    return true;
 #endif
+    return true;
 }
 
 }  // namespace DeltaVins

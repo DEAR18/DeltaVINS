@@ -4,8 +4,7 @@ namespace DeltaVins {
 enum DataSrcType { DataSrcEuroc, DataSrcSynthetic,DataSrcROS2 };
 
 struct Config {
-    static void loadConfigFile(const std::string& datasetDir,
-                               const std::string& outputName);
+    static void loadConfigFile(const std::string& configFile);
 
     static int DataSourceType;
     static std::string DataSourcePath;
@@ -21,11 +20,11 @@ struct Config {
     static int nImageSample;
     static int nImuPerImage;
     static int NoGUI;
-    static std::string testName;
     static int NoDebugOutput;
     static int NoResultOutput;
     static int DataFps;
     static std::string outputFileName;
+    static std::string ResultOutputPath;
     static int CameraCalibration;
     static cv::FileStorage m_configFile;
     static int RecordData;

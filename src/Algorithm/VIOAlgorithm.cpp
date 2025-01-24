@@ -152,16 +152,20 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     if (!Config::NoGUI) {
         cv::Mat trackImage;
         _DrawTrackImage(data, trackImage);
-        cv::imshow("track", trackImage);
-        assert(frame_adapter_);
-        frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols,
+        if (frame_adapter_) {
+            frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols,
                                           trackImage.rows,
                                           trackImage.channels());
-        frame_adapter_->FinishFrame();
+            frame_adapter_->FinishFrame();
+        } else {
+            LOGW("frame_adapter_ is nullptr");
+        }
+
+        // cv::imshow("track", trackImage);
+        // imshow("FeatureTrack",trackImage);
+        // waitKey(1);
     }
 #endif
-    // imshow("FeatureTrack",trackImage);
-    // waitKey(1);
     TickTock::outputResultConsole();
 }
 

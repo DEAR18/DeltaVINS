@@ -152,10 +152,11 @@ target_precompile_headers(${CMAKE_PROJECT_NAME} PRIVATE include/precompile.h)
 
 
 
-if(Linux)
+if(UNIX)
     set(LINK_LIBS
         ${CMAKE_PROJECT_NAME}
-        pthread)
+        pthread
+    )
     if(NOT USE_ROS)
         set(VIS_LIB
             GL
@@ -169,13 +170,11 @@ if(USE_ROS)
         ${LINK_LIBS}
     )
 else()
-
     set(LINK_LIBS
         ${LINK_LIBS}
         SlamVisualizer
         ${VIS_LIB}
     )
-
 endif()
 
 

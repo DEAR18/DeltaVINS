@@ -46,12 +46,12 @@ float Config::Gain;
 
 string Config::CameraCalibFile;
 string Config::outputFileName;
+string Config::ResultOutputPath;
 int Config::CameraCalibration;
 int Config::NoDebugOutput;
 int Config::NoResultOutput;
 int Config::NoGUI;
 int Config::DataFps;
-string Config::testName;
 int Config::RecordData;
 int Config::RecordIMU;
 int Config::RecordImage;
@@ -61,23 +61,18 @@ int Config::PlaneConstraint;
 
 string Config::VisualizerServerIP;
 
-void Config::loadConfigFile(const std::string& datasetDir,
-                            const std::string& outputName) {
+void Config::loadConfigFile(const std::string& configFile) {
     _clear();
-    std::string _configFilePath;
 
     // get current path
     std::filesystem::path currentPath = std::filesystem::current_path();
 
-    _configFilePath = currentPath.string() + "/Config/Config.yaml";
-    // _configFilePath = "Config/Config.yaml";
-
-    m_configFile.open(_configFilePath, FileStorage::READ);
+    m_configFile.open(configFile, FileStorage::READ);
     if (!m_configFile.isOpened()) {
-        throw std::runtime_error("fail to open config file at " +
-                                 _configFilePath);
-    } else
-        LOGI("Load config :%s", _configFilePath.c_str());
+        throw std::runtime_error("fail to open config file at " + configFile);
+    } else {
+        LOGI("Load config :%s", configFile.c_str());
+    }
 
     m_configFile["PlaneConstraint"] >> PlaneConstraint;
 
@@ -131,20 +126,20 @@ void Config::loadConfigFile(const std::string& datasetDir,
     m_configFile["VisualizerServerIP"] >> VisualizerServerIP;
     m_configFile["UploadImage"] >> UploadImage;
     m_configFile["RunVIO"] >> RunVIO;
+    m_configFile["ResultOutputPath"] >> ResultOutputPath;
+    m_configFile["ResultOutputName"] >> outputFileName;
 
     if (RecordImage || RecordIMU) RecordData = 1;
 
-    if (!datasetDir.empty()) {
-        DataSourcePath = datasetDir;
-        if (!outputName.empty()) {
-            testName = outputName;
-            existOrMkdir(datasetDir + "/TestResults");
-            outputFileName = datasetDir + "/TestResults/" + outputName + ".csv";
-        } else {
-            outputFileName = "./outputPose.csv";
-        }
+    if (ResultOutputPath.empty()) {
+        ResultOutputPath = "./";
     }
-    if (outputName.empty()) outputFileName = "./outputPose.csv";
+    existOrMkdir(ResultOutputPath + "/TestResults");
+    if (outputFileName.empty()) {
+        outputFileName = "outputPose";
+    }
+    outputFileName =
+        ResultOutputPath + "/TestResults/" + outputFileName + ".csv";
 }
 
 void Config::_clear() {

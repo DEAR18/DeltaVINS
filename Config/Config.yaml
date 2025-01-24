@@ -1,25 +1,29 @@
 %YAML:1.0
 ---
+# System parameters
 PixelNoise: 0.7
 ImuSampleFps: 200
 ImageSampleFps: 20
-SerialRun: 1
+SerialRun: 0
 RecordImage: 0
 RecordImu: 0
 NoGUI: 0
 NoDebugOutput : 0
 DataFps : 60
 RunVIO: 1
+ResultOutputPath: ""
+ResultOutputName: ""
 
+# Data format
+DataSourceType: "ROS2"  # support: ROS2/Euroc
+DataSourcePath: "" # used for non-ROS operation
+ImageStartIdx: 5
 
-#Euroc
+# Sensor calibration path
+CameraCalibrationPath: "./Config"
 
+# IMU parameters (TODO: move to a calibration file)
 GyroNoise: 2e-4  # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
 AccNoise: 2e-3   # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
 GyroBiasNoise: 2e-5 # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
 AccBiasNoise: 3e-3 # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
-CameraCalibrationPath: "Config"
-DataSourcePath: "/data/V101/mav0"
-DataSourceType: EUROC
-ImageStartIdx: 5
-

@@ -10,7 +10,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "nav_msgs/msg/path.hpp"
-#include "cv_bridge/cv_bridge.h"
+#include "cv_bridge/cv_bridge.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace DeltaVins {
