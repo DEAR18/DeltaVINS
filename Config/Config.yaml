@@ -20,7 +20,7 @@ DataSourcePath: "" # used for non-ROS operation
 ImageStartIdx: 5
 
 # Sensor calibration path
-CameraCalibrationPath: "./Config"
+CameraCalibrationPath: ""
 
 # IMU parameters (TODO: move to a calibration file)
 GyroNoise: 2e-4  # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )

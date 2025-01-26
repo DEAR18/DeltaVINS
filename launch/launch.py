@@ -6,6 +6,7 @@ import os
 def generate_launch_description():
     delta_vins_share_dir = get_package_share_directory('delta_vins')
     rviz_config_file = os.path.join(delta_vins_share_dir, 'rviz', 'delta_vins.rviz')
+    config_file_path = os.path.join(delta_vins_share_dir, 'Config', 'Config.yaml')
 
     return LaunchDescription([
         Node(
@@ -17,6 +18,7 @@ def generate_launch_description():
         Node(
             package='delta_vins',
             executable='DeltaVINSTest',
-            name='delta_vins_test'
+            name='delta_vins_test',
+            arguments=[config_file_path]
         ),
     ])

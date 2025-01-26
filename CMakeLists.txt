@@ -217,7 +217,7 @@ if(USE_ROS)
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
     # Install launch files.
     install(DIRECTORY
-        launch rviz
+        launch rviz Config
         DESTINATION share/${PROJECT_NAME}/
     )
     install(

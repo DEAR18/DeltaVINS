@@ -134,6 +134,13 @@ void Config::loadConfigFile(const std::string& configFile) {
     if (ResultOutputPath.empty()) {
         ResultOutputPath = "./";
     }
+    if(CameraCalibFile.empty()){
+        // get config file folder path
+        std::filesystem::path config_path;
+        config_path = std::filesystem::path(configFile).parent_path();
+        CameraCalibFile = config_path.string() + "/calibrations.yaml";
+        LOGI("CameraCalibFile: %s", CameraCalibFile.c_str());
+    }
     existOrMkdir(ResultOutputPath + "/TestResults");
     if (outputFileName.empty()) {
         outputFileName = "outputPose";

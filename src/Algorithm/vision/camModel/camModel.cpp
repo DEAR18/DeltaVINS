@@ -29,7 +29,7 @@ std::vector<std::vector<Vector2f>> CamModel::m_imagePoints;
 
 void CamModel::loadCalibrations() {
     cv::FileStorage config;
-    config.open(Config::CameraCalibFile + "/calibrations.yaml",
+    config.open(Config::CameraCalibFile,
                 cv::FileStorage::READ);
 
     if (Config::CameraCalibration) {
@@ -38,7 +38,7 @@ void CamModel::loadCalibrations() {
 
         CamModel::loadChessboardPoints();
         config.release();
-        config.open(Config::CameraCalibFile + "/calibrations.yaml",
+        config.open(Config::CameraCalibFile,
                     cv::FileStorage::WRITE);
 
         if (type == "Equidistant") EquiDistantModel::calibrate(config);
