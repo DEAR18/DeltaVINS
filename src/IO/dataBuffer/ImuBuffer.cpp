@@ -14,12 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with Delta_VIO. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <Algorithm/IMU/ImuPreintergration.h>
-#include <IO/dataBuffer/imuBuffer.h>
-#include <utils/utils.h>
+#include "IO/dataBuffer/imuBuffer.h"
 
 #include <sophus/se3.hpp>
 
+#include "Algorithm/IMU/ImuPreintergration.h"
+#include "utils/utils.h"
 #include "precompile.h"
 
 namespace DeltaVins {
@@ -30,6 +30,8 @@ ImuBuffer::ImuBuffer() : CircularBuffer<ImuData, 10>() {
     noise_cov_.setIdentity(6, 6);
     noise_cov_.topLeftCorner(3, 3) *= Config::GyroNoise2;
     noise_cov_.bottomRightCorner(3, 3) *= Config::AccNoise2;
+
+    gravity_.setZero();
 }
 
 void ImuBuffer::UpdateBias(const Vector3f& dBg, const Vector3f& dBa) {
@@ -53,7 +55,7 @@ void ImuBuffer::GetBias(Vector3f& bg, Vector3f& ba) const {
 }
 
 Vector3f ImuBuffer::GetGravity() {
-    std::lock_guard<std::mutex> lck(mutex_);
+    std::lock_guard<std::mutex> lck(gravity_mutex_);
     return gravity_;
 }
 
@@ -222,7 +224,7 @@ void ImuBuffer::OnImuReceived(const ImuData& imuData) {
     static Eigen::Vector3f gravity = imuData.acc;
     gravity = 0.95f * gravity + 0.05f * imuData.acc;
     {
-        std::lock_guard<std::mutex> lck(mutex_);
+        std::lock_guard<std::mutex> lck(gravity_mutex_);
         gravity_ = gravity;
     }
 
@@ -232,6 +234,7 @@ void ImuBuffer::OnImuReceived(const ImuData& imuData) {
 Vector3f ImuBuffer::GetGravity(long long timestamp) {
     BufferIndex index0 = binarySearch<long long>(timestamp, Left);
     if (index0 < 0) {
+        std::lock_guard<std::mutex> lck(gravity_mutex_);
         return gravity_;
     }
     int nSize = index0 > tail_ ? index0 - tail_ : index0 + _END - tail_;

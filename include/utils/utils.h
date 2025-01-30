@@ -102,6 +102,27 @@ inline Matrix3f getRotFromGravAndMag(const Eigen::Vector3f& gravity,
 #endif
 }
 
+
+// calculate a rotation matrix which aligns vec to vec_ref
+inline Matrix3f GetRotByAlignVector(const Vector3f& vec,
+                                    const Vector3f& vec_ref) {
+    Vector3f vec_normalize = vec.normalized();
+    Vector3f vec_ref_normalize = vec_ref.normalized();
+    Vector3f axis = vec_normalize.cross(vec_ref_normalize);
+    if (axis.norm() < FLT_EPSILON) {
+        return Matrix3f::Identity();
+    }
+    float dot = vec_normalize.dot(vec_ref_normalize);
+    float angle = std::acos(dot);
+    axis.normalize();
+    Matrix3f axisSkew;
+    axisSkew << 0, -axis.z(), axis.y(), axis.z(), 0, -axis.x(), -axis.y(),
+        axis.x(), 0;
+    Matrix3f R = Matrix3f::Identity() + std::sin(angle) * axisSkew +
+                 (1 - std::cos(angle)) * axisSkew * axisSkew;
+    return R;
+}
+
 bool existOrMkdir(const std::string& dir);
 
 template <typename T>

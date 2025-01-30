@@ -8,6 +8,7 @@
 #include "precompile.h"
 #include "utils/TickTock.h"
 #include "utils/utils.h"
+#include "utils/constantDefine.h"
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
@@ -34,7 +35,6 @@ void VIOAlgorithm::AddNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose) {
     _PreProcess(imageData);
 
     if (!initialized_) {
-        initialized_ = true;
         return;
     }
 
@@ -79,6 +79,7 @@ void VIOAlgorithm::SetWorldPointAdapter(WorldPointAdapter* adapter) {
 void VIOAlgorithm::SetFrameAdapter(FrameAdapter* adapter) {
     frame_adapter_ = adapter;
 }
+
 void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
     auto timestamp = imageData->timestamp;
 
@@ -93,8 +94,15 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
     if (states_.frames_.empty()) {
         // Get Gravity
         Vector3f g = imuBuffer.GetGravity(timestamp);
-        LOGI("Gravity:%f %f %f\n", g.x(), g.y(), g.z());
-        Matrix3f R = getRotFromGravAndMag(g, Eigen::Vector3f(0, 0, 1));
+        float g_norm = g.norm();
+        LOGI("Gravity:%f %f %f, Gravity norm:%f", g.x(), g.y(), g.z(), g_norm);
+        if (std::fabs(g_norm - GRAVITY) > 1.0) {
+            LOGW(
+                "Gravity is invalid, wait for a stationary state for "
+                "initialization !");
+            return;
+        }
+        Matrix3f R = GetRotByAlignVector(g, Eigen::Vector3f(0, 0, -1));
         imuBuffer.SetZeroBias();
         Initialize(R);
         preintergration_.t0 = timestamp;
@@ -104,6 +112,10 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
     imuBuffer.ImuPreIntegration(preintergration_);
 
     preintergration_.t0 = preintergration_.t1;
+
+    if (!initialized_ && !states_.frames_.empty()) {
+        initialized_ = true;
+    }
 }
 
 void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {

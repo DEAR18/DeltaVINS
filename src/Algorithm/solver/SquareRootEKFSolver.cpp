@@ -1,7 +1,5 @@
 #include "Algorithm/solver/SquareRootEKFSolver.h"
 
-#include <utils/TickTock.h>
-
 #include <sophus/so3.hpp>
 
 #include "Algorithm/IMU/ImuPreintergration.h"
@@ -9,8 +7,8 @@
 #include "IO/dataBuffer/imuBuffer.h"
 #include "precompile.h"
 #include "utils/utils.h"
-
-#define GRAVITY 9.81f
+#include "utils/TickTock.h"
+#include "utils/constantDefine.h"
 
 namespace DeltaVins {
 SquareRootEKFSolver::SquareRootEKFSolver() {
