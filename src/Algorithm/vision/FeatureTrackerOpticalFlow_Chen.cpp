@@ -142,6 +142,9 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
             ++num_features_;
         }
     }
+    if (vTrackedFeatures.empty()) {
+        LOGW("No more features detected");
+    }
 }
 
 void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
@@ -157,6 +160,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     now.reserve(vTrackedFeatures.size());
 
     auto camModel = CamModel::getCamModel();
+    float mean_moved_pixels = 0;
     for (auto tf : vTrackedFeatures) {
         if (!tf->flag_dead) {
             auto& lastVisualOb = tf->visual_obs.back();
@@ -190,7 +194,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     int nPrePoints = pre.size();
     if (pre.empty()) {
         LOGW("No feature to track.");
-        return;
+        return; 
     }
     bool use_predict = false;
 #if USE_ROTATION_PREDICTION
@@ -218,7 +222,6 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
                 continue;
             }
         }
-
         goodTracks[i]->flag_dead = true;
     }
 
@@ -302,6 +305,9 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractFast(
     for (auto& v : vTemp) {
         corner.emplace_back(v.second.x + halfMaskSize,
                             v.second.y + halfMaskSize);
+    }
+    if (vTemp.empty()) {
+        LOGW("No more features detected");
     }
 }
 

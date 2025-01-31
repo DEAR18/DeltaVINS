@@ -67,7 +67,7 @@ std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
 void Config::loadConfigFile(const std::string& configFile) {
     _clear();
 
-    FileStorage config_file_cv,data_source_config_file_cv;
+    FileStorage config_file_cv,data_source_config_file_cv,camera_calib_file_cv;
     // get current path
     std::filesystem::path currentPath = std::filesystem::current_path();
 
@@ -85,7 +85,6 @@ void Config::loadConfigFile(const std::string& configFile) {
         std::filesystem::path config_path;
         config_path = std::filesystem::path(configFile).parent_path();
         DataSourceConfigFilePath = config_path.string() + "/DataSources.yaml";
-        LOGI("DataSourceConfigFilePath: %s", DataSourceConfigFilePath.c_str());
     }
 
     data_source_config_file_cv.open(DataSourceConfigFilePath, FileStorage::READ);
@@ -93,6 +92,19 @@ void Config::loadConfigFile(const std::string& configFile) {
         throw std::runtime_error("fail to open data source config file at " + DataSourceConfigFilePath);
     } else {
         LOGI("Load data source config :%s", DataSourceConfigFilePath.c_str());
+    }
+    config_file_cv["CameraCalibrationPath"] >> CameraCalibFile;
+    if(CameraCalibFile.empty()){
+        // get config file folder path
+        std::filesystem::path config_path;
+        config_path = std::filesystem::path(configFile).parent_path();
+        CameraCalibFile = config_path.string() + "/calibrations.yaml";
+    }
+    camera_calib_file_cv.open(CameraCalibFile, FileStorage::READ);
+    if (!camera_calib_file_cv.isOpened()) {
+        throw std::runtime_error("fail to open camera calibration file at " + CameraCalibFile);
+    } else {
+        LOGI("Load camera calibration :%s", CameraCalibFile.c_str());
     }
     config_file_cv["PlaneConstraint"] >> PlaneConstraint;
 
@@ -112,8 +124,14 @@ void Config::loadConfigFile(const std::string& configFile) {
 
     data_source_config_file_cv["DataSourcePath"] >> DataSourcePath;
 
-    config_file_cv["ImuSampleFps"] >> nImuSample;
-    config_file_cv["ImageSampleFps"] >> nImageSample;
+
+    camera_calib_file_cv["ImuSampleFps"] >> nImuSample;
+    camera_calib_file_cv["ImageSampleFps"] >> nImageSample;
+    camera_calib_file_cv["PixelNoise"] >> ImageNoise2;
+    camera_calib_file_cv["GyroNoise"] >> GyroNoise2;
+    camera_calib_file_cv["AccNoise"] >> AccNoise2;
+    camera_calib_file_cv["GyroBiasNoise"] >> GyroBiasNoise2;
+    camera_calib_file_cv["AccBiasNoise"] >> AccBiasNoise2;
     nImuPerImage = nImuSample / nImageSample;
     if (nImuSample == 0 || nImageSample == 0 || nImuSample % nImageSample) {
         throw std::runtime_error(
@@ -121,17 +139,15 @@ void Config::loadConfigFile(const std::string& configFile) {
             "is not a multiple of Image Sample Speed.");
     }
 
-    config_file_cv["PixelNoise"] >> ImageNoise2;
-    config_file_cv["GyroNoise"] >> GyroNoise2;
-    config_file_cv["AccNoise"] >> AccNoise2;
-    config_file_cv["GyroBiasNoise"] >> GyroBiasNoise2;
-    config_file_cv["AccBiasNoise"] >> AccBiasNoise2;
     GyroNoise2 = GyroNoise2 * (GyroNoise2 * nImuSample);
     AccNoise2 = AccNoise2 * (AccNoise2 * nImuSample);
     GyroBiasNoise2 = GyroBiasNoise2 * (GyroBiasNoise2 * nImuSample);
     AccBiasNoise2 = AccBiasNoise2 * (AccBiasNoise2 * nImuSample);
     ImageNoise2 = ImageNoise2 * ImageNoise2;
-    config_file_cv["CameraCalibrationPath"] >> CameraCalibFile;
+
+
+
+
     data_source_config_file_cv["ImageStartIdx"] >> ImageStartIdx;
     config_file_cv["SerialRun"] >> SerialRun;
     config_file_cv["NoGUI"] >> NoGUI;
@@ -154,13 +170,7 @@ void Config::loadConfigFile(const std::string& configFile) {
     if (ResultOutputPath.empty()) {
         ResultOutputPath = "./";
     }
-    if(CameraCalibFile.empty()){
-        // get config file folder path
-        std::filesystem::path config_path;
-        config_path = std::filesystem::path(configFile).parent_path();
-        CameraCalibFile = config_path.string() + "/calibrations.yaml";
-        LOGI("CameraCalibFile: %s", CameraCalibFile.c_str());
-    }
+    
     existOrMkdir(ResultOutputPath + "/TestResults");
     if (outputFileName.empty()) {
         outputFileName = "outputPose";
