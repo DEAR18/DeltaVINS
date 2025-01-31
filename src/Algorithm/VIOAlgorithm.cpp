@@ -146,7 +146,7 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     fprintf(
         file,
         "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f\n",
-        pose->timestamp, Pwi[0], Pwi[1], -Pwi[2], ea.x(), ea.y(), ea.z(),
+        pose->timestamp, Pwi[0], Pwi[1], Pwi[2], ea.x(), ea.y(), ea.z(),
         Vwi[0], Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1], ba[2]);
 #endif
     if (!Config::NoDebugOutput) {
