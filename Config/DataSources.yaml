@@ -1,0 +1,19 @@
+%YAML:1.0
+---
+
+DataSourceType: "ROS2" # support: ROS2/Euroc
+DataSourcePath: "" # used for  non-ROS2 data source
+ImageStartIdx: 5 # skip the first n images in the dataset
+
+ROSTopics:
+    - 
+      TopicName: "/cam0/image_raw"
+      TopicQueueSize: 10
+      SensorID: 0 # Index of each sensor
+      SensorType: "StereoCamera"
+      RightTopicName: "/cam1/image_raw"
+    - 
+      TopicName: "/imu0"
+      TopicQueueSize: 10
+      SensorID: 0
+      SensorType: "IMU"

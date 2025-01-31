@@ -50,7 +50,7 @@ class VIOAlgorithm {
 
     bool _VisionStatic();
 
-    FeatureTrackerOpticalFlow_Chen* feature_trakcer_ = nullptr;
+    FeatureTrackerOpticalFlow_Chen* feature_tracker_ = nullptr;
     SquareRootEKFSolver* solver_ = nullptr;
     SystemStates states_;
     Frame::Ptr frame_now_ = nullptr;

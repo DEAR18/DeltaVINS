@@ -1,7 +1,20 @@
 #pragma once
+#include <string>
+#include <vector>
 
 namespace DeltaVins {
 enum DataSrcType { DataSrcEuroc, DataSrcSynthetic,DataSrcROS2 };
+enum class ROS2SensorType{
+    MonoCamera,
+    StereoCamera,
+    IMU,
+};
+struct ROS2SensorTopic{
+    ROS2SensorType type;
+    std::vector<std::string> topics;
+    int sensor_id;
+    int queue_size;
+};
 
 struct Config {
     static void loadConfigFile(const std::string& configFile);
@@ -26,7 +39,6 @@ struct Config {
     static std::string outputFileName;
     static std::string ResultOutputPath;
     static int CameraCalibration;
-    static cv::FileStorage m_configFile;
     static int RecordData;
     static int RunVIO;
     static int RecordIMU;
@@ -34,10 +46,14 @@ struct Config {
     static float ExposureTime;
     static float Gain;
     static int PlaneConstraint;
+    static std::string DataSourceConfigFilePath;
 
     static void _clear();
 
     static std::string VisualizerServerIP;
     static int UploadImage;
+
+
+    static std::vector<ROS2SensorTopic> ROS2SensorTopics;
 };
 }  // namespace DeltaVins

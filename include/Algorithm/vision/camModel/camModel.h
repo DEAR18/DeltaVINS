@@ -11,7 +11,9 @@ class CamModel {
 
     static void generateCalibrations(const std::string& path);
 
-    static CamModel* getCamModel() { return camModel; }
+    static CamModel* getCamModel(int index = 0) {
+        return index ? cam_model_right_ : cam_model_;
+    }
 
     static void loadChessboardPoints();
 
@@ -25,14 +27,18 @@ class CamModel {
     Vector3f imageToImu(const Vector2f& px) { return imageToCam(px); }
 
     Vector2f imuToImage(const Vector3f& pImu) {
-        return camToImage(pImu + m_Tci);
+        return camToImage(pImu + tci_);
+    }
+
+    Vector3f camToImu(const Vector3f& pCam){
+        return pCam - tci_;
     }
 
     Vector2f imuToImage(const Vector3f& pImu, Matrix23f& J23) {
-        return camToImage(pImu + m_Tci, J23);
+        return camToImage(pImu + tci_, J23);
     }
 
-    Vector3f getTci() { return m_Tci; }
+    Vector3f getTci() { return tci_; }
 
     virtual Vector2f camToImage(const Vector3f& pCam, Matrix23f& J23) = 0;
 
@@ -42,9 +48,9 @@ class CamModel {
 
     virtual int height() { return height_; }
 
-    const Matrix3f& getRci() { return m_Rci; }
+    const Matrix3f& getRci() { return Rci_; }
 
-    Vector3f& getPic() { return m_Pic; }
+    Vector3f& getPic() { return Pic_; }
 
     virtual int area() { return width_ * height_; }
 
@@ -54,14 +60,24 @@ class CamModel {
     };
     virtual bool inView(const Vector3f& pCam) { return false; };
 
-   protected:
-    int width_, height_;
-    Matrix3f m_Rci;
+    bool IsStereo() { return is_stereo_; }
 
-    Vector3f m_Pic;
-    Vector3f m_Tci;
-    float m_fImageNoise;
-    static CamModel* camModel;
+    float depthFromStereo(const Vector2f& px1, const Vector2f& px2) {
+        return focal() * baseline_ / (px1 - px2).norm();
+    }
+
+   protected:
+    int cam_id;
+    int width_, height_;
+    Matrix3f Rci_, Rci_right_;
+    Vector3f Pic_, Pic_right_;
+    Vector3f tci_, tci_right_;
+    float image_noise_;
+    static CamModel* cam_model_;
+    static CamModel* cam_model_right_;
+
+    bool is_stereo_;
+    float baseline_;
 
     static std::vector<Vector3f> m_objectPoints;
     static std::vector<std::vector<Vector2f>> m_imagePoints;

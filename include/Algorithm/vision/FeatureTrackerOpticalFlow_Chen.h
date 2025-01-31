@@ -1,5 +1,6 @@
 #pragma once
 #include "dataStructure/vioStructures.h"
+#include "dataStructure/sensorStructure.h"
 
 namespace DeltaVins {
 class FeatureTrackerOpticalFlow_Chen {
@@ -10,7 +11,7 @@ class FeatureTrackerOpticalFlow_Chen {
     void _ExtractMorePoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
     void _TrackPoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
     void MatchNewFrame(std::list<TrackedFeaturePtr>& vTrackedFeatures,
-                       cv::Mat& image, Frame* camState);
+                     const ImageData::Ptr image, Frame* camState);
 
     ~FeatureTrackerOpticalFlow_Chen();
 
@@ -26,6 +27,7 @@ class FeatureTrackerOpticalFlow_Chen {
     int num_features_tracked_;
     int mask_buffer_size_;
     cv::Mat image_;
+    cv::Mat right_image_;
     Frame* cam_state_ = nullptr;
     Frame* cam_state0_ = nullptr;
     cv::Mat last_image_;

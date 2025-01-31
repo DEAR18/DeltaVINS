@@ -3,11 +3,17 @@
 
 namespace DeltaVins {
 
-RadTanModel* RadTanModel::createFromConfig(cv::FileStorage& config) {
+RadTanModel* RadTanModel::createFromConfig(cv::FileStorage& config,
+                                           bool right) {
     cv::Mat K;
     cv::Mat D;
-    config["Intrinsic"] >> K;
-    config["Distortion"] >> D;
+    if (right) {
+        config["Intrinsic_right"] >> K;
+        config["Distortion_right"] >> D;
+    } else {
+        config["Intrinsic"] >> K;
+        config["Distortion"] >> D;
+    }
     auto pK = K.ptr<double>();
     auto pD = D.ptr<double>();
     return new RadTanModel(pK[0], pK[1], pK[2], pK[3], pK[4], pK[5], pD[0],

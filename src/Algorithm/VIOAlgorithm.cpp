@@ -12,16 +12,16 @@
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
-    feature_trakcer_ = new FeatureTrackerOpticalFlow_Chen(350);
+    feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(350);
     solver_ = new SquareRootEKFSolver();
     DataAssociation::InitDataAssociation(solver_);
     initialized_ = false;
 }
 
 VIOAlgorithm::~VIOAlgorithm() {
-    if (feature_trakcer_) {
-        delete feature_trakcer_;
-        feature_trakcer_ = nullptr;
+    if (feature_tracker_) {
+        delete feature_tracker_;
+        feature_tracker_ = nullptr;
     }
     if (solver_) {
         delete solver_;
@@ -52,7 +52,7 @@ void VIOAlgorithm::AddNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose) {
     TickTock::Start("TrackFeature");
 
     // Track Feature
-    feature_trakcer_->MatchNewFrame(states_.tfs_, imageData->image,
+    feature_tracker_->MatchNewFrame(states_.tfs_, imageData,
                                      frame_now_.get());
     TickTock::Stop("TrackFeature");
 
@@ -550,10 +550,10 @@ void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
                                      Pose::Ptr pose) {
     _AddImuInformation();
     _MarginFrames();
-    if (!feature_trakcer_)
-        feature_trakcer_ = new FeatureTrackerOpticalFlow_Chen(350);
+    if (!feature_tracker_)
+        feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(350);
 
-    feature_trakcer_->MatchNewFrame(states_.tfs_, data->image,
+    feature_tracker_->MatchNewFrame(states_.tfs_, data,
                                      frame_now_.get());
 
     states_.tfs_.remove_if(

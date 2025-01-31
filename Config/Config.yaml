@@ -17,9 +17,9 @@ ResultOutputName: ""
 # Data format
 DataSourceType: "ROS2"  # support: ROS2/Euroc
 DataSourcePath: "" # used for non-ROS operation
-ImageStartIdx: 5
 
 # Sensor calibration path
+DataSourceConfigFilePath: ""
 CameraCalibrationPath: ""
 
 # IMU parameters (TODO: move to a calibration file)

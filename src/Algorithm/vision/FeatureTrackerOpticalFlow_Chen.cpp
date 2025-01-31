@@ -62,6 +62,45 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
     _ExtractFast(imgStride, halfMaskSize, corners);
 
 #endif
+    std::vector<cv::Point2f> stereo_corners;
+    std::vector<cv::Point2f> stereo_corners_back;
+    std::vector<unsigned char> stereo_status, stereo_status_back, final_status;
+    std::vector<float> err;
+
+    if (CamModel::getCamModel()->IsStereo()) {
+        auto cv_point_distance_sqr = [](cv::Point2f a, cv::Point2f b) {
+            return ((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+        };
+        cv::calcOpticalFlowPyrLK(image_, right_image_, corners, stereo_corners,
+                                 stereo_status, err);
+        cv::calcOpticalFlowPyrLK(right_image_, image_, stereo_corners,
+                                 stereo_corners_back, stereo_status_back, err);
+        for (int i = 0; i < stereo_corners.size(); i++) {
+            if (stereo_status[i] && stereo_status_back[i] &&
+                cv_point_distance_sqr(corners[i], stereo_corners_back[i]) < 1) {
+                final_status.push_back(1);
+            } else {
+                final_status.push_back(0);
+            }
+        }
+        // // show stereo match
+        // // merge two image
+        // cv::Mat img_show;
+        // cv::hconcat(image_, right_image_, img_show);
+        // cv::cvtColor(img_show, img_show, cv::COLOR_BGR2RGB);
+        // for (int i = 0; i < stereo_corners.size(); i++) {
+        //     if (final_status[i]) {
+        //         cv::circle(img_show, corners[i], 2, cv::Scalar(0, 255, 0),
+        //         2); cv::circle(img_show,cv::Point2f(stereo_corners[i].x +
+        //         imgStride, stereo_corners[i].y), 2, cv::Scalar(0, 255, 0),
+        //         2);
+        //         cv::line(img_show,corners[i],cv::Point2f(stereo_corners[i].x
+        //         + imgStride, stereo_corners[i].y),cv::Scalar(255, 0, 0),1);
+        //     }
+        // }
+        // cv::imshow("stereo match",img_show);
+        // cv::waitKey(0);
+    }
 
     for (int i = 0, j = max_num_to_track_ - num_features_tracked_;
          i < corners.size() && j > 0; ++i) {
@@ -72,7 +111,33 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
             _SetMask(x, y);
             j--;
             auto tf = std::make_shared<TrackedFeature>();
-            tf->AddVisualObservation(Vector2f(x, y), cam_state_);
+            if (CamModel::getCamModel()->IsStereo()) {
+                auto left_model = CamModel::getCamModel(0);
+                auto right_model = CamModel::getCamModel(1);
+                if (final_status[i]) {
+                    // Vector2f px1 =
+                    //     left_model->camToImage(left_model->imageToCam(
+                    //         Vector2f(corners[i].x, corners[i].y)));
+                    // Vector2f px2 = right_model->camToImage(
+                    //     right_model->imageToCam(Vector2f(stereo_corners[i].x,
+                    //                                      stereo_corners[i].y)));
+                    // if (!left_model->inView(px1)) continue;
+                    // if (!right_model->inView(px2)) continue;
+                    // float depth_prior =
+                    //     CamModel::getCamModel()->depthFromStereo(
+                    //         px1,
+                    //         px2);
+                    // if(depth_prior<0){
+                    //     LOGE("invalid depth_error:%f",depth_prior);
+                    // }
+                    // tf->AddVisualObservation(Vector2f(x, y), cam_state_,
+                    //                          depth_prior);
+                } else {
+                    tf->AddVisualObservation(Vector2f(x, y), cam_state_);
+                }
+            } else {
+                tf->AddVisualObservation(Vector2f(x, y), cam_state_);
+            }
             vTrackedFeatures.push_back(tf);
             ++num_features_;
         }
@@ -165,10 +230,11 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
 }
 
 void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
-    std::list<TrackedFeaturePtr>& vTrackedFeatures, cv::Mat& image,
+    std::list<TrackedFeaturePtr>& vTrackedFeatures, const ImageData::Ptr image,
     Frame* camState) {
     num_features_ = 0;
-    image_ = image;
+    image_ = image->image;
+    right_image_ = image->right_image;
     cam_state0_ = cam_state_;
     cam_state_ = camState;
 

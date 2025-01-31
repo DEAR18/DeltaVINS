@@ -79,11 +79,17 @@ FisheyeModel::FisheyeModel(int width, int height, float cx, float cy, float c,
     fx_ = computeErrorMultiplier();
 }
 
-FisheyeModel* FisheyeModel::createFromConfig(cv::FileStorage& config) {
+FisheyeModel* FisheyeModel::createFromConfig(cv::FileStorage& config,
+                                             bool right) {
     cv::Mat K;
     cv::Mat D;
-    config["Intrinsic"] >> K;
-    config["Distortion"] >> D;
+    if (right) {
+        config["Intrinsic_right"] >> K;
+        config["Distortion_right"] >> D;
+    } else {
+        config["Intrinsic"] >> K;
+        config["Distortion"] >> D;
+    }
     auto pK = K.ptr<double>();
     auto pD = D.ptr<double>();
     int alignment;

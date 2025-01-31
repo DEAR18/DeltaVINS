@@ -13,7 +13,7 @@ constexpr int PLANE_DIM = 3;
 constexpr int CAM_STATE_DIM = 6;
 constexpr int NEW_STATE_DIM = CAM_STATE_DIM + IMU_STATE_DIM;
 
-constexpr int MAX_POINT_SIZE = 20;
+constexpr int MAX_POINT_SIZE = 16;
 constexpr int MAX_ADDITIONAL_POINT = 4;
 constexpr int MAX_ALL_POINT_SIZE = MAX_POINT_SIZE + MAX_ADDITIONAL_POINT;
 

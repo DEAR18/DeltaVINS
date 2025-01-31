@@ -38,6 +38,8 @@ struct ImageData {
     long long timestamp;
 
     cv::Mat image;
+    int cam_id;
+    cv::Mat right_image; // for stereo camera
     using Ptr = std::shared_ptr<ImageData>;
 };
 
