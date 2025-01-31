@@ -41,9 +41,8 @@ class ImuBuffer : public CircularBuffer<ImuData, 10>,
     Vector3f gyro_bias_;
     Vector3f acc_bias_;
 
+    std::mutex gravity_mutex_;
     Vector3f gravity_;
-
-    std::mutex mutex_;
 };
 
 }  // namespace DeltaVins
