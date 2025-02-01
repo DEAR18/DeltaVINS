@@ -35,7 +35,7 @@ class FisheyeModel : public CamModel {
                  float ia1, float ia2, float ia3, float ia4, bool aligment);
 
    public:
-    static FisheyeModel* createFromConfig(cv::FileStorage& config);
+    static FisheyeModel* createFromConfig(cv::FileStorage& config,bool right=false);
 
     static void calibrate();
 

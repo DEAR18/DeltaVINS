@@ -7,21 +7,21 @@
 #include "IO/dataBuffer/imuBuffer.h"
 #include "precompile.h"
 #include "utils/TickTock.h"
-#include "utils/utils.h"
 #include "utils/constantDefine.h"
+#include "utils/utils.h"
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
-    feature_trakcer_ = new FeatureTrackerOpticalFlow_Chen(350);
+    feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(350);
     solver_ = new SquareRootEKFSolver();
     DataAssociation::InitDataAssociation(solver_);
-    initialized_ = false;
+    states_.init_state_ = InitState::NeedFirstFrame;
 }
 
 VIOAlgorithm::~VIOAlgorithm() {
-    if (feature_trakcer_) {
-        delete feature_trakcer_;
-        feature_trakcer_ = nullptr;
+    if (feature_tracker_) {
+        delete feature_tracker_;
+        feature_tracker_ = nullptr;
     }
     if (solver_) {
         delete solver_;
@@ -29,12 +29,42 @@ VIOAlgorithm::~VIOAlgorithm() {
     }
 }
 
+void VIOAlgorithm::_TrackFrame(const ImageData::Ptr imageData) {
+    // Track Feature
+    feature_tracker_->MatchNewFrame(states_.tfs_, imageData, frame_now_.get());
+}
+
+void VIOAlgorithm::_Initialization(const ImageData::Ptr imageData) {
+
+    if(!static_initializer_.Initialize(imageData)){
+        LOGI("Initializating...");
+        return;
+    }
+
+    auto& imuBuffer = ImuBuffer::Instance();
+    auto timestamp = imageData->timestamp;
+    // Get Gravity
+    Vector3f g = imuBuffer.GetGravity(timestamp);
+    float g_norm = g.norm();
+    LOGI("Gravity:%f %f %f, Gravity norm:%f", g.x(), g.y(), g.z(), g_norm);
+    if (std::fabs(g_norm - GRAVITY) > 1.0) {
+        LOGW(
+            "Gravity is invalid, wait for a stationary state for "
+            "initialization !");
+        return;
+    }
+    Matrix3f R = GetRotByAlignVector(g, Eigen::Vector3f(0, 0, -1));
+    imuBuffer.SetZeroBias();
+    InitializeStates(R);
+    states_.init_state_ = InitState::Initialized;
+}
+
 void VIOAlgorithm::AddNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose) {
     TickTock::Start("AddFrame");
     // Process input data
     _PreProcess(imageData);
 
-    if (!initialized_) {
+    if (states_.init_state_ != InitState::Initialized) {
         return;
     }
 
@@ -51,9 +81,8 @@ void VIOAlgorithm::AddNewFrame(const ImageData::Ptr imageData, Pose::Ptr pose) {
 
     TickTock::Start("TrackFeature");
 
-    // Track Feature
-    feature_trakcer_->MatchNewFrame(states_.tfs_, imageData->image,
-                                     frame_now_.get());
+    _TrackFrame(imageData);
+
     TickTock::Stop("TrackFeature");
 
     TickTock::Start("Update");
@@ -90,32 +119,25 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
     frame_now_->image = imageData->image.clone();  // Only used for debugging
 #endif
     static auto& imuBuffer = ImuBuffer::Instance();
-    // Init system
-    if (states_.frames_.empty()) {
-        // Get Gravity
-        Vector3f g = imuBuffer.GetGravity(timestamp);
-        float g_norm = g.norm();
-        LOGI("Gravity:%f %f %f, Gravity norm:%f", g.x(), g.y(), g.z(), g_norm);
-        if (std::fabs(g_norm - GRAVITY) > 1.0) {
-            LOGW(
-                "Gravity is invalid, wait for a stationary state for "
-                "initialization !");
-            return;
-        }
-        Matrix3f R = GetRotByAlignVector(g, Eigen::Vector3f(0, 0, -1));
-        imuBuffer.SetZeroBias();
-        Initialize(R);
+    if(states_.init_state_ == InitState::NeedFirstFrame){
         preintergration_.t0 = timestamp;
+        states_.init_state_ = InitState::NotInitialized;    
+        Matrix3f R = Matrix3f::Identity();
+        imuBuffer.SetZeroBias();
+        InitializeStates(R);
         return;
     }
+
     preintergration_.t1 = timestamp;
     imuBuffer.ImuPreIntegration(preintergration_);
-
     preintergration_.t0 = preintergration_.t1;
 
-    if (!initialized_ && !states_.frames_.empty()) {
-        initialized_ = true;
+    // Init system
+    if (states_.init_state_ == InitState::NotInitialized) {
+        _Initialization(imageData);
+        return;
     }
+
 }
 
 void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
@@ -146,8 +168,8 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     fprintf(
         file,
         "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f\n",
-        pose->timestamp, Pwi[0], Pwi[1], Pwi[2], ea.x(), ea.y(), ea.z(),
-        Vwi[0], Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1], ba[2]);
+        pose->timestamp, Pwi[0], Pwi[1], Pwi[2], ea.x(), ea.y(), ea.z(), Vwi[0],
+        Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1], ba[2]);
 #endif
     if (!Config::NoDebugOutput) {
         printf(
@@ -166,8 +188,8 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
         _DrawTrackImage(data, trackImage);
         if (frame_adapter_) {
             frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols,
-                                          trackImage.rows,
-                                          trackImage.channels());
+                                             trackImage.rows,
+                                             trackImage.channels());
             frame_adapter_->FinishFrame();
         } else {
             LOGW("frame_adapter_ is nullptr");
@@ -182,7 +204,7 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
 }
 
 void VIOAlgorithm::_UpdatePointsAndCamsToVisualizer() {
-#if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP||USE_ROS2
+#if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP || USE_ROS2
 
     static std::vector<WorldPointGL> vPointsGL;
     static std::vector<FrameGL> vFramesGL;
@@ -281,14 +303,16 @@ void VIOAlgorithm::_DrawPredictImage(ImageData::Ptr dataPtr,
     }
 }
 
-void VIOAlgorithm::Initialize(const Matrix3f& Rwi) {
+void VIOAlgorithm::InitializeStates(const Matrix3f& Rwi) {
     auto* camState = frame_now_->state;
 
     camState->Rwi = Rwi;
     camState->Pwi.setZero();
     camState->Pw_FEJ.setZero();
     camState->index_in_window = 0;
+    states_.frames_.clear();
     states_.frames_.push_back(frame_now_);
+    states_.tfs_.clear();
     states_.vel.setZero();
     states_.static_ = false;
 #if USE_PLANE_PRIOR
@@ -300,7 +324,7 @@ void VIOAlgorithm::Initialize(const Matrix3f& Rwi) {
 
     states_.m_PlaneCoeff.setZero();
     solver_->init(frame_now_->state, &states_.vel, &states_.m_PlaneCoeff,
-                    states_.n, &states_.static_);
+                  states_.n, &states_.static_);
 #else
     solver_->Init(frame_now_->state, &states_.vel, &states_.static_);
 #endif
@@ -423,8 +447,7 @@ void VIOAlgorithm::_SelectKeyframe() {
     auto setkeyframe = [&]() {
         last_keyframe_->flag_keyframe = true;
         for (auto& point : states_.tfs_) {
-            if (!point->host_frame)
-                point->host_frame = last_keyframe_.get();
+            if (!point->host_frame) point->host_frame = last_keyframe_.get();
         }
     };
 
@@ -550,11 +573,10 @@ void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
                                      Pose::Ptr pose) {
     _AddImuInformation();
     _MarginFrames();
-    if (!feature_trakcer_)
-        feature_trakcer_ = new FeatureTrackerOpticalFlow_Chen(350);
+    if (!feature_tracker_)
+        feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(350);
 
-    feature_trakcer_->MatchNewFrame(states_.tfs_, data->image,
-                                     frame_now_.get());
+    feature_tracker_->MatchNewFrame(states_.tfs_, data, frame_now_.get());
 
     states_.tfs_.remove_if(
         [](TrackedFeature::Ptr& lf) { return lf->flag_dead; });

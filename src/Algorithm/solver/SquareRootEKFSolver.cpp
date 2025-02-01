@@ -71,6 +71,7 @@ void SquareRootEKFSolver::Init(CamState* pCamState, Vector3f* vel
 
     vel_->setZero();
     AddCamState(pCamState);
+    cam_states_.clear();
     cam_states_.push_back(pCamState);
 }
 

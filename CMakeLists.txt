@@ -110,6 +110,7 @@ file(GLOB src_files
     ${src_dir}/IO/dataSource/*.cpp
     ${src_dir}/IO/dataOutput/*.cpp
     ${src_dir}/Algorithm/solver/*.cpp
+    ${src_dir}/Algorithm/Initializer/*.cpp
 )
 
 include_directories(

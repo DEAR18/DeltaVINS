@@ -20,11 +20,17 @@ class EquiDistantModel : public CamModel {
     }
 
    public:
-    static EquiDistantModel* createFromConfig(cv::FileStorage& config) {
+    static EquiDistantModel* createFromConfig(cv::FileStorage& config,
+                                              bool right=false) {
         cv::Mat K;
         cv::Mat D;
-        config["Intrinsic"] >> K;
-        config["Distortion"] >> D;
+        if (right) {
+            config["Intrinsic_right"] >> K;
+            config["Distortion_right"] >> D;
+        } else {
+            config["Intrinsic"] >> K;
+            config["Distortion"] >> D;
+        }
         auto pK = K.ptr<double>();
         auto pD = D.ptr<double>();
         return new EquiDistantModel(pK[0], pK[1], pK[2], pK[3], pK[4], pK[5],

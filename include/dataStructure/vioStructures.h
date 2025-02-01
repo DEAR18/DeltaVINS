@@ -64,6 +64,8 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     float ray_angle0;    // last ray angle
     float last_moved_px;  // the pixel distance last frame moved
     int m_id;             // used for debug
+    Vector3f Pw_stereo_prior;
+    bool has_stereo_prior;
 
     std::vector<VisualObservation>
         visual_obs;  // vector of all visual observations
@@ -82,6 +84,7 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     std::vector<Vector3f> dts;
 
     void AddVisualObservation(const Vector2f& px, Frame* frame);
+    void AddVisualObservation(const Vector2f& px, Frame* frame,float depth);
     void PopObservation();
 
     void RemoveLinksInCamStates();
@@ -96,6 +99,7 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     bool UserDefinedConvergeCriteria() override;
     void PrintPositions();
     bool Triangulate();
+    bool StereoTriangulate();
     float EvaluateF(bool bNewZ, float huberThresh) override;
     bool UserDefinedDecentFail() override;
     using Ptr = std::shared_ptr<TrackedFeature>;

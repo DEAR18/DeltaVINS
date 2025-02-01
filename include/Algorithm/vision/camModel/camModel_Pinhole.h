@@ -16,10 +16,15 @@ class PinholeModel : public CamModel {
           tfovy(height / (2 * fy)) {};
 
    public:
-    static PinholeModel* createFromConfig(cv::FileStorage& config) {
+    static PinholeModel* createFromConfig(cv::FileStorage& config,
+                                          bool right = false) {
         cv::Mat K;
         cv::Mat D;
-        config["Intrinsic"] >> K;
+        if (right)
+            config["Intrinsic_right"] >> K;
+        else {
+            config["Intrinsic"] >> K;
+        }
         auto pK = K.ptr<double>();
         return new PinholeModel(pK[0], pK[1], pK[2], pK[3], pK[4], pK[5]);
     }

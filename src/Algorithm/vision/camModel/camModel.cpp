@@ -23,7 +23,8 @@
 #include "Algorithm/vision/camModel/camModel_RadTan.h"
 #include "precompile.h"
 namespace DeltaVins {
-CamModel* CamModel::camModel = nullptr;
+CamModel* CamModel::cam_model_ = nullptr;
+CamModel* CamModel::cam_model_right_ = nullptr;
 std::vector<Vector3f> CamModel::m_objectPoints;
 std::vector<std::vector<Vector2f>> CamModel::m_imagePoints;
 
@@ -48,31 +49,96 @@ void CamModel::loadCalibrations() {
     std::string type;
     config["CamType"] >> type;
 
+    bool is_stereo;
+    config["IsStereo"] >> is_stereo;
     if (type == "Pinhole") {
-        camModel = PinholeModel::createFromConfig(config);
+        cam_model_ = PinholeModel::createFromConfig(config);
+        if (is_stereo) {
+            cam_model_right_ = PinholeModel::createFromConfig(config, true);
+        }
     } else if (type == "RadTan") {
-        camModel = RadTanModel::createFromConfig(config);
+        cam_model_ = RadTanModel::createFromConfig(config);
+        if (is_stereo) {
+            cam_model_right_ = RadTanModel::createFromConfig(config, true);
+        }
     } else if (type == "Fisheye") {
-        camModel = FisheyeModel::createFromConfig(config);
+        cam_model_ = FisheyeModel::createFromConfig(config);
+        if (is_stereo) {
+            cam_model_right_ = FisheyeModel::createFromConfig(config, true);
+        }
     } else if (type == "Equidistant") {
-        camModel = EquiDistantModel::createFromConfig(config);
+        cam_model_ = EquiDistantModel::createFromConfig(config);
+        if (is_stereo) {
+            cam_model_right_ = EquiDistantModel::createFromConfig(config, true);
+        }
     }
+    cam_model_->is_stereo_ = is_stereo;
 
     // Transformation Matrix from imu frame to camera frame
-    cv::Mat Tci;
+    cv::Mat Tic;
 
-    config["Tci"] >> Tci;
-    Matrix3f Rci;
-
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            Rci(i, j) = Tci.at<double>(i, j);
+    config["Tic"] >> Tic;
+    Eigen::Matrix4f Tic_eigen;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            Tic_eigen(i, j) = Tic.at<double>(i, j);
         }
-        camModel->m_Pic(i) = Tci.at<double>(i, 3);
     }
-    camModel->m_Rci = Rci;
-    camModel->m_Tci = camModel->m_Pic;
-    camModel->m_Pic = -(camModel->m_Rci.transpose() * camModel->m_Pic);
+    Eigen::Matrix4f Tci_eigen;
+    Tci_eigen.topLeftCorner<3,3>() = Tic_eigen.topLeftCorner<3,3>().transpose();
+    Tci_eigen.topRightCorner<3,1>() = -Tic_eigen.topLeftCorner<3,3>().transpose() * Tic_eigen.topRightCorner<3,1>();
+    cam_model_->Rci_ = Tci_eigen.block<3, 3>(0, 0);
+    cam_model_->tci_ = Tci_eigen.block<3, 1>(0, 3);
+    cam_model_->Pic_ = Tic_eigen.block<3, 1>(0, 3);
+    if(cam_model_->is_stereo_) {
+        cv::Mat Tic_right;
+        config["Tic_right"] >> Tic_right;   
+        Eigen::Matrix4f Tic_eigen_right;
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                Tic_eigen_right(i, j) = Tic_right.at<double>(i, j);
+            }
+        }
+        Eigen::Matrix4f Tci_eigen_right;
+        Tci_eigen_right .topLeftCorner<3,3>() = Tic_eigen_right.topLeftCorner<3,3>().transpose();
+        Tci_eigen_right.topRightCorner<3,1>() = -Tic_eigen_right.topLeftCorner<3,3>().transpose() * Tic_eigen_right.topRightCorner<3,1>();
+        cam_model_right_->Rci_ = Tci_eigen_right.block<3, 3>(0, 0);
+        cam_model_right_->tci_ = Tci_eigen_right.block<3, 1>(0, 3);
+        cam_model_right_->Pic_ = Tic_eigen_right.block<3, 1>(0, 3);
+        cam_model_->baseline_ = (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
+        cam_model_right_->baseline_ = cam_model_->baseline_; 
+    }
+
+    // Matrix3f Rci;
+
+    // for (int i = 0; i < 3; ++i) {
+    //     for (int j = 0; j < 3; ++j) {
+    //         Rci(i, j) = Tci.at<double>(i, j);
+    //     }
+    //     cam_model_->Pic_(i) = Tci.at<double>(i, 3);
+    // }
+    // cam_model_->Rci_ = Rci;
+    // cam_model_->tci_ = cam_model_->Pic_;
+    // cam_model_->Pic_ = -(cam_model_->Rci_.transpose() * cam_model_->Pic_);
+
+    // if (cam_model_->is_stereo_) {
+    //     cv::Mat Tci_right;
+    //     config["Tci_right"] >> Tci_right;
+    //     Matrix3f Rci_right;
+
+    //     for (int i = 0; i < 3; ++i) {
+    //         for (int j = 0; j < 3; ++j) {
+    //             Rci_right(i, j) = Tci_right.at<double>(i, j);
+    //         }
+    //         cam_model_right_->Pic_(i) = Tci_right.at<double>(i, 3);
+    //     }
+    //     cam_model_right_->Rci_ = Rci_right;
+    //     cam_model_right_->tci_ = cam_model_right_->Pic_;
+    //     cam_model_right_->Pic_ =
+    //         -(cam_model_right_->Rci_.transpose() * cam_model_right_->Pic_);
+    //     cam_model_->baseline_ = (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
+    //     cam_model_right_->baseline_ = cam_model_->baseline_;
+    // }
 }
 
 void CamModel::loadChessboardPoints() {

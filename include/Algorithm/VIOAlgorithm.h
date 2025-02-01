@@ -8,6 +8,7 @@
 #include "solver/SquareRootEKFSolver.h"
 #include "vision/FeatureTrackerOpticalFlow.h"
 #include "vision/FeatureTrackerOpticalFlow_Chen.h"
+#include "Initializer/StaticInitializer.h"
 namespace DeltaVins {
 class VIOAlgorithm {
    public:
@@ -20,11 +21,13 @@ class VIOAlgorithm {
     void SetFrameAdapter(FrameAdapter* adapter);
 
    private:
+    enum class InitState { NeedFirstFrame, NotInitialized, Initialized, Failed };
     struct SystemStates {
         Vector3f vel;
         std::vector<Frame::Ptr> frames_;
         std::list<TrackedFeature::Ptr> tfs_;
         bool static_;
+        InitState init_state_;
 #if USE_PLANE_PRIOR
         Vector3f m_PlaneCoeff;
         Vector3f n;
@@ -32,12 +35,15 @@ class VIOAlgorithm {
 #endif
     };
 
+    void _Initialization(const ImageData::Ptr imageData);
+
     void _PreProcess(const ImageData::Ptr imageData);
     void _PostProcess(ImageData::Ptr data, Pose::Ptr pose);
     void _UpdatePointsAndCamsToVisualizer();
     void _DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage);
     void _DrawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage);
-    void Initialize(const Matrix3f& Rwi);
+    void _TrackFrame(const ImageData::Ptr imageData);
+    void InitializeStates(const Matrix3f& Rwi);
 
     void _AddImuInformation();
     void _RemoveDeadFeatures();
@@ -50,7 +56,7 @@ class VIOAlgorithm {
 
     bool _VisionStatic();
 
-    FeatureTrackerOpticalFlow_Chen* feature_trakcer_ = nullptr;
+    FeatureTrackerOpticalFlow_Chen* feature_tracker_ = nullptr;
     SquareRootEKFSolver* solver_ = nullptr;
     SystemStates states_;
     Frame::Ptr frame_now_ = nullptr;
@@ -68,6 +74,7 @@ class VIOAlgorithm {
 
     FrameAdapter* frame_adapter_ = nullptr;
     WorldPointAdapter* world_point_adapter_ = nullptr;
+    StaticInitializer static_initializer_;
 };
 
 }  // namespace DeltaVins

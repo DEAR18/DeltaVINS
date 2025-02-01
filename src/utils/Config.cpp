@@ -35,7 +35,6 @@ int Config::ImageStartIdx;
 int Config::nImuSample;
 int Config::nImageSample;
 int Config::nImuPerImage;
-FileStorage Config::m_configFile;
 float Config::ImageNoise2;
 float Config::GyroNoise2;
 float Config::AccNoise2;
@@ -47,6 +46,8 @@ float Config::Gain;
 string Config::CameraCalibFile;
 string Config::outputFileName;
 string Config::ResultOutputPath;
+
+string Config::DataSourceConfigFilePath;
 int Config::CameraCalibration;
 int Config::NoDebugOutput;
 int Config::NoResultOutput;
@@ -61,24 +62,55 @@ int Config::PlaneConstraint;
 
 string Config::VisualizerServerIP;
 
+std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
+
 void Config::loadConfigFile(const std::string& configFile) {
     _clear();
 
+    FileStorage config_file_cv,data_source_config_file_cv,camera_calib_file_cv;
     // get current path
     std::filesystem::path currentPath = std::filesystem::current_path();
 
-    m_configFile.open(configFile, FileStorage::READ);
-    if (!m_configFile.isOpened()) {
+    config_file_cv.open(configFile, FileStorage::READ);
+    if (!config_file_cv.isOpened()) {
         throw std::runtime_error("fail to open config file at " + configFile);
     } else {
         LOGI("Load config :%s", configFile.c_str());
     }
 
-    m_configFile["PlaneConstraint"] >> PlaneConstraint;
+    config_file_cv["DataSourceConfigFilePath"] >> DataSourceConfigFilePath;
+
+    if(DataSourceConfigFilePath.empty()){
+        // get config file folder path
+        std::filesystem::path config_path;
+        config_path = std::filesystem::path(configFile).parent_path();
+        DataSourceConfigFilePath = config_path.string() + "/DataSources.yaml";
+    }
+
+    data_source_config_file_cv.open(DataSourceConfigFilePath, FileStorage::READ);
+    if (!data_source_config_file_cv.isOpened()) {
+        throw std::runtime_error("fail to open data source config file at " + DataSourceConfigFilePath);
+    } else {
+        LOGI("Load data source config :%s", DataSourceConfigFilePath.c_str());
+    }
+    config_file_cv["CameraCalibrationPath"] >> CameraCalibFile;
+    if(CameraCalibFile.empty()){
+        // get config file folder path
+        std::filesystem::path config_path;
+        config_path = std::filesystem::path(configFile).parent_path();
+        CameraCalibFile = config_path.string() + "/calibrations.yaml";
+    }
+    camera_calib_file_cv.open(CameraCalibFile, FileStorage::READ);
+    if (!camera_calib_file_cv.isOpened()) {
+        throw std::runtime_error("fail to open camera calibration file at " + CameraCalibFile);
+    } else {
+        LOGI("Load camera calibration :%s", CameraCalibFile.c_str());
+    }
+    config_file_cv["PlaneConstraint"] >> PlaneConstraint;
 
     string temp;
     PlaneConstraint = false;
-    m_configFile["DataSourceType"] >> temp;
+    data_source_config_file_cv["DataSourceType"] >> temp;
 #ifndef USE_ROS2
     if (temp == "EUROC" || temp == "Euroc")
         DataSourceType = DataSrcEuroc;
@@ -90,10 +122,16 @@ void Config::loadConfigFile(const std::string& configFile) {
     else
         throw std::runtime_error("Unknown DataSource:" + temp);
 
-    m_configFile["DataSourcePath"] >> DataSourcePath;
+    data_source_config_file_cv["DataSourcePath"] >> DataSourcePath;
 
-    m_configFile["ImuSampleFps"] >> nImuSample;
-    m_configFile["ImageSampleFps"] >> nImageSample;
+
+    camera_calib_file_cv["ImuSampleFps"] >> nImuSample;
+    camera_calib_file_cv["ImageSampleFps"] >> nImageSample;
+    camera_calib_file_cv["PixelNoise"] >> ImageNoise2;
+    camera_calib_file_cv["GyroNoise"] >> GyroNoise2;
+    camera_calib_file_cv["AccNoise"] >> AccNoise2;
+    camera_calib_file_cv["GyroBiasNoise"] >> GyroBiasNoise2;
+    camera_calib_file_cv["AccBiasNoise"] >> AccBiasNoise2;
     nImuPerImage = nImuSample / nImageSample;
     if (nImuSample == 0 || nImageSample == 0 || nImuSample % nImageSample) {
         throw std::runtime_error(
@@ -101,52 +139,74 @@ void Config::loadConfigFile(const std::string& configFile) {
             "is not a multiple of Image Sample Speed.");
     }
 
-    m_configFile["PixelNoise"] >> ImageNoise2;
-    m_configFile["GyroNoise"] >> GyroNoise2;
-    m_configFile["AccNoise"] >> AccNoise2;
-    m_configFile["GyroBiasNoise"] >> GyroBiasNoise2;
-    m_configFile["AccBiasNoise"] >> AccBiasNoise2;
     GyroNoise2 = GyroNoise2 * (GyroNoise2 * nImuSample);
     AccNoise2 = AccNoise2 * (AccNoise2 * nImuSample);
     GyroBiasNoise2 = GyroBiasNoise2 * (GyroBiasNoise2 * nImuSample);
     AccBiasNoise2 = AccBiasNoise2 * (AccBiasNoise2 * nImuSample);
     ImageNoise2 = ImageNoise2 * ImageNoise2;
-    m_configFile["CameraCalibrationPath"] >> CameraCalibFile;
-    m_configFile["ImageStartIdx"] >> ImageStartIdx;
-    m_configFile["SerialRun"] >> SerialRun;
-    m_configFile["NoGUI"] >> NoGUI;
-    m_configFile["NoDebugOutput"] >> NoDebugOutput;
-    m_configFile["DataFps"] >> DataFps;
-    m_configFile["RecordImu"] >> RecordIMU;
-    m_configFile["RecordImage"] >> RecordImage;
-    m_configFile["NoResultOutput"] >> NoResultOutput;
-    m_configFile["ExposureTime"] >> ExposureTime;
-    m_configFile["Gain"] >> Gain;
-    m_configFile["CameraCalibration"] >> CameraCalibration;
-    m_configFile["VisualizerServerIP"] >> VisualizerServerIP;
-    m_configFile["UploadImage"] >> UploadImage;
-    m_configFile["RunVIO"] >> RunVIO;
-    m_configFile["ResultOutputPath"] >> ResultOutputPath;
-    m_configFile["ResultOutputName"] >> outputFileName;
+
+
+
+
+    data_source_config_file_cv["ImageStartIdx"] >> ImageStartIdx;
+    config_file_cv["SerialRun"] >> SerialRun;
+    config_file_cv["NoGUI"] >> NoGUI;
+    config_file_cv["NoDebugOutput"] >> NoDebugOutput;
+    config_file_cv["DataFps"] >> DataFps;
+    config_file_cv["RecordImu"] >> RecordIMU;
+    config_file_cv["RecordImage"] >> RecordImage;
+    config_file_cv["NoResultOutput"] >> NoResultOutput;
+    config_file_cv["ExposureTime"] >> ExposureTime;
+    config_file_cv["Gain"] >> Gain;
+    config_file_cv["CameraCalibration"] >> CameraCalibration;
+    config_file_cv["VisualizerServerIP"] >> VisualizerServerIP;
+    config_file_cv["UploadImage"] >> UploadImage;
+    config_file_cv["RunVIO"] >> RunVIO;
+    config_file_cv["ResultOutputPath"] >> ResultOutputPath;
+    config_file_cv["ResultOutputName"] >> outputFileName;
 
     if (RecordImage || RecordIMU) RecordData = 1;
 
     if (ResultOutputPath.empty()) {
         ResultOutputPath = "./";
     }
-    if(CameraCalibFile.empty()){
-        // get config file folder path
-        std::filesystem::path config_path;
-        config_path = std::filesystem::path(configFile).parent_path();
-        CameraCalibFile = config_path.string() + "/calibrations.yaml";
-        LOGI("CameraCalibFile: %s", CameraCalibFile.c_str());
-    }
+    
     existOrMkdir(ResultOutputPath + "/TestResults");
     if (outputFileName.empty()) {
         outputFileName = "outputPose";
     }
     outputFileName =
         ResultOutputPath + "/TestResults/" + outputFileName + ".csv";
+
+    if (DataSourceType == DataSrcROS2) {
+        FileNode node = data_source_config_file_cv["ROSTopics"];
+        for (FileNodeIterator it = node.begin(); it != node.end(); ++it) {
+            ROS2SensorTopic topic;
+            std::string topic_name;
+            (*it)["TopicName"] >> topic_name;
+            topic.topics.push_back(topic_name);
+            std::string topic_type;
+            (*it)["SensorType"] >> topic_type;
+            if(topic_type == "StereoCamera") {
+                topic.type = ROS2SensorType::StereoCamera;
+            } else if(topic_type == "MonoCamera") {
+                topic.type = ROS2SensorType::MonoCamera;
+            }
+            else if(topic_type == "IMU") {
+                topic.type = ROS2SensorType::IMU;
+            } else {
+                throw std::runtime_error("Unknown ROS2 topic type: " + topic_type);
+            }
+            (*it)["SensorID"] >> topic.sensor_id;
+
+            if(topic.type == ROS2SensorType::StereoCamera) {
+                (*it)["RightTopicName"] >> topic_name;
+                topic.topics.push_back(topic_name);
+            } 
+            (*it)["TopicQueueSize"] >> topic.queue_size;
+            ROS2SensorTopics.push_back(topic);
+        }
+    }
 }
 
 void Config::_clear() {
