@@ -33,9 +33,9 @@ struct CircularBuffer {
     //
     void PushIndex() {
         if (getDeltaIndex(head_, 1) == tail_) {
-            tail_ = tail_ + 1 & _END;
+            tail_ = (tail_ + 1) & _END;
         }
-        head_ = head_ + 1 & _END;
+        head_ = (head_ + 1) & _END;
     }
 
     //

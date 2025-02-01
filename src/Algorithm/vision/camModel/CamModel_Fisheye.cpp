@@ -145,8 +145,8 @@ void FisheyeModel::computeInvPoly() {
            ocamModel.inv_poly[4]);
     std::vector<float> err;
     float sum_err = 0.f;
-    for (int i = 0; i < height_; ++i) {
-        for (int j = 0; j < width_; ++j) {
+    for (size_t i = 0; i < height_; ++i) {
+        for (size_t j = 0; j < width_; ++j) {
             Vector2f px0(j, i);
             Vector3f ray = imageToCam(px0);
             Vector2f px = camToImage(ray);
@@ -228,9 +228,9 @@ Vector3f FisheyeModel::imageToCam(const Vector2f& px) {
 
 float FisheyeModel::focal() { return fx_; }
 
-bool FisheyeModel::inView(const Vector3f& pCam) {
-    return CamModel::inView(pCam);
-}
+// bool FisheyeModel::inView(const Vector3f& pCam) {
+//     return CamModel::inView(pCam);
+// }
 
 Vector2d FisheyeModel::camToImage(const Vector3d& pCam) {
     Vector2d uv;

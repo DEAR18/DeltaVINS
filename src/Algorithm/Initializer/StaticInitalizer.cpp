@@ -35,7 +35,7 @@ bool StaticInitializer::Initialize(const ImageData::Ptr imageData){
                             3);
     float mean_moved_pixels = 0.0f;
     int valid_points = 0;
-    for(int i = 0; i < status.size(); i++){
+    for(size_t i = 0; i < status.size(); i++){
         if(status[i]){
             mean_moved_pixels += cv::norm(last_points_[i] - tracked_points[i]);
             valid_points++;
@@ -48,7 +48,7 @@ bool StaticInitializer::Initialize(const ImageData::Ptr imageData){
         LOGI("No feature to track");
         return false;
     }
-    float alpha = 0.5f;
+    float alpha = 0.1f;
     moved_pixels_last_few_frames_ =
     alpha * moved_pixels_last_few_frames_ + (1 - alpha) * mean_moved_pixels;
     if(tracked_points_valid.size() < 100){

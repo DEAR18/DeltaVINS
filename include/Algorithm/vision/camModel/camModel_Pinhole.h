@@ -47,9 +47,9 @@ class PinholeModel : public CamModel {
 
     float focal() override { return fx; }
 
-    bool inView(const Vector3f& pCam) override {
-        return (pCam.x() < tfovx * pCam.z() && pCam.y() < tfovy * pCam.z());
-    }
+    // bool inView(const Vector3f& pCam) override {
+    //     return (pCam.x() < tfovx * pCam.z() && pCam.y() < tfovy * pCam.z());
+    // }
 
    private:
     float fx, fy, cx, cy;

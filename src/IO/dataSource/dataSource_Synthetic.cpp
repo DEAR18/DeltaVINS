@@ -92,7 +92,7 @@ void DataSource_Synthetic::DoWhatYouNeedToDo() {
     } else {
         auto& imageInput = images_[image_idx_];
         imageData = std::make_shared<ImageData>();
-        long long ddt = 5e7;
+        // long long ddt = 5e7;
         imageData->timestamp = imageInput.timestamp;
 
         auto img = cv::imread(imageInput.imagePath, cv::IMREAD_GRAYSCALE);

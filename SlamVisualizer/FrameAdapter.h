@@ -18,8 +18,8 @@ struct FrameGL {
 
 struct FrameAdapter {
     virtual ~FrameAdapter() = default;
-    virtual void PushViewMatrix(std::vector<FrameGL>& v_Rcw) {};
+    virtual void PushViewMatrix(std::vector<FrameGL>& v_Rcw) = 0;
     virtual void PushImageTexture(unsigned char* imageTexture, const int width,
-                                  const int height, const int channels) {};
-    virtual void FinishFrame() {};
+                                  const int height, const int channels) = 0;
+    virtual void FinishFrame() = 0;
 };

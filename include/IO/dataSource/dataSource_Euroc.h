@@ -17,8 +17,8 @@ class DataSource_Euroc : public DataSource {
     std::string dataset_dir_;
     std::string cam_dir_;
     std::string imu_dir_;
-    int image_idx_;
-    int imu_index_;
+    size_t image_idx_;
+    size_t imu_index_;
     std::vector<_ImageData> images_;
     std::vector<ImuData> imus_;
 };

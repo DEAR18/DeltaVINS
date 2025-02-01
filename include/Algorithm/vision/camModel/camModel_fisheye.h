@@ -47,7 +47,7 @@ class FisheyeModel : public CamModel {
 
     float focal() override;
 
-    bool inView(const Vector3f& pCam) override;
+    // bool inView(const Vector3f& pCam) override;
 
     Vector2d camToImage(const Vector3d& pCam);
 

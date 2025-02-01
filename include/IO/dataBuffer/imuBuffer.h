@@ -33,6 +33,8 @@ class ImuBuffer : public CircularBuffer<ImuData, 10>,
 
     bool DetectStatic(long long timestamp) const;
 
+    void UpdateBiasByStatic(long long timestamp);
+
    private:
     ImuBuffer();
 

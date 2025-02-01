@@ -10,23 +10,23 @@ void EquiDistantModel::calibrate(cv::FileStorage& config) {
     std::vector<cv::Mat> rvecs, tvecs;
     std::vector<std::vector<cv::Point3f>> objPoints;
     std::vector<std::vector<cv::Point2f>> imagePoints;
-    for (int i = 0; i < m_imagePoints.size(); ++i) {
+    for (size_t i = 0; i < m_imagePoints.size(); ++i) {
         objPoints.emplace_back();
-        for (int j = 0; j < m_objectPoints.size(); ++j) {
+        for (size_t j = 0; j < m_objectPoints.size(); ++j) {
             auto& opv = objPoints.back();
 
             opv.emplace_back(m_objectPoints[j].x(), m_objectPoints[j].y(),
                              m_objectPoints[j].z());
         }
     }
-    for (int i = 0; i < m_imagePoints.size(); ++i) {
+    for (size_t i = 0; i < m_imagePoints.size(); ++i) {
         imagePoints.emplace_back();
-        for (int j = 0; j < m_imagePoints[i].size(); ++j) {
+        for (size_t j = 0; j < m_imagePoints[i].size(); ++j) {
             auto& ipv = imagePoints.back();
             ipv.emplace_back(m_imagePoints[i][j].x(), m_imagePoints[i][j].y());
         }
     }
-    double rms = cv::fisheye::calibrate(
+    cv::fisheye::calibrate(
         objPoints, imagePoints, cv::Size(640, 480), K, D, rvecs, tvecs,
         cv::fisheye::CALIB_CHECK_COND | cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC,
         cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100,
@@ -104,7 +104,7 @@ void EquiDistantModel::computeInvPoly() {
 
     VectorXd rM(r.size());
     VectorXd tdM(r.size());
-    for (int i = 0; i < r.size(); ++i) {
+    for (size_t i = 0; i < r.size(); ++i) {
         rM(i) = r[i];
         tdM(i) = td[i];
     }
@@ -120,15 +120,15 @@ void EquiDistantModel::computeInvPoly() {
 
     std::vector<float> err;
     float sum_err = 0.f;
-    for (int i = 0; i < height_; ++i) {
-        for (int j = 0; j < width_; ++j) {
+    for (size_t i = 0; i < height_; ++i) {
+        for (size_t j = 0; j < width_; ++j) {
             Vector2f px0(j, i);
             Vector3f ray = imageToCam(px0);
             Vector2f px = camToImage(ray);
             float pxErr = (px0 - px).norm();
             err.push_back(pxErr);
             sum_err += pxErr;
-            printf("%d %d %f\n", i, j, pxErr);
+            printf("%zu %zu %f\n", i, j, pxErr);
         }
     }
     printf(" Mean Fit err:%lf\n", sum_err / err.size());
@@ -156,7 +156,7 @@ Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, Matrix23f& J23) {
     float z = pCam.z();
     std::vector<float> theta_exp(10);
     theta_exp[0] = theta;
-    for (int i = 0; i < 9; ++i) theta_exp[i + 1] = theta * theta_exp[i];
+    for (size_t i = 0; i < 9; ++i) theta_exp[i + 1] = theta * theta_exp[i];
     float dtd = 1 + 3 * k[0] * theta_exp[2] + 5 * k[1] * theta_exp[4] +
                 7 * k[2] * theta_exp[6] + 9 * k[3] * theta_exp[8];
     float td = theta + k[0] * theta_exp[3] + k[1] * theta_exp[5] +

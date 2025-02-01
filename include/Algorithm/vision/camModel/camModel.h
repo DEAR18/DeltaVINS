@@ -58,7 +58,7 @@ class CamModel {
         return (px.x() >= border && px.x() < width_ - border &&
                 px.y() >= border && px.y() < height_ - border);
     };
-    virtual bool inView(const Vector3f& pCam) { return false; };
+    // virtual bool inView(const Vector3f& pCam) = 0;
 
     bool IsStereo() { return is_stereo_; }
 
@@ -68,7 +68,7 @@ class CamModel {
 
    protected:
     int cam_id;
-    int width_, height_;
+    size_t width_, height_;
     Matrix3f Rci_, Rci_right_;
     Vector3f Pic_, Pic_right_;
     Vector3f tci_, tci_right_;

@@ -42,6 +42,7 @@ class EquiDistantModel : public CamModel {
     Vector3f imageToCam(const Vector2f& px) override;
     Vector2f camToImage(const Vector3f& pCam, Matrix23f& J23) override;
     Vector2f camToImage(const Vector3f& pCam) override;
+    // bool inView(const Vector3f& pCam) override;
 
     float focal() override;
 

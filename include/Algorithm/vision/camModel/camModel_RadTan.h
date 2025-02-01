@@ -30,7 +30,7 @@ class RadTanModel : public CamModel {
 
     float focal() override;
 
-    bool inView(const Vector3f& pCam) override;
+    // bool inView(const Vector3f& pCam) override;
 
     Vector2f camToImage(const Vector3f& pCam) override;
 

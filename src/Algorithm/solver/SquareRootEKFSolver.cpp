@@ -460,7 +460,7 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
 
 bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
     VectorXf z = state->H.rightCols<1>();
-    int nExceptPoint = state->H.cols() - 1;
+    // int nExceptPoint = state->H.cols() - 1;
     int num_obs = z.rows();
 #if USE_NAIVE_ML_DATAASSOCIATION
     float phi;
@@ -520,7 +520,8 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
 }
 
 void rowMajorMatrixQRByGivensInMsckf(MatrixHfR& H, int row, int col) {
-    int nrows = row;
+    (void)row;
+    // int nrows = row;
     int nCols = col;
     assert(H.IsRowMajor);
     for (size_t j = 0; j < 3; ++j) {
@@ -578,7 +579,7 @@ int SquareRootEKFSolver::ComputeJacobians(TrackedFeature* track) {
         num_obs = 1;
     }
 #endif
-    float huberThresh = 500.f;
+    // float huberThresh = 500.f;
     float cutOffThresh = 10.f;
 
     // Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> H;

@@ -147,14 +147,20 @@ void CamModel::loadChessboardPoints() {
     FILE* fobjPoints =
         fopen((Config::CameraCalibFile + "/worldPoints.txt").c_str(), "r");
     int nObjPoints, nImages, nImagePoints;
-    fscanf(fobjPoints, "%d\n", &nObjPoints);
-    fscanf(fimagePoints, "%d %d\n", &nImages, &nImagePoints);
+    if (fscanf(fobjPoints, "%d\n", &nObjPoints) != 1) {
+        throw std::runtime_error("Failed to read number of object points");
+    }
+    if (fscanf(fimagePoints, "%d %d\n", &nImages, &nImagePoints) != 2) {
+        throw std::runtime_error("Failed to read number of images and image points");
+    }
     assert(nImagePoints == nObjPoints);
     m_objectPoints.resize(nObjPoints);
     m_imagePoints.resize(nImages);
     for (int i = 0; i < nObjPoints; ++i) {
         float x, y;
-        fscanf(fobjPoints, "%f %f\n", &x, &y);
+        if (fscanf(fobjPoints, "%f %f\n", &x, &y) != 2) {
+            throw std::runtime_error("Failed to read object point coordinates");
+        }
         m_objectPoints[i].x() = x;
         m_objectPoints[i].y() = y;
         m_objectPoints[i].z() = 0;
@@ -164,7 +170,9 @@ void CamModel::loadChessboardPoints() {
         m_imagePoints[i].resize(nImagePoints);
         for (int j = 0; j < nImagePoints; ++j) {
             float x, y;
-            fscanf(fimagePoints, "%f %f\n", &x, &y);
+            if (fscanf(fimagePoints, "%f %f\n", &x, &y) != 2) {
+                throw std::runtime_error("Failed to read image point coordinates");
+            }
             m_imagePoints[i][j].x() = x;
             m_imagePoints[i][j].y() = y;
         }

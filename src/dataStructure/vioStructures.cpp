@@ -212,7 +212,7 @@ float TrackedFeature::EvaluateF(bool bNewZ, float huberThresh) {
     Matrix3f J33;
     Vector3f position;
 
-    float huberCutTh = 10.f;
+    // float huberCutTh = 10.f;
 
     if (bNewZ) {
         position = zNew / zNew[2];
@@ -308,7 +308,7 @@ void TrackedFeature::AddVisualObservation(const Vector2f& px, Frame* frame) {
 }
 
 void TrackedFeature::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
-    for (int i = 0; i < visual_obs.size() - 1; ++i) {
+    for (size_t i = 0; i < visual_obs.size() - 1; ++i) {
         if ((visual_obs[i].px - visual_obs[i + 1].px).squaredNorm() >
             900)
             continue;
@@ -369,12 +369,14 @@ void TrackedFeature::DrawObservationsAndReprojection(int time) {
         cv::imshow("ob and reproj", display);
         cv::waitKey(time);
     }
+#else
+    (void)time;
 #endif
 }
 
 void TrackedFeature::PrintObservations() {
-    for (int i = 0; i < visual_obs.size(); ++i) {
-        LOGI("Idx:%d,Px: %f %f,Pos:%f %f %f", i, visual_obs[i].px.x(),
+    for (size_t i = 0; i < visual_obs.size(); ++i) {
+        LOGI("Idx:%ld,Px: %f %f,Pos:%f %f %f", i, visual_obs[i].px.x(),
              visual_obs[i].px.y(),
              visual_obs[i].link_frame->state->Pwi.x(),
              visual_obs[i].link_frame->state->Pwi.y(),

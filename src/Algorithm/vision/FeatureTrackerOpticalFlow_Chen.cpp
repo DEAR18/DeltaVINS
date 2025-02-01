@@ -75,7 +75,7 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
                                  stereo_status, err);
         cv::calcOpticalFlowPyrLK(right_image_, image_, stereo_corners,
                                  stereo_corners_back, stereo_status_back, err);
-        for (int i = 0; i < stereo_corners.size(); i++) {
+        for (size_t i = 0; i < stereo_corners.size(); i++) {
             if (stereo_status[i] && stereo_status_back[i] &&
                 cv_point_distance_sqr(corners[i], stereo_corners_back[i]) < 1) {
                 final_status.push_back(1);
@@ -102,7 +102,7 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
         // cv::waitKey(0);
     }
 
-    for (int i = 0, j = max_num_to_track_ - num_features_tracked_;
+    for (size_t i = 0, j = max_num_to_track_ - num_features_tracked_;
          i < corners.size() && j > 0; ++i) {
         int x = corners[i].x;
         int y = corners[i].y;
@@ -112,8 +112,8 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
             j--;
             auto tf = std::make_shared<TrackedFeature>();
             if (CamModel::getCamModel()->IsStereo()) {
-                auto left_model = CamModel::getCamModel(0);
-                auto right_model = CamModel::getCamModel(1);
+                // auto left_model = CamModel::getCamModel(0);
+                // auto right_model = CamModel::getCamModel(1);
                 if (final_status[i]) {
                     // Vector2f px1 =
                     //     left_model->camToImage(left_model->imageToCam(
@@ -160,7 +160,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     now.reserve(vTrackedFeatures.size());
 
     auto camModel = CamModel::getCamModel();
-    float mean_moved_pixels = 0;
+    // float mean_moved_pixels = 0;
     for (auto tf : vTrackedFeatures) {
         if (!tf->flag_dead) {
             auto& lastVisualOb = tf->visual_obs.back();
@@ -191,7 +191,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
 #endif
         }
     }
-    int nPrePoints = pre.size();
+    // int nPrePoints = pre.size();
     if (pre.empty()) {
         LOGW("No feature to track.");
         return; 
@@ -210,7 +210,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
             : 0,
         5e-3);
 
-    for (int i = 0; i < status.size(); ++i) {
+    for (size_t i = 0; i < status.size(); ++i) {
         Vector2f px;
         if (status[i]) {
             px.x() = now[i].x;
@@ -225,7 +225,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
         goodTracks[i]->flag_dead = true;
     }
 
-    int nRansac =
+    // int nRansac =
         DataAssociation::RemoveOutlierBy2PointRansac(dR, vTrackedFeatures);
 
     // LOGW("nPointsLast:%d nPointsTracked:%d nPointsAfterRansac:%d",

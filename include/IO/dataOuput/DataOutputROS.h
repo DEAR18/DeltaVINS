@@ -27,6 +27,8 @@ class DataOutputROS : public rclcpp::Node,public WorldPointAdapter, public Frame
 
     void PushWorldPoint(const std::vector<WorldPointGL> &v_Point3f) override;
 
+    void FinishFrame() override{}
+
    private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;

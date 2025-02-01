@@ -54,8 +54,8 @@ void VIOAlgorithm::_Initialization(const ImageData::Ptr imageData) {
         return;
     }
     Matrix3f R = GetRotByAlignVector(g, Eigen::Vector3f(0, 0, -1));
-    imuBuffer.SetZeroBias();
     InitializeStates(R);
+    imuBuffer.UpdateBiasByStatic(timestamp);
     states_.init_state_ = InitState::Initialized;
 }
 
@@ -159,16 +159,15 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
 
     std::string outputName = Config::outputFileName;
     static FILE* file = fopen(outputName.c_str(), "w");
-    static FILE* stdvar = fopen("stdvar.csv", "w");
+    // static FILE* stdvar = fopen("stdvar.csv", "w");
 
-    Vector3f ea = Rwi.transpose().eulerAngles(0, 1, 2);
-
+    // Vector3f ea = Rwi.transpose().eulerAngles(0, 1, 2);
 #ifndef PLATORM_ARM
 
     fprintf(
         file,
-        "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f\n",
-        pose->timestamp, Pwi[0], Pwi[1], Pwi[2], ea.x(), ea.y(), ea.z(), Vwi[0],
+        "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f\n",
+        pose->timestamp, Pwi[0], Pwi[1], Pwi[2], _q.w(), _q.x(), _q.y(), _q.z(), Vwi[0],
         Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1], ba[2]);
 #endif
     if (!Config::NoDebugOutput) {
@@ -581,7 +580,7 @@ void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
     states_.tfs_.remove_if(
         [](TrackedFeature::Ptr& lf) { return lf->flag_dead; });
 
-    LOGI("%d Point remain", states_.tfs_.size());
+    LOGI("%zu Point remain", states_.tfs_.size());
 
 #if ENABLE_VISUALIZER
     cv::Mat trackImage;

@@ -42,7 +42,7 @@ void DrawPointsAfterUpdates(std::vector<PointState*>& m_PointStates) {
                      cv::Point(ob.px_reprj.x(), ob.px_reprj.y()),
                      _GREEN_SCALAR);
         }
-        for (int i = 0; i < p->visual_obs.size() - 1; ++i) {
+        for (size_t i = 0; i < p->visual_obs.size() - 1; ++i) {
             cv::line(reprojImage2,
                      cv::Point(p->visual_obs[i].px.x(),
                                p->visual_obs[i].px.y()),
@@ -82,7 +82,7 @@ void DrawPointsBeforeUpdates(std::vector<PointState*>& m_PointStates) {
                      cv::Point(ob.px_reprj.x(), ob.px_reprj.y()),
                      _GREEN_SCALAR);
         }
-        for (int i = 0; i < p->visual_obs.size() - 1; ++i) {
+        for (size_t i = 0; i < p->visual_obs.size() - 1; ++i) {
             cv::line(reprojImage,
                      cv::Point(p->visual_obs[i].px.x(),
                                p->visual_obs[i].px.y()),
@@ -372,7 +372,7 @@ void _tryAddMsckfPoseConstraint(
 #if USE_KEYFRAME
     int halfX = CamModel::getCamModel()->width() / 2;
     int halfY = CamModel::getCamModel()->height() / 2;
-    int nPointsSlamPerGrid = MAX_POINT_SIZE / 4;
+    // int nPointsSlamPerGrid = MAX_POINT_SIZE / 4;
     std::vector<int> vPointsSLAMLeft{0, 0, 0, 0};
     std::vector<int> vPointsSLAMNow{0, 0, 0, 0};
     static std::vector<std::vector<TrackedFeature*>> m_slamPointGrid22(4);

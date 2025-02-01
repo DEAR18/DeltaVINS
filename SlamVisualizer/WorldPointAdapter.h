@@ -13,5 +13,5 @@ struct WorldPointGL {
 
 struct WorldPointAdapter {
     virtual ~WorldPointAdapter() = default;
-    virtual void PushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) {};
+    virtual void PushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) = 0;
 };

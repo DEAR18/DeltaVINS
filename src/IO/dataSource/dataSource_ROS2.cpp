@@ -120,6 +120,7 @@ void DataSource_ROS2::ImageCallback(
 }
 
 void DataSource_ROS2::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr msg,int sensor_id) {
+    (void)sensor_id;
     Matrix3f Rci = CamModel::getCamModel()->getRci();
     // Publish IMU data
     ImuData imu_data;

@@ -34,9 +34,9 @@ Vector3f RadTanModel::imageToCam(const Vector2f& px) {
 
 float RadTanModel::focal() { return fx; }
 
-bool RadTanModel::inView(const Vector3f& pCam) {
-    return CamModel::inView(pCam);
-}
+// bool RadTanModel::inView(const Vector3f& pCam) {
+//     return CamModel::inView(pCam);
+// }
 
 Vector2f RadTanModel::camToImage(const Vector3f& pCam) {
     Vector2f px;

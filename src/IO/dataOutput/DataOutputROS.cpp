@@ -20,7 +20,7 @@ namespace DeltaVins{
 
 
     void DataOutputROS::PushImageTexture(unsigned char* data, int width, int height, int channels){
-
+        (void)channels;
         cv::Mat image(height, width, CV_8UC3, data);
         cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 
@@ -38,7 +38,7 @@ namespace DeltaVins{
         path.header.frame_id = "map";
         path.header.stamp = this->now();
         path.poses.resize(v_Rcw.size());
-        for(int i = 0; i < v_Rcw.size(); i++){
+        for(size_t i = 0; i < v_Rcw.size(); i++){
             geometry_msgs::msg::PoseStamped pose;
             pose.header.stamp = this->now();
             pose.header.frame_id = "map";
@@ -59,7 +59,7 @@ namespace DeltaVins{
 
     void DataOutputROS::PushWorldPoint(const std::vector<WorldPointGL>& point_cloud){
 
-        for(int i = 0; i < point_cloud.size(); i++){
+        for(size_t i = 0; i < point_cloud.size(); i++){
            world_points_[point_cloud[i].m_id] = point_cloud[i];
         }
 

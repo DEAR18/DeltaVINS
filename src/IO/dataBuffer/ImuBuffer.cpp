@@ -284,6 +284,21 @@ long long ImuBuffer::GetNextSyncTimestamp(int& imuIdx,
     return 0;
 }
 
+void ImuBuffer::UpdateBiasByStatic(long long timestamp){
+    BufferIndex index = binarySearch(timestamp, Left);
+    index = getDeltaIndex(head_, -1);
+    int nSize = index > tail_ ? index - tail_ : index + _END - tail_;
+    BufferIndex index_start = getDeltaIndex(index, nSize > 100 ? -100 : -nSize + 1);
+    Vector3f sum_gyro(0,0,0);
+    for(int i = 0; i < nSize; i++){
+        sum_gyro += buf_[getDeltaIndex(index_start, i)].gyro;
+    }
+    Vector3f mean_gyro = sum_gyro / nSize;
+    SetBias(mean_gyro, Vector3f(0,0,0));
+    LOGI("Update bias by static, mean_gyro:%f %f %f", mean_gyro.x(), mean_gyro.y(), mean_gyro.z());
+}
+
+
 bool ImuBuffer::DetectStatic(long long timestamp) const {
     BufferIndex index1 = binarySearch(timestamp, Left);
     int nSize = index1 > tail_ ? index1 - tail_ : index1 + _END - tail_;

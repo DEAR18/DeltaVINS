@@ -158,6 +158,7 @@ void YG_TCP_Server::closeTcpClient(int socket) {
     }
 }
 long YG_TCP_Server::RecvData(int socket, char* data, int length, int msg) {
+    (void)msg;
     if (socket < 0) {
         printf("tcp server accept error.socket not created. ");
         return -1;

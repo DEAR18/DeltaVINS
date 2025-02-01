@@ -46,7 +46,7 @@ void DataRecorder::OnImageReceived(ImageData::Ptr imageData) {
 
 void DataRecorder::DoWhatYouNeedToDo() {
     static ImuBuffer &imuBuffer = ImuBuffer::Instance();
-    static ImageBuffer &imageBuffer = ImageBuffer::Instance();
+    // static ImageBuffer &imageBuffer = ImageBuffer::Instance();
 
     char fileName[100];
 
