@@ -16,13 +16,7 @@ class SquareRootEKFSolver {
 
     SquareRootEKFSolver();
 
-    void Init(CamState *pCamState, Vector3f *vel
-#if USE_PLANE_PRIOR
-              ,
-              Vector3f *planeCoeff, Vector3f n
-#endif
-              ,
-              bool *static_);
+    void Init(CamState *pCamState, Vector3f *vel, bool *static_);
     void AddCamState(CamState *state);
 
     void Propagate(const ImuPreintergration *pImuTerm);
@@ -61,15 +55,7 @@ class SquareRootEKFSolver {
    private:
     void _UpdateByGivensRotations(int row, int col);
 
-    bool _DetectPureRotation();
-
     int _AddPositionContraint(int nRows);
-
-#if USE_NEW_MOVED_PIXEL
-
-    void _computeDeltaR();
-
-#endif
 
 #if USE_KEYFRAME
 
@@ -83,30 +69,12 @@ class SquareRootEKFSolver {
 
     // MatrixMf m_infoFactorInverseMatrix;
 
-#if USE_PLANE_PRIOR
-
-    Vector3f *m_planeCoeff;
-    MatrixXf m_PlaneH;
-    Vector3f m_n;
-#endif
-
-#if USE_GIVENS_MARGIN
     MatrixMfR info_factor_matrix_to_marginal_;
-#else
-    MatrixXf info_factor_matrix_to_marginal_;
-#endif
 
-#if USE_STATIC_STACK
     MatrixOfR stacked_matrix_;
-#if REMOVE_RESIDUAL_STACK
     VectorOf obs_residual_;
-#endif
 
     int stacked_rows_ = 0;
-#else
-    Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
-        stacked_matrix_;
-#endif
 
     MatrixMf info_factor_matrix_;  // Upper Triangle Matrix
 

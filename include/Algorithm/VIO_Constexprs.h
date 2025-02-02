@@ -1,10 +1,6 @@
 #pragma once
 
-#if DISABLE_ACC_BIAS
-constexpr int IMU_STATE_DIM = 6;
-#else
 constexpr int IMU_STATE_DIM = 9;
-#endif
 
 constexpr int MAX_WINDOW_SIZE = 10;
 constexpr int CAM_DELETE_STEP = 3;

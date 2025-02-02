@@ -28,11 +28,6 @@ class VIOAlgorithm {
         std::list<TrackedFeature::Ptr> tfs_;
         bool static_;
         InitState init_state_;
-#if USE_PLANE_PRIOR
-        Vector3f m_PlaneCoeff;
-        Vector3f n;
-        //  (exp(m_Riw)* n).dot(Pw) + d = 0
-#endif
     };
 
     void _Initialization(const ImageData::Ptr imageData);

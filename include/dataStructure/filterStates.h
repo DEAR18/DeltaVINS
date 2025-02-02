@@ -45,9 +45,6 @@ struct CamState {
 
     int m_id = 0;  // only used in visualizer
 
-#if USE_NEW_MOVED_PIXEL
-    std::vector<Matrix3f> m_dR;
-#endif
 
     CamState() {
         static int counter = 0;

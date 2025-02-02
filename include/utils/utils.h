@@ -64,44 +64,6 @@ inline Matrix3f crossMat(const Vector3f& x) {
     return X;
 }
 
-inline Matrix3f getRotFromGravAndMag(const Eigen::Vector3f& gravity,
-                                     const Eigen::Vector3f& magnet) {
-    float Ax = gravity[0];
-    float Ay = gravity[1];
-    float Az = gravity[2];
-    float Ex = magnet[0];
-    float Ey = magnet[1];
-    float Ez = magnet[2];
-    float Hx = Ey * Az - Ez * Ay;
-    float Hy = Ez * Ax - Ex * Az;
-    float Hz = Ex * Ay - Ey * Ax;
-    float normH = (float)sqrt(Hx * Hx + Hy * Hy + Hz * Hz);
-    if (normH < FLT_EPSILON) {
-        return Matrix3f::Identity();
-    }
-    float invH = 1.0f / normH;
-    Hx *= invH;
-    Hy *= invH;
-    Hz *= invH;
-    float invA = 1.0f / sqrt(Ax * Ax + Ay * Ay + Az * Az);
-    Ax *= invA;
-    Ay *= invA;
-    Az *= invA;
-    float Mx = Ay * Hz - Az * Hy;
-    float My = Az * Hx - Ax * Hz;
-    float Mz = Ax * Hy - Ay * Hx;
-    Eigen::Matrix3f R;
-
-    R << Hx, Hy, Hz, -Ax, -Ay, -Az, Mx, My, Mz;
-#if USE_Z_AXIS
-    Matrix3f A;
-    A << 1, 0, 0, 0, 0, 1, 0, 1, 0;
-    return A * R;
-#else
-    return R;
-#endif
-}
-
 
 // calculate a rotation matrix which aligns vec to vec_ref
 inline Matrix3f GetRotByAlignVector(const Vector3f& vec,

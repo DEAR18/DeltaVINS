@@ -64,61 +64,13 @@ TrackedFeature::TrackedFeature() : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false) {
     host_frame = nullptr;
 #endif
 
-#if USE_NEW_MOVED_PIXEL
-    m_movedPx = 0;
-    m_bInaccurateDepth = false;
-#endif
 
     static int counter = 0;
     m_id = counter++;
 }
 
 bool TrackedFeature::Triangulate() {
-#if USE_NEW_MOVED_PIXEL
 
-    static CamModel* camModel = CamModel::getCamModel();
-
-    float max_MovedPx = 0;
-    float max_MovedPx2 = 0;
-    float min_px_thresh = 5 * 5;
-    for (int i = 0, length = visual_obs.size() - 1; i < length; ++i) {
-        auto& ob = visual_obs[i];
-        auto frame = ob.link_frame->state;
-        for (int j = i + 1; j < length; j++) {
-            auto& ob2 = visual_obs[j];
-            // int idx = ob2.link_frame->state->m_idx;
-            // Vector2f px_project = camModel->camToImage(frame->m_dR[idx] *
-            // ob.ray); Vector2f px2 = ob2.m_px; float px_moved = (px_project
-            // - ob2.m_px).squaredNorm();
-            float px_moved = (ob2.m_px - ob.m_px).squaredNorm();
-            if (px_moved > max_MovedPx) max_MovedPx = px_moved;
-        }
-    }
-
-    if (max_MovedPx < min_px_thresh) m_bInaccurateDepth = true;
-
-#endif
-
-#if USE_POSITION_DETECT_ROTATION
-
-    float max_position = 0;
-    float position_thresh = 0.05 * 0.05;
-    for (int i = 0, n = visual_obs.size(); i < n; ++i) {
-        const Vector3f& dP = visual_obs[i].link_frame->state->m_Pwi;
-        for (int j = i + 1; j < n; ++j) {
-            float dP2 =
-                (dP - visual_obs[j].link_frame->state->m_Pwi).squaredNorm();
-            if (dP2 > max_position) {
-                max_position = dP2;
-            }
-        }
-    }
-
-    if (max_position < position_thresh) {
-        m_bInaccurateDepth = true;
-    }
-
-#endif
 
     if (verbose_) LOGI("###PointID:%d", m_id);
     // if (point_state_) return m_Result.bConverged;
@@ -168,38 +120,6 @@ bool TrackedFeature::Triangulate() {
 
 #endif
 
-#if (USE_NEW_MOVED_PIXEL || USE_POSITION_DETECT_ROTATION) && USE_KEYFRAME
-
-    if (m_bInaccurateDepth) {
-        flag_slam_point_candidate = false;
-    }
-#endif
-
-#if USE_DEPTH_PRIOR
-    if (m_Result.bConverged) {
-        if (mean_depth < 0) {
-            mean_depth = z[2];
-            info = H(2, 2);
-        } else {
-            float alpha = info;
-            float beta = H(2, 2);
-            float s, c;
-            if (fabs(beta) < FLT_EPSILON) {
-            } else if (fabs(beta) > fabs(alpha)) {
-                s = 1 / sqrt(1 + pow(alpha / beta, 2));
-                c = -alpha / beta * s;
-            } else {
-                c = 1 / sqrt(1 + pow(beta / alpha, 2));
-                s = -beta / alpha * c;
-            }
-            Matrix2f A;
-            A << info, 0, beta, -beta * (mean_depth - z[2]);
-
-            A(1, 0) = s * info + c * beta;
-            A(1, 1) = c * A(1, 1);
-        }
-    }
-#endif
     dRs.clear();
     dts.clear();
     return m_Result.bConverged;

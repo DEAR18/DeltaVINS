@@ -35,8 +35,7 @@ void VIOAlgorithm::_TrackFrame(const ImageData::Ptr imageData) {
 }
 
 void VIOAlgorithm::_Initialization(const ImageData::Ptr imageData) {
-
-    if(!static_initializer_.Initialize(imageData)){
+    if (!static_initializer_.Initialize(imageData)) {
         LOGI("Initializating...");
         return;
     }
@@ -119,9 +118,9 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
     frame_now_->image = imageData->image.clone();  // Only used for debugging
 #endif
     static auto& imuBuffer = ImuBuffer::Instance();
-    if(states_.init_state_ == InitState::NeedFirstFrame){
+    if (states_.init_state_ == InitState::NeedFirstFrame) {
         preintergration_.t0 = timestamp;
-        states_.init_state_ = InitState::NotInitialized;    
+        states_.init_state_ = InitState::NotInitialized;
         Matrix3f R = Matrix3f::Identity();
         imuBuffer.SetZeroBias();
         InitializeStates(R);
@@ -137,7 +136,6 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
         _Initialization(imageData);
         return;
     }
-
 }
 
 void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
@@ -164,11 +162,12 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     // Vector3f ea = Rwi.transpose().eulerAngles(0, 1, 2);
 #ifndef PLATORM_ARM
 
-    fprintf(
-        file,
-        "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f\n",
-        pose->timestamp, Pwi[0], Pwi[1], Pwi[2], _q.w(), _q.x(), _q.y(), _q.z(), Vwi[0],
-        Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1], ba[2]);
+    fprintf(file,
+            "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%"
+            "9.6f\n",
+            pose->timestamp, Pwi[0], Pwi[1], Pwi[2], _q.w(), _q.x(), _q.y(),
+            _q.z(), Vwi[0], Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1],
+            ba[2]);
 #endif
     if (!Config::NoDebugOutput) {
         printf(
@@ -314,19 +313,7 @@ void VIOAlgorithm::InitializeStates(const Matrix3f& Rwi) {
     states_.tfs_.clear();
     states_.vel.setZero();
     states_.static_ = false;
-#if USE_PLANE_PRIOR
-#if USE_Z_AXIS
-    states_.n = Vector3f(0, 0, 1);
-#else
-    states_.n = Vector3f(0, 1, 0);
-#endif
-
-    states_.m_PlaneCoeff.setZero();
-    solver_->init(frame_now_->state, &states_.vel, &states_.m_PlaneCoeff,
-                  states_.n, &states_.static_);
-#else
     solver_->Init(frame_now_->state, &states_.vel, &states_.static_);
-#endif
 }
 
 void VIOAlgorithm::_AddImuInformation() {
@@ -476,11 +463,7 @@ void VIOAlgorithm::_MarginFrames() {
 
     _SelectFrames2Margin();
 
-#if USE_GIVENS_MARGIN
     solver_->MarginalizeGivens();
-#else
-    solver_->MarginalizeStatic();
-#endif
 
     for (auto frame : states_.frames_)
         if (!frame->state->flag_to_marginalize) vCamStatesNew.push_back(frame);
@@ -498,7 +481,6 @@ void VIOAlgorithm::_StackInformationFactorMatrix() {
 }
 
 bool VIOAlgorithm::_VisionStatic() {
-#if USE_NEW_STATIC_DETECT
 
     int nPxStatic = 0;
     int nAllPx = 0;
@@ -518,39 +500,9 @@ bool VIOAlgorithm::_VisionStatic() {
     if (float(nPxStatic) / float(nAllPx) > ratioThresh) return true;
     return false;
 
-#else
-    float max_parallax = 0;
-    int n = 0;
-    for (auto ftTrack : states_.tfs_) {
-        if (ftTrack->visual_obs.size() >= 2) {
-            max_parallax += sqrt(ftTrack->last_moved_px);
-            ++n;
-        }
-    }
-    float lastPx = n ? max_parallax / n : 5;
-    static int nFrames = 0;
-    static int nStaticFrames = 0;
-    static int nMoveFrames = 0;
-    float pxThres = 0.5;
-    nFrames++;
-    if (nFrames < 10) pxThres = 2;
-
-    if (lastPx < pxThres) {
-        nStaticFrames++;
-        nMoveFrames = 0;
-        if (nStaticFrames >= 5) {
-            return true;
-        }
-    } else {
-        nStaticFrames = 0;
-        nMoveFrames++;
-    }
-    if (nMoveFrames >= 3) return false;
-#endif
 }
 
 void VIOAlgorithm::_DetectStill() {
-#if USE_NEW_STATIC_DETECT
     static auto& buffer = ImuBuffer::Instance();
     bool bStatic = buffer.DetectStatic(frame_now_->timestamp);
 
@@ -562,10 +514,6 @@ void VIOAlgorithm::_DetectStill() {
     }
 
     states_.static_ = false;
-#else
-
-    states_.bStatic = _VisionStatic();
-#endif
 }
 
 void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,

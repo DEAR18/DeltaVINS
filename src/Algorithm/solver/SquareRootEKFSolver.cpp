@@ -6,9 +6,9 @@
 #include "Algorithm/vision/camModel/camModel.h"
 #include "IO/dataBuffer/imuBuffer.h"
 #include "precompile.h"
-#include "utils/utils.h"
 #include "utils/TickTock.h"
 #include "utils/constantDefine.h"
+#include "utils/utils.h"
 
 namespace DeltaVins {
 SquareRootEKFSolver::SquareRootEKFSolver() {
@@ -19,30 +19,8 @@ SquareRootEKFSolver::SquareRootEKFSolver() {
     //
 }
 
-void SquareRootEKFSolver::Init(CamState* pCamState, Vector3f* vel
-#if USE_PLANE_PRIOR
-                               ,
-                               Vector3f* planeCoeff, Vector3f n
-#endif
-                               ,
+void SquareRootEKFSolver::Init(CamState* pCamState, Vector3f* vel,
                                bool* static_) {
-
-#if USE_PLANE_PRIOR
-    VectorXf p(NEW_STATE_DIM + PLANE_DIM);
-
-    switch (Config::DataSourceType) {
-        case DataSrcEuroc:
-            p << 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-2, 1e-2, 1e-2, 1e-3,
-                1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-2, 1e-2, 1e-2;
-            break;
-        default:
-            p << 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-2, 1e-2, 1e-2, 1e-3,
-                1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-2, 1e-2, 1e-2;
-            break;
-    }
-
-    CURRENT_DIM = NEW_STATE_DIM + PLANE_DIM;
-#else
     VectorXf p(NEW_STATE_DIM);
 
     switch (Config::DataSourceType) {
@@ -57,15 +35,9 @@ void SquareRootEKFSolver::Init(CamState* pCamState, Vector3f* vel
     }
 
     CURRENT_DIM = NEW_STATE_DIM;
-#endif
 
     vel_ = vel;
     static_ = static_;
-#if USE_PLANE_PRIOR
-
-    m_planeCoeff = planeCoeff;
-    m_n = n;
-#endif
     info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
         p.cwiseSqrt().cwiseInverse().asDiagonal();
 
@@ -80,19 +52,14 @@ void SquareRootEKFSolver::AddCamState(CamState* state) {
     new_state_ = state;
 }
 void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
-#if USE_Z_AXIS
     static Vector3f gravity(0, 0, GRAVITY);
-#else
-    static Vector3f gravity(0, GRAVITY, 0);
-#endif
     Matrix3f R0 = last_state_->Rwi;
 
     float dt = imu_term->dT * 1e-9;
 
     // propagate states
-    new_state_->Pwi =
-        last_state_->Pwi +
-        (R0 * imu_term->dP + *vel_ * dt + gravity * (0.5f * dt * dt));
+    new_state_->Pwi = last_state_->Pwi + (R0 * imu_term->dP + *vel_ * dt +
+                                          gravity * (0.5f * dt * dt));
     new_state_->Pw_FEJ = new_state_->Pwi;
     *vel_ += R0 * imu_term->dV + gravity * dt;
     new_state_->Rwi = R0 * imu_term->dR;
@@ -108,38 +75,9 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
     state_transition_matrix.block<3, 3>(3, 9) = Matrix3f::Identity() * dt;
     state_transition_matrix.block<3, 3>(9, 0) = -R0 * crossMat(imu_term->dV);
     state_transition_matrix.block<3, 3>(9, 6) = R0 * imu_term->dVdg;
-#if !DISABLE_ACC_BIAS
     state_transition_matrix.block<3, 3>(9, 12) = R0 * imu_term->dVda;
     state_transition_matrix.block<3, 3>(3, 12) = R0 * imu_term->dPda;
-#endif
 
-#if USE_SQ_NOISE
-
-    // make noise transition matrix
-    static Eigen::Matrix<float, 9, 9> noise_transition_matrix;
-    noise_transition_matrix.setZero();
-    noise_transition_matrix.block<3, 3>(0, 0).setIdentity();
-    noise_transition_matrix.block<3, 3>(3, 6) = R0;
-    noise_transition_matrix.block<3, 3>(6, 3) = R0;
-
-    Eigen::LLT<Matrix9f> chol(imu_term->Cov);
-    Matrix9f covFactor;
-    covFactor.setIdentity();
-    chol.matrixU().solveInPlace(covFactor);
-    covFactor = noise_transition_matrix * covFactor;
-    static Eigen::Matrix<float, NEW_STATE_DIM, NEW_STATE_DIM> NoiseFactor;
-
-    NoiseFactor.setZero();
-    NoiseFactor.topLeftCorner<6, 6>() = covFactor.topLeftCorner<6, 6>();
-    NoiseFactor.block<6, 3>(0, 9) = covFactor.block<6, 3>(0, 6);
-    NoiseFactor.block<3, 6>(9, 0) = covFactor.block<3, 6>(9, 0);
-    NoiseFactor.block<3, 3>(9, 9) = covFactor.block<3, 3>(6, 6);
-    NoiseFactor.diagonal().segment<3>(6) =
-        Vector3f::Ones() * (1.f / (sqrt(Config::GyroBiasNoise2) * dt));
-    NoiseFactor.diagonal().segment<3>(12) =
-        Vector3f::Ones() * (1.f / (sqrt(Config::AccBiasNoise2) * dt));
-
-#else
     // make noise transition matrix
     static Eigen::Matrix<float, NEW_STATE_DIM, 9> noise_transition_matrix;
     noise_transition_matrix.setZero();
@@ -150,30 +88,22 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
     // Make Noise Covariance Matrix Q
     static Eigen::Matrix<float, NEW_STATE_DIM, NEW_STATE_DIM> noise_cov;
     noise_cov = noise_transition_matrix * imu_term->Cov *
-               noise_transition_matrix.transpose();
+                noise_transition_matrix.transpose();
     noise_cov.block<3, 3>(6, 6) =
         Matrix3f::Identity() * (Config::GyroBiasNoise2 * dt * dt);
-#if !DISABLE_ACC_BIAS
     noise_cov.block<3, 3>(12, 12) =
         Matrix3f::Identity() * (Config::AccBiasNoise2 * dt * dt);
-#endif
 
     static Eigen::Matrix<float, NEW_STATE_DIM, NEW_STATE_DIM> NoiseFactor;
     NoiseFactor.setIdentity();
     Eigen::LLT<MatrixXf> chol(noise_cov);
     chol.matrixU().solveInPlace(NoiseFactor);
 
-#endif
-
     // Make information factor matrix
     int OLD_DIM = CURRENT_DIM;
     CURRENT_DIM += NEW_STATE_DIM;
 
-#if USE_PLANE_PRIOR
-    int IMUIdx = PLANE_DIM;
-#else
     int IMUIdx = 0;
-#endif
     info_factor_matrix_.block(0, OLD_DIM, OLD_DIM, NEW_STATE_DIM).setZero();
     info_factor_matrix_.block(OLD_DIM, 0, NEW_STATE_DIM, OLD_DIM).setZero();
     MatrixXf R = NoiseFactor * state_transition_matrix;
@@ -189,9 +119,6 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
     // make residual vector
     residual_.segment(0, CURRENT_DIM).setZero();
 
-#if USE_VELOCITY_DETECT_ROTATION
-    new_state_->vel = *vel_;
-#endif
 }
 #if 0
 	void SquareRootEKFSolver::Propagate(const ImuPreintergration* imu_term)
@@ -218,10 +145,8 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
         state_transition_matrix.block<3, 3>(3, 9) = Matrix3f::Identity() * dt;
         state_transition_matrix.block<3, 3>(9, 0) = -R0 * crossMat(imu_term->dV);
         state_transition_matrix.block<3, 3>(9, 6) = R0 * imu_term->dVdg;
-#if !DISABLE_ACC_BIAS
         state_transition_matrix.block<3, 3>(9, 12) = R0 * imu_term->dVda;
         state_transition_matrix.block<3, 3>(3, 12) = R0 * imu_term->dPda;
-#endif
 
         //make noise transition matrix
         Eigen::Matrix<float,NEW_STATE_DIM,9> noise_transition_matrix;
@@ -233,9 +158,7 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
         //Make Noise Covariance Matrix Q
         Eigen::Matrix<float,NEW_STATE_DIM,NEW_STATE_DIM> noise_cov = noise_transition_matrix * imu_term->Cov * noise_transition_matrix.transpose();
         noise_cov.block<3, 3>(6, 6) = Matrix3f::Identity() * (Config::GyroBiasNoise2 * dt * dt);
-#if !DISABLE_ACC_BIAS
         noise_cov.block<3, 3>(12, 12) = Matrix3f::Identity() * (Config::AccBiasNoise2 * dt * dt);
-#endif
 
         Eigen::Matrix<float,NEW_STATE_DIM,NEW_STATE_DIM> NoiseFactor;
         NoiseFactor.setIdentity();
@@ -470,11 +393,7 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
         Matrix2f R = MatrixXf::Identity(2, 2) * Config::ImageNoise2 * 2;
         MatrixXf E;
         E.resize(CURRENT_DIM, 9);
-#if USE_PLANE_PRIOR
-        int iLeft = IMU_STATE_DIM + PLANE_DIM;
-#else
         int iLeft = IMU_STATE_DIM;
-#endif
         E.leftCols<3>() = info_factor_matrix_after_mariginal_.block(
             0, state->index_in_window * 3 + iLeft, CURRENT_DIM, 3);
         E.rightCols<6>() = info_factor_matrix_after_mariginal_.block(
@@ -591,8 +510,8 @@ int SquareRootEKFSolver::ComputeJacobians(TrackedFeature* track) {
         Matrix3f Riw = ob->link_frame->state->Rwi.transpose();
         Vector3f Pi =
             Riw * (track->point_state_->Pw - ob->link_frame->state->Pwi);
-        Vector3f Pi_FEJ = Riw * (track->point_state_->Pw_FEJ -
-                                 ob->link_frame->state->Pw_FEJ);
+        Vector3f Pi_FEJ =
+            Riw * (track->point_state_->Pw_FEJ - ob->link_frame->state->Pw_FEJ);
 
         Vector2f px = cam_model->imuToImage(Pi);
         Vector2f r = ob->px - px;
@@ -601,8 +520,7 @@ int SquareRootEKFSolver::ComputeJacobians(TrackedFeature* track) {
         if (reprojErr > cutOffThresh) {
             track->Reproject();
             // track->DrawObservationsAndReprojection(1);
-            printf("%f %f ->%f %f\n", ob->px.x(), ob->px.y(), px.x(),
-                   px.y());
+            printf("%f %f ->%f %f\n", ob->px.x(), ob->px.y(), px.x(), px.y());
             return false;
         }
 
@@ -613,11 +531,8 @@ int SquareRootEKFSolver::ComputeJacobians(TrackedFeature* track) {
 
         H.block<2, 3>(2 * index, CAM_STATE_IDX + CAM_STATE_DIM * cam_id) =
             J23 * crossMat(Pi_FEJ);
-#if USE_POSITION_DETECT_ROTATION
-        if (!track->m_bInaccurateDepth)
-#endif
-            H.block<2, 3>(2 * index, CAM_STATE_IDX + CAM_STATE_DIM * cam_id + 3) =
-                -J23 * Riw;
+        H.block<2, 3>(2 * index, CAM_STATE_IDX + CAM_STATE_DIM * cam_id + 3) =
+            -J23 * Riw;
         H.block<2, 3>(2 * index, 0) = J23 * Riw;
 
         return true;
@@ -670,7 +585,7 @@ int SquareRootEKFSolver::_AddNewSlamPointConstraint() {
     if (new_slam_point_.empty()) {
         info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
             info_factor_matrix_after_mariginal_.topLeftCorner(CURRENT_DIM,
-                                                         CURRENT_DIM);
+                                                              CURRENT_DIM);
         return num_obs;
     }
 
@@ -679,11 +594,7 @@ int SquareRootEKFSolver::_AddNewSlamPointConstraint() {
     int nOldSlamPointStates = slam_point_.size() * 3;
     int num_cams = cam_states_.size();
 
-#if USE_PLANE_PRIOR
-    int nLeft = nOldSlamPointStates + IMU_STATE_DIM + PLANE_DIM;
-#else
     int nLeft = nOldSlamPointStates + IMU_STATE_DIM;
-#endif
 
     int nRight = num_cams * CAM_STATE_DIM;
 
@@ -716,7 +627,7 @@ int SquareRootEKFSolver::_AddNewSlamPointConstraint() {
     }
 
     slam_point_.insert(slam_point_.end(), new_slam_point_.begin(),
-                        new_slam_point_.end());
+                       new_slam_point_.end());
 
     for (int i = 0, n = slam_point_.size(); i < n; ++i) {
         slam_point_[i]->index_in_window = i;
@@ -736,7 +647,7 @@ int SquareRootEKFSolver::AddSlamPointConstraint() {
 
 void SquareRootEKFSolver::AddMsckfPoint(PointState* state) {
     // constexpr int MAX_DIM =
-        // 3 + (CAM_STATE_DIM * MAX_WINDOW_SIZE + IMU_STATE_DIM + 1);
+    // 3 + (CAM_STATE_DIM * MAX_WINDOW_SIZE + IMU_STATE_DIM + 1);
     static MatrixHfR H;
     // do null space trick to get pose constraint
     int col = state->H.cols();
@@ -762,18 +673,9 @@ void SquareRootEKFSolver::AddVelocityConstraint(int nRows) {
     static float invRotSigma = 1.0 / 1e-5;
     static float invPosSigma = 1.0 / 1e-2;
 
-#if DISABLE_ACC_BIAS
-    int velIdx = nCols - 4;
-#else
     int velIdx = 3;
-#endif
 
-#if USE_STATIC_STACK
     stacked_matrix_.middleRows(nRows, 9).setZero();
-#else
-    stacked_matrix_.conservativeResize(nRows + 9, Eigen::NoChange);
-    stacked_matrix_.bottomRows<9>().setZero();
-#endif
     Matrix3f dR = new_state_->Rwi.transpose() * last_state_->Rwi;
     Vector3f dP = new_state_->Pwi - last_state_->Pwi;
 
@@ -797,95 +699,24 @@ void SquareRootEKFSolver::AddVelocityConstraint(int nRows) {
         Jr * invRotSigma;
     stacked_matrix_.block<3, 3>(nRows, CURRENT_DIM - CAM_STATE_DIM) =
         -Jl * invRotSigma;
-#if REMOVE_RESIDUAL_STACK
     obs_residual_.segment(nRows, 3) = -so3 * invRotSigma;
-#else
-    stacked_matrix_.block<3, 1>(nRows, CURRENT_DIM) = -so3 * invRotSigma;
-#endif
     stacked_matrix_.block<3, 3>(nRows + 3,
                                 CURRENT_DIM - 2 * CAM_STATE_DIM + 3) =
         -Matrix3f::Identity() * invPosSigma;
     stacked_matrix_.block<3, 3>(nRows + 3, CURRENT_DIM - CAM_STATE_DIM + 3) =
         Matrix3f::Identity() * invPosSigma;
-#if REMOVE_RESIDUAL_STACK
     obs_residual_.segment(nRows + 3, 3) = -dP * invPosSigma;
-#else
-    stacked_matrix_.block<3, 1>(nRows + 3, CURRENT_DIM) = -dP * invPosSigma;
-#endif
     stacked_matrix_.block<3, 3>(nRows + 6, velIdx) =
         Matrix3f::Identity() * invSigma;
-#if REMOVE_RESIDUAL_STACK
     obs_residual_.segment(nRows + 6, 3) = -*vel_ * invSigma;
-#else
-    stacked_matrix_.block<3, 1>(nRows + 6, CURRENT_DIM) = -*vel_ * invSigma;
-#endif
-#if USE_STATIC_STACK
     stacked_rows_ += 9;
-#endif
 }
-
-#if USE_PLANE_PRIOR
-int SquareRootEKFSolver::_AddPlaneContraint() {
-    static const float invStd = 1.0 / 1e-5;
-    int num_cams = cam_states_.size();
-    m_PlaneH.setZero(num_cams, num_cams * 6 + 3 + 1);
-    if (!Config::PlaneConstraint) return num_cams;
-    int RESIDUAL_IDX = num_cams * 6 + 3;
-
-#if USE_Z_AXIS
-    Vector3f theta(m_planeCoeff->x(), m_planeCoeff->y(), 0);
-#else
-    Vector3f theta(m_planeCoeff->x(), 0, m_planeCoeff->y());
-#endif
-    float d = m_planeCoeff->z();
-
-    Matrix3f R = Sophus::SO3f::exp(theta).matrix();
-
-    float totalResidual = 0;
-
-    int i = 0;
-    for (auto camState : cam_states_) {
-        auto& P = camState->Pwi;
-
-        Vector3f dYdtheta = -P.transpose() * crossMat(m_n);
-        Vector3f dYdP = (R * m_n).transpose();
-
-        float residual = -(R * m_n).dot(P) - d;
-
-#if USE_Z_AXIS
-        m_PlaneH(i, 0) = dYdtheta.x();
-        m_PlaneH(i, 1) = dYdtheta.y();
-        m_PlaneH(i, 2) = 1.0f;
-#else
-        m_PlaneH(i, 0) = dYdtheta.x();
-        m_PlaneH(i, 1) = dYdtheta.z();
-        m_PlaneH(i, 2) = 1.0f;
-#endif
-        m_PlaneH.block(i, 3 + i * 6 + 3, 1, 3) = dYdP.transpose();
-        m_PlaneH(i, RESIDUAL_IDX) = residual;
-
-        i++;
-        totalResidual += residual * residual;
-    }
-
-    printf("Residual :%f\n", totalResidual);
-
-    m_PlaneH *= invStd;
-
-    return num_cams;
-}
-#endif
 
 int SquareRootEKFSolver::StackInformationFactorMatrix() {
     int nTotalObs = 0;
     int nCamStartIdx = IMU_STATE_DIM;
     int nVisualObs = 0;
     int rffIdx = 0;
-
-#if USE_PLANE_PRIOR
-    nCamStartIdx += PLANE_DIM;
-    nTotalObs += _AddPlaneContraint();
-#endif
 
 #if USE_KEYFRAME
 
@@ -894,13 +725,6 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
 
 #endif
 
-#if USE_POSITION_DETECT_ROTATION
-
-    bool addPositionContraint = false;
-    if (!nVisualObs && _DetectPureRotation() && !*static_) {
-        addPositionContraint = true;
-    }
-#endif
     int nOldStates = CURRENT_DIM;
     int nCamStates = cam_states_.size() * CAM_STATE_DIM;
 
@@ -911,40 +735,11 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
 
     nTotalObs += nVisualObs;
 
-#if !USE_STATIC_STACK
-    stacked_matrix_.setZero(nTotalObs, nOldStates + 1);
-#else
-#if REMOVE_RESIDUAL_STACK
     stacked_matrix_.topLeftCorner(nTotalObs, nOldStates).setZero();
     obs_residual_.segment(0, nTotalObs).setZero();
-#else
-    stacked_matrix_.topLeftCorner(nTotalObs, nOldStates + 1).setZero();
-#endif
-#endif
-
-#if USE_PLANE_PRIOR
-
-    int num_cams = cam_states_.size();
-    stacked_matrix_.topLeftCorner(num_cams, 3) = m_PlaneH.topLeftCorner(num_cams, 3);
-    stacked_matrix_.block(0, nCamStartIdx, num_cams, CAM_STATE_DIM * num_cams) =
-        m_PlaneH.middleCols(3, CAM_STATE_DIM * num_cams);
-#if REMOVE_RESIDUAL_STACK
-    obs_residual_.segment(0, num_cams) = m_PlaneH.rightCols<1>();
-#else
-    stacked_matrix_.block(0, nOldStates, num_cams, 1) = m_PlaneH.rightCols<1>();
-#endif
-
-    rffIdx = num_cams;
-#endif
 
     if (!nVisualObs) {
-#if USE_STATIC_STACK
-#if USE_PLANE_PRIOR
-        stacked_rows_ = nTotalObs;
-#else
         stacked_rows_ = 0;
-#endif
-#endif
         return 0;
     }
 
@@ -959,20 +754,11 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
             track->H.leftCols(nCamStates);
         //.triangularView<Eigen::Upper>();
 
-#if REMOVE_RESIDUAL_STACK
         obs_residual_.segment(rffIdx, num_obs) = track->H.rightCols<1>();
-#else
-        stacked_matrix_.block(rffIdx, nOldStates, num_obs, 1) =
-            track->H.rightCols<1>();
-#endif
         rffIdx += num_obs;
     }
 
     int slamPointIdx = IMU_STATE_DIM;
-
-#if USE_PLANE_PRIOR
-    slamPointIdx += PLANE_DIM;
-#endif
 
 #if USE_KEYFRAME
 
@@ -986,87 +772,37 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
             track->H.middleCols(3, nCamStates);
         stacked_matrix_.block(rffIdx, slamPointIdx + slamId * 3, num_obs, 3) =
             track->H.leftCols<3>();
-#if REMOVE_RESIDUAL_STACK
         obs_residual_.segment(rffIdx, num_obs) = track->H.rightCols<1>();
-#else
-        stacked_matrix_.block(rffIdx, nOldStates, num_obs, 1) =
-            track->H.rightCols<1>();
-#endif
         rffIdx += num_obs;
     }
 
 #endif
 
-#if USE_POSITION_DETECT_ROTATION
 
-    if (addPositionContraint) {
-        nTotalObs += _AddPositionContraint(nTotalObs);
-    }
-
-#endif
-
-#if USE_STATIC_STACK
     stacked_rows_ = nTotalObs;
-#endif
     return nTotalObs;
 }
 
 void SquareRootEKFSolver::SolveAndUpdateStates() {
-#if USE_STATIC_STACK
     int haveNewInformation = stacked_rows_;
-#else
-    int haveNewInformation = stacked_matrix_.rows();
-#endif
     if (haveNewInformation) {
-#if USE_GIVENS_UPDATE
         TickTock::Start("Givens");
         _UpdateByGivensRotations(haveNewInformation, CURRENT_DIM + 1);
         TickTock::Stop("Givens");
-#else
-
-        Eigen::MatrixXf stackedMatrix;
-        int nRows = CURRENT_DIM + stacked_matrix_.rows();
-        stackedMatrix.setZero(nRows, stacked_matrix_.cols());
-        stackedMatrix.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
-            info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM);
-        stackedMatrix.bottomRows(stacked_matrix_.rows()) = stacked_matrix_;
-
-        Eigen::HouseholderQR<MatrixXf> qr(stackedMatrix);
-        info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
-            qr.matrixQR()
-                .topLeftCorner(CURRENT_DIM, CURRENT_DIM)
-                .triangularView<Eigen::Upper>();
-
-        residual_ = qr.matrixQR().topRightCorner(CURRENT_DIM, 1);
-#endif
 
         TickTock::Start("Inverse");
 
-        VectorXf dx = info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM)
-                          .triangularView<Eigen::Upper>()
-                          .solve(residual_.segment(0, CURRENT_DIM));
+        VectorXf dx =
+            info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM)
+                .triangularView<Eigen::Upper>()
+                .solve(residual_.segment(0, CURRENT_DIM));
         TickTock::Stop("Inverse");
 
         int iDim = 0;
 
-#if USE_PLANE_PRIOR
-        printf("Plane coeff:%f %f %f -> ", m_planeCoeff->x(), m_planeCoeff->y(),
-               m_planeCoeff->z());
-        *m_planeCoeff += dx.segment<3>(0);
-        printf("%f %f %f\n", m_planeCoeff->x(), m_planeCoeff->y(),
-               m_planeCoeff->z());
-        iDim += PLANE_DIM;
-#endif
-
-#if !DISABLE_ACC_BIAS
         auto& imuBuffer = ImuBuffer::Instance();
         imuBuffer.UpdateBias(dx.segment<3>(iDim), dx.segment<3>(iDim + 6));
         *vel_ += dx.segment<3>(iDim + 3);
-#else
-        auto& imuBuffer = ImuBuffer::Instance();
-        imuBuffer.UpdateBias(dx.segment<3>(iDim), Vector3f(0, 0, 0));
-        *vel_ += dx.segment<3>(iDim + 3);
-#endif
         iDim += IMU_STATE_DIM;
 
 #if USE_KEYFRAME
@@ -1086,9 +822,6 @@ void SquareRootEKFSolver::SolveAndUpdateStates() {
         }
     }
 
-#if USE_VELOCITY_DETECT_ROTATION
-    new_state_->vel = *vel_;
-#endif
 
     msckf_points_.clear();
 }
@@ -1118,13 +851,8 @@ void SquareRootEKFSolver::_UpdateByGivensRotations(int row, int col) {
                 for (int k = j; k < col; ++k) {
                     if (k == col - 1) {
                         float x = residual_(j);
-#if REMOVE_RESIDUAL_STACK
                         float y = obs_residual_(i);
                         obs_residual_(i) = s * x + c * y;
-#else
-                        float y = pI[k];
-                        pI[k] = s * x + c * y;
-#endif
                         residual_(j) = c * x + -s * y;
 
                     } else {
@@ -1156,61 +884,19 @@ void SquareRootEKFSolver::_UpdateByGivensRotations(int row, int col) {
                     pJ[k] = c * x + -s * y;
                     pI[k] = s * x + c * y;
                 }
-#if REMOVE_RESIDUAL_STACK
                 float x = obs_residual_[i - 1];
                 float y = obs_residual_[i];
                 obs_residual_[i - 1] = c * x + -s * y;
                 obs_residual_[i] = s * x + c * y;
-#else
-                float x = pJ[k];
-                float y = pI[k];
-                pJ[k] = c * x + -s * y;
-                pI[k] = s * x + c * y;
-#endif
             }
         }
     }
 }
 
-bool SquareRootEKFSolver::_DetectPureRotation() {
-#if USE_POSITION_DETECT_ROTATION
-
-    static std::deque<Eigen::Vector3f> positionDeque;
-
-    positionDeque.push_back(new_state_->Pwi);
-
-    float max_position = 0;
-    float position_thresh = 0.05 * 0.05;
-
-    if (positionDeque.size() > 10) {
-        positionDeque.pop_front();
-
-        for (int i = 0; i < 10; i++) {
-            for (int j = i + 1; j < 10; ++j) {
-                float dP = (positionDeque[i] - positionDeque[j]).squaredNorm();
-                if (dP > max_position) max_position = dP;
-            }
-        }
-
-    } else
-        return false;
-
-    return max_position < position_thresh;
-
-#endif
-
-    return false;
-}
-
 int SquareRootEKFSolver::_AddPositionContraint(int nRows) {
     static float invPosSigma = 1.0 / 0.05;
 
-#if USE_STATIC_STACK
     stacked_matrix_.middleRows(nRows, 3).setZero();
-#else
-    stacked_matrix_.conservativeResize(nRows + 3, Eigen::NoChange);
-    stacked_matrix_.bottomRows<3>().setZero();
-#endif
 
     Vector3f dP = new_state_->Pwi - last_state_->Pwi;
 
@@ -1219,33 +905,10 @@ int SquareRootEKFSolver::_AddPositionContraint(int nRows) {
         -Matrix3f::Identity() * invPosSigma;
     stacked_matrix_.block<3, 3>(nRows + 3, CURRENT_DIM - CAM_STATE_DIM + 3) =
         Matrix3f::Identity() * invPosSigma;
-#if REMOVE_RESIDUAL_STACK
     obs_residual_.segment(nRows + 3, 3) = -dP * invPosSigma;
-#else
-    stacked_matrix_.block<3, 1>(nRows + 3, CURRENT_DIM) = -dP * invPosSigma;
-#endif
     return 3;
 }
 
-#if USE_NEW_MOVED_PIXEL
-void SquareRootEKFSolver::_computeDeltaR() {
-    for (auto& camState : cam_states_) {
-        camState->m_dR.resize(cam_states_.size());
-    }
-
-    Matrix3f dR;
-    for (int i = 0, n = cam_states_.size(); i < n; ++i) {
-        auto camState = cam_states_[i];
-        camState->m_dR[i].setIdentity();
-        for (int j = i + 1; j < n; ++j) {
-            auto camState2 = cam_states_[j];
-            dR = camState2->Rwi.transpose() * camState->Rwi;
-            camState->m_dR[j] = dR;
-            camState2->m_dR[i] = dR.transpose();
-        }
-    }
-}
-#endif
 void SquareRootEKFSolver::_MarginByGivensRotation() {
     int nRows = CURRENT_DIM;
     for (int j = 0; j < CURRENT_DIM; ++j) {
@@ -1286,29 +949,16 @@ void SquareRootEKFSolver::MarginalizeGivens() {
     std::vector<CamState*> v_CamStateNew;
     std::vector<PointState*> v_PointStateNew;
 
-#if USE_PLANE_PRIOR
-
-    v_RemainDIM.push_back(0);
-    v_RemainDIM.push_back(1);
-    v_RemainDIM.push_back(2);
-
-    for (int i = 0; i < IMU_STATE_DIM; ++i) {
-        v_MarginDIM.push_back(i + PLANE_DIM);
-        v_RemainDIM.push_back(CURRENT_DIM - IMU_STATE_DIM + i);
-    }
-    iDim = IMU_STATE_DIM + PLANE_DIM;
-
-#else
     for (int i = 0; i < IMU_STATE_DIM; ++i) {
         v_MarginDIM.push_back(i);
         v_RemainDIM.push_back(CURRENT_DIM - IMU_STATE_DIM + i);
     }
     iDim = IMU_STATE_DIM;
-#endif
 #if USE_KEYFRAME
 
     for (int i = 0, n = slam_point_.size(); i < n; ++i) {
-        if (slam_point_[i]->flag_to_marginalize || slam_point_[i]->flag_to_next_marginalize)
+        if (slam_point_[i]->flag_to_marginalize ||
+            slam_point_[i]->flag_to_next_marginalize)
             slam_point_[i]->host->flag_dead = true;
         if (slam_point_[i]->host->flag_dead) {
             for (int j = 0; j < 3; ++j) {
@@ -1371,23 +1021,19 @@ void SquareRootEKFSolver::MarginalizeGivens() {
 
 #if USE_KEYFRAME
 
-    info_factor_matrix_after_mariginal_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
+    info_factor_matrix_after_mariginal_.topLeftCorner(CURRENT_DIM,
+                                                      CURRENT_DIM) =
         info_factor_matrix_to_marginal_.block(OLD_DIM - CURRENT_DIM,
-                                           OLD_DIM - CURRENT_DIM, CURRENT_DIM,
-                                           CURRENT_DIM);
+                                              OLD_DIM - CURRENT_DIM,
+                                              CURRENT_DIM, CURRENT_DIM);
 
 #else
 
     info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
         info_factor_matrix_to_marginal_.block(OLD_DIM - CURRENT_DIM,
-                                           OLD_DIM - CURRENT_DIM, CURRENT_DIM,
-                                           CURRENT_DIM);
+                                              OLD_DIM - CURRENT_DIM,
+                                              CURRENT_DIM, CURRENT_DIM);
 
-#endif
-
-#if USE_NEW_MOVED_PIXEL
-
-    _computeDeltaR();
 #endif
 }
 
@@ -1426,16 +1072,19 @@ void SquareRootEKFSolver::MarginalizeStatic() {
 
     int index = 0;
     for (auto idx : v_MarginDIM) {
-        info_factor_matrix_to_marginal_.col(index++) = info_factor_matrix_.col(idx);
+        info_factor_matrix_to_marginal_.col(index++) =
+            info_factor_matrix_.col(idx);
     }
     for (auto idx : v_RemainDIM) {
-        info_factor_matrix_to_marginal_.col(index++) = info_factor_matrix_.col(idx);
+        info_factor_matrix_to_marginal_.col(index++) =
+            info_factor_matrix_.col(idx);
     }
 
     // use qr to marginalize states
 
     Eigen::HouseholderQR<MatrixXf> qr(
-        info_factor_matrix_to_marginal_.topLeftCorner(CURRENT_DIM, CURRENT_DIM));
+        info_factor_matrix_to_marginal_.topLeftCorner(CURRENT_DIM,
+                                                      CURRENT_DIM));
     CURRENT_DIM = v_RemainDIM.size();
 
     info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =

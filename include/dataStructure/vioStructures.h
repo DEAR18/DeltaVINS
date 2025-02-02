@@ -72,10 +72,6 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     Vector2f
         predicted_px;  // predicted pixel position using propagated camera pose
     PointState* point_state_;  // pointer to point state
-#if USE_NEW_MOVED_PIXEL || USE_POSITION_DETECT_ROTATION
-    float m_movedPx;  // max moved pixel
-    bool m_bInaccurateDepth;
-#endif
 #if USE_KEYFRAME
     Frame* host_frame;
     bool flag_slam_point_candidate;
@@ -104,10 +100,6 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     bool UserDefinedDecentFail() override;
     using Ptr = std::shared_ptr<TrackedFeature>;
 
-#if USE_DEPTH_PRIOR
-    float mean_depth = -1;
-    float info = -1;
-#endif
 };
 
 }  // namespace DeltaVins
