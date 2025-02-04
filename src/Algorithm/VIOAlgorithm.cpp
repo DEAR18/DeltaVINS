@@ -9,10 +9,11 @@
 #include "utils/TickTock.h"
 #include "utils/constantDefine.h"
 #include "utils/utils.h"
+#include "Algorithm/vision/camModel/camModel.h"
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
-    feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(350);
+    feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(Config::MaxNumToTrack, Config::MaskSize);
     solver_ = new SquareRootEKFSolver();
     DataAssociation::InitDataAssociation(solver_);
     states_.init_state_ = InitState::NeedFirstFrame;
@@ -154,6 +155,17 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     ImuBuffer::Instance().GetBias(bg, ba);
 
     Quaternionf _q(Rwi);
+    auto camModel = CamModel::getCamModel();
+    Eigen::Isometry3f Tci_isometry = Eigen::Isometry3f::Identity();
+    Tci_isometry.linear() = camModel->getRci();
+    // Tci_isometry.translation() = camModel->getTci();
+    Eigen::Isometry3f Twc_isometry = Eigen::Isometry3f::Identity();
+    Twc_isometry.linear() = Rwi;
+    Twc_isometry.translation() = Pwi;
+    Eigen::Isometry3f Twi_isometry = Twc_isometry * Tci_isometry;
+    Rwi = Twi_isometry.rotation();
+    Pwi = Twi_isometry.translation();
+    _q = Quaternionf(Rwi);
 
     std::string outputName = Config::outputFileName;
     static FILE* file = fopen(outputName.c_str(), "w");
@@ -161,13 +173,24 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
 
     // Vector3f ea = Rwi.transpose().eulerAngles(0, 1, 2);
 #ifndef PLATORM_ARM
-
+    if(Config::OutputFormat == ResultOutputFormat::EUROC){
     fprintf(file,
             "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%"
             "9.6f\n",
             pose->timestamp, Pwi[0], Pwi[1], Pwi[2], _q.w(), _q.x(), _q.y(),
             _q.z(), Vwi[0], Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1],
             ba[2]);
+            fflush(file);
+    }else if(Config::OutputFormat == ResultOutputFormat::KITTI){
+        // TODO: Implement KITTI format
+        throw std::runtime_error("KITTI format is not implemented");
+    }else if(Config::OutputFormat == ResultOutputFormat::TUM){
+        fprintf(file,
+            "%lf %f %f %f %f %f %f %f\n",
+            pose->timestamp/1e9, Pwi[0], Pwi[1], Pwi[2],  _q.x(), _q.y(),
+            _q.z(), _q.w());
+            fflush(file);
+    }
 #endif
     if (!Config::NoDebugOutput) {
         printf(

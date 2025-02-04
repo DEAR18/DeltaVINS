@@ -59,9 +59,9 @@ def transform44(l):
     nq = numpy.dot(q, q)
     if nq < _EPS:
         return numpy.array((
-        (                1.0,                 0.0,                 0.0, t[0])
-        (                0.0,                 1.0,                 0.0, t[1])
-        (                0.0,                 0.0,                 1.0, t[2])
+        (                1.0,                 0.0,                 0.0, t[0]),
+        (                0.0,                 1.0,                 0.0, t[1]),
+        (                0.0,                 0.0,                 1.0, t[2]),
         (                0.0,                 0.0,                 0.0, 1.0)
         ), dtype=numpy.float64)
     q *= numpy.sqrt(2.0 / nq)
@@ -281,7 +281,6 @@ def evaluate_trajectory(traj_gt,traj_est,param_max_pairs=10000,param_fixed_delta
         if(abs(stamp_gt_0 - (stamp_est_0 + param_offset)) > gt_max_time_difference  or
            abs(stamp_gt_1 - (stamp_est_1 + param_offset)) > gt_max_time_difference):
             continue
-        
         error44 = ominus(  scale(
                            ominus( traj_est[stamp_est_1], traj_est[stamp_est_0] ),param_scale),
                            ominus( traj_gt[stamp_gt_1], traj_gt[stamp_gt_0] ) )

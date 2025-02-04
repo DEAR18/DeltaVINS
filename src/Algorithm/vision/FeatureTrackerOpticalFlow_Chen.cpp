@@ -33,11 +33,26 @@ inline void FeatureTrackerOpticalFlow_Chen::_SetMask(int x, int y) {
     }
 }
 
+bool FeatureTrackerOpticalFlow_Chen::_IsMasked(int x, int y) {
+    const int imgStride = CamModel::getCamModel()->width();
+    return !mask_[x + y * imgStride];
+}
+
+void FeatureTrackerOpticalFlow_Chen::_ResetMask() {
+    memset(mask_, 0xff, mask_buffer_size_);
+}
+
+void FeatureTrackerOpticalFlow_Chen::ShowMask() {
+    int imgStride = CamModel::getCamModel()->width();
+    int height = CamModel::getCamModel()->height();
+    cv::Mat mask_img(height, imgStride, CV_8UC1, mask_);
+    cv::imshow("mask", mask_img);
+    cv::waitKey(1);
+}
+
 void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
     std::list<TrackedFeaturePtr>& vTrackedFeatures) {
-    // ReSet Mask Pattern
-    memset(mask_, 0xff, mask_buffer_size_);
-
+    _ResetMask();
     // Set Mask Pattern
     const int imgStride = CamModel::getCamModel()->width();
 
@@ -194,7 +209,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     // int nPrePoints = pre.size();
     if (pre.empty()) {
         LOGW("No feature to track.");
-        return; 
+        return;
     }
     bool use_predict = false;
 #if USE_ROTATION_PREDICTION
@@ -216,17 +231,20 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
             px.x() = now[i].x;
             px.y() = now[i].y;
             if (camModel->inView(px, 5)) {
-                num_features_++;
-                num_features_tracked_++;
-                goodTracks[i]->AddVisualObservation(px, cam_state_);
-                continue;
+                // if (goodTracks[i]->point_state_ || !_IsMasked(px.x(), px.y())) {
+                    num_features_++;
+                    num_features_tracked_++;
+                    goodTracks[i]->AddVisualObservation(px, cam_state_);
+                    // _SetMask(px.x(), px.y());
+                    continue;
+                // }
             }
         }
         goodTracks[i]->flag_dead = true;
     }
 
     // int nRansac =
-        DataAssociation::RemoveOutlierBy2PointRansac(dR, vTrackedFeatures);
+    DataAssociation::RemoveOutlierBy2PointRansac(dR, vTrackedFeatures);
 
     // LOGW("nPointsLast:%d nPointsTracked:%d nPointsAfterRansac:%d",
     // pre.size(), num_features_tracked_, nRansac);
@@ -249,6 +267,9 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
         mask_buffer_size_ = CamModel::getCamModel()->area();
         mask_ = new unsigned char[mask_buffer_size_];
     }
+    // ReSet Mask Pattern
+    // _ResetMask();
+
     TickTock::Start("KLT");
     _TrackPoints(vTrackedFeatures);
     TickTock::Stop("KLT");
@@ -258,7 +279,7 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
         _ExtractMorePoints(vTrackedFeatures);
         TickTock::Stop("Fast");
     }
-
+    // ShowMask();
     last_image_ = image_;
 }
 

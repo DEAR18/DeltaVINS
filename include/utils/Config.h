@@ -16,6 +16,12 @@ struct ROS2SensorTopic{
     int queue_size;
 };
 
+enum class ResultOutputFormat{
+    TUM,
+    KITTI,
+    EUROC,
+};
+
 struct Config {
     static void loadConfigFile(const std::string& configFile);
 
@@ -47,8 +53,10 @@ struct Config {
     static float Gain;
     static int PlaneConstraint;
     static std::string DataSourceConfigFilePath;
-
+    static ResultOutputFormat OutputFormat;
     static void _clear();
+    static int MaxNumToTrack;
+    static int MaskSize;
 
     static std::string VisualizerServerIP;
     static int UploadImage;

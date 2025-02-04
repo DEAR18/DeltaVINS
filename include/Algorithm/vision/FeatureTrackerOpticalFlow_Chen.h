@@ -5,8 +5,11 @@
 namespace DeltaVins {
 class FeatureTrackerOpticalFlow_Chen {
    public:
-    FeatureTrackerOpticalFlow_Chen(int nMax2Track, int nMaskSize = 31);
+    FeatureTrackerOpticalFlow_Chen(int nMax2Track, int nMaskSize = 41);
     void _SetMask(int x, int y);
+    bool _IsMasked(int x, int y);
+    void _ResetMask();
+    void ShowMask();
 
     /**
      * @param vTrackedFeatures list of tracked features

@@ -10,6 +10,7 @@ DataFps : 60
 RunVIO: 1
 ResultOutputPath: ""
 ResultOutputName: ""
+ResultOutputFormat: "TUM" # TUM/KITTI/EUROC
 
 # Data format
 DataSourceType: "ROS2"  # support: ROS2/Euroc
@@ -19,3 +20,7 @@ DataSourcePath: "" # used for non-ROS operation
 DataSourceConfigFilePath: ""
 CameraCalibrationPath: ""
 
+
+#FeatureTracker Parameters
+MaxNumToTrack: 350
+MaskSize: 41 #Must be Odd
