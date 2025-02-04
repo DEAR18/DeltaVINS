@@ -59,8 +59,10 @@ int Config::RecordImage;
 int Config::UploadImage;
 int Config::RunVIO;
 int Config::PlaneConstraint;
-
+ResultOutputFormat Config::OutputFormat;
 string Config::VisualizerServerIP;
+int Config::MaxNumToTrack;
+int Config::MaskSize;
 
 std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
 
@@ -164,6 +166,8 @@ void Config::loadConfigFile(const std::string& configFile) {
     config_file_cv["RunVIO"] >> RunVIO;
     config_file_cv["ResultOutputPath"] >> ResultOutputPath;
     config_file_cv["ResultOutputName"] >> outputFileName;
+    config_file_cv["MaxNumToTrack"] >> MaxNumToTrack;
+    config_file_cv["MaskSize"] >> MaskSize;
 
     if (RecordImage || RecordIMU) RecordData = 1;
 
@@ -176,7 +180,7 @@ void Config::loadConfigFile(const std::string& configFile) {
         outputFileName = "outputPose";
     }
     outputFileName =
-        ResultOutputPath + "/TestResults/" + outputFileName + ".csv";
+        ResultOutputPath + "/TestResults/" + outputFileName;
 
     if (DataSourceType == DataSrcROS2) {
         FileNode node = data_source_config_file_cv["ROSTopics"];
@@ -206,6 +210,20 @@ void Config::loadConfigFile(const std::string& configFile) {
             (*it)["TopicQueueSize"] >> topic.queue_size;
             ROS2SensorTopics.push_back(topic);
         }
+    }
+
+    config_file_cv["ResultOutputFormat"] >> temp;
+    if(temp == "TUM") {
+        OutputFormat = ResultOutputFormat::TUM;
+        outputFileName += ".tum";
+    } else if(temp == "KITTI") {
+        OutputFormat = ResultOutputFormat::KITTI;
+        outputFileName += ".kitti";
+    } else if(temp == "EUROC") {
+        OutputFormat = ResultOutputFormat::EUROC;
+        outputFileName += ".euroc";
+    } else {
+        throw std::runtime_error("Unknown ResultOutputFormat: " + temp);
     }
 }
 
