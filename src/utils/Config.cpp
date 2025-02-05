@@ -52,7 +52,7 @@ int Config::CameraCalibration;
 int Config::NoDebugOutput;
 int Config::NoResultOutput;
 int Config::NoGUI;
-int Config::DataFps;
+int Config::MaxRunFPS;
 int Config::RecordData;
 int Config::RecordIMU;
 int Config::RecordImage;
@@ -69,7 +69,8 @@ std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
 void Config::loadConfigFile(const std::string& configFile) {
     _clear();
 
-    FileStorage config_file_cv,data_source_config_file_cv,camera_calib_file_cv;
+    FileStorage config_file_cv, data_source_config_file_cv,
+        camera_calib_file_cv;
     // get current path
     std::filesystem::path currentPath = std::filesystem::current_path();
 
@@ -82,21 +83,23 @@ void Config::loadConfigFile(const std::string& configFile) {
 
     config_file_cv["DataSourceConfigFilePath"] >> DataSourceConfigFilePath;
 
-    if(DataSourceConfigFilePath.empty()){
+    if (DataSourceConfigFilePath.empty()) {
         // get config file folder path
         std::filesystem::path config_path;
         config_path = std::filesystem::path(configFile).parent_path();
         DataSourceConfigFilePath = config_path.string() + "/DataSources.yaml";
     }
 
-    data_source_config_file_cv.open(DataSourceConfigFilePath, FileStorage::READ);
+    data_source_config_file_cv.open(DataSourceConfigFilePath,
+                                    FileStorage::READ);
     if (!data_source_config_file_cv.isOpened()) {
-        throw std::runtime_error("fail to open data source config file at " + DataSourceConfigFilePath);
+        throw std::runtime_error("fail to open data source config file at " +
+                                 DataSourceConfigFilePath);
     } else {
         LOGI("Load data source config :%s", DataSourceConfigFilePath.c_str());
     }
     config_file_cv["CameraCalibrationPath"] >> CameraCalibFile;
-    if(CameraCalibFile.empty()){
+    if (CameraCalibFile.empty()) {
         // get config file folder path
         std::filesystem::path config_path;
         config_path = std::filesystem::path(configFile).parent_path();
@@ -104,7 +107,8 @@ void Config::loadConfigFile(const std::string& configFile) {
     }
     camera_calib_file_cv.open(CameraCalibFile, FileStorage::READ);
     if (!camera_calib_file_cv.isOpened()) {
-        throw std::runtime_error("fail to open camera calibration file at " + CameraCalibFile);
+        throw std::runtime_error("fail to open camera calibration file at " +
+                                 CameraCalibFile);
     } else {
         LOGI("Load camera calibration :%s", CameraCalibFile.c_str());
     }
@@ -119,14 +123,16 @@ void Config::loadConfigFile(const std::string& configFile) {
     else if (temp == "Synthetic")
         DataSourceType = DataSrcSynthetic;
 #else
-    if (temp == "ROS2") DataSourceType = DataSrcROS2;
-    else if (temp == "ROS2_bag") DataSourceType = DataSrcROS2_bag;
+    if (temp == "ROS2")
+        DataSourceType = DataSrcROS2;
+    else if (temp == "ROS2_bag") {
+        DataSourceType = DataSrcROS2_bag;
+    }
 #endif
     else
         throw std::runtime_error("Unknown DataSource:" + temp);
 
     data_source_config_file_cv["DataSourcePath"] >> DataSourcePath;
-
 
     camera_calib_file_cv["ImuSampleFps"] >> nImuSample;
     camera_calib_file_cv["ImageSampleFps"] >> nImageSample;
@@ -148,14 +154,11 @@ void Config::loadConfigFile(const std::string& configFile) {
     AccBiasNoise2 = AccBiasNoise2 * (AccBiasNoise2 * nImuSample);
     ImageNoise2 = ImageNoise2 * ImageNoise2;
 
-
-
-
     data_source_config_file_cv["ImageStartIdx"] >> ImageStartIdx;
     config_file_cv["SerialRun"] >> SerialRun;
     config_file_cv["NoGUI"] >> NoGUI;
     config_file_cv["NoDebugOutput"] >> NoDebugOutput;
-    config_file_cv["DataFps"] >> DataFps;
+    config_file_cv["MaxRunFPS"] >> MaxRunFPS;
     config_file_cv["RecordImu"] >> RecordIMU;
     config_file_cv["RecordImage"] >> RecordImage;
     config_file_cv["NoResultOutput"] >> NoResultOutput;
@@ -175,13 +178,12 @@ void Config::loadConfigFile(const std::string& configFile) {
     if (ResultOutputPath.empty()) {
         ResultOutputPath = "./";
     }
-    
+
     existOrMkdir(ResultOutputPath + "/TestResults");
     if (outputFileName.empty()) {
         outputFileName = "outputPose";
     }
-    outputFileName =
-        ResultOutputPath + "/TestResults/" + outputFileName;
+    outputFileName = ResultOutputPath + "/TestResults/" + outputFileName;
 
     if (DataSourceType == DataSrcROS2 || DataSourceType == DataSrcROS2_bag) {
         FileNode node = data_source_config_file_cv["ROSTopics"];
@@ -192,40 +194,45 @@ void Config::loadConfigFile(const std::string& configFile) {
             topic.topics.push_back(topic_name);
             std::string topic_type;
             (*it)["SensorType"] >> topic_type;
-            if(topic_type == "StereoCamera") {
+            if (topic_type == "StereoCamera") {
                 topic.type = ROS2SensorType::StereoCamera;
-            } else if(topic_type == "MonoCamera") {
+            } else if (topic_type == "MonoCamera") {
                 topic.type = ROS2SensorType::MonoCamera;
-            }
-            else if(topic_type == "IMU") {
+            } else if (topic_type == "IMU") {
                 topic.type = ROS2SensorType::IMU;
             } else {
-                throw std::runtime_error("Unknown ROS2 topic type: " + topic_type);
+                throw std::runtime_error("Unknown ROS2 topic type: " +
+                                         topic_type);
             }
             (*it)["SensorID"] >> topic.sensor_id;
 
-            if(topic.type == ROS2SensorType::StereoCamera) {
+            if (topic.type == ROS2SensorType::StereoCamera) {
                 (*it)["RightTopicName"] >> topic_name;
                 topic.topics.push_back(topic_name);
-            } 
+            }
             (*it)["TopicQueueSize"] >> topic.queue_size;
             ROS2SensorTopics.push_back(topic);
         }
     }
 
     config_file_cv["ResultOutputFormat"] >> temp;
-    if(temp == "TUM") {
+    if (temp == "TUM") {
         OutputFormat = ResultOutputFormat::TUM;
         outputFileName += ".tum";
-    } else if(temp == "KITTI") {
+    } else if (temp == "KITTI") {
         OutputFormat = ResultOutputFormat::KITTI;
         outputFileName += ".kitti";
-    } else if(temp == "EUROC") {
+    } else if (temp == "EUROC") {
         OutputFormat = ResultOutputFormat::EUROC;
         outputFileName += ".euroc";
     } else {
         throw std::runtime_error("Unknown ResultOutputFormat: " + temp);
     }
+
+    if(DataSourceType == DataSrcROS2_bag){
+        SerialRun = 1; // run in serial mode if data source is ROS2_bag
+    }
+
 }
 
 void Config::_clear() {

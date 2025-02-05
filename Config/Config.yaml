@@ -1,12 +1,12 @@
 %YAML:1.0
 ---
 # System parameters
-SerialRun: 1
+SerialRun: 0
 RecordImage: 0
 RecordImu: 0
 NoGUI: 0
 NoDebugOutput : 1
-DataFps : 60
+MaxRunFPS: 40
 RunVIO: 1
 ResultOutputPath: ""
 ResultOutputName: ""
