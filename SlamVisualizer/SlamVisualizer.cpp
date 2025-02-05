@@ -45,7 +45,7 @@ void SlamVisualizer::PushViewMatrix(std::vector<FrameGL>& v_Frames) {
     std::for_each(frames_.begin(), frames_.end(),
                   [](FrameGL& frame) { frame.type = 0; });
     for (auto& frame : v_Frames) {
-        if (frame.m_id >= frames_.size()) {
+        if (frame.m_id >= int(frames_.size())) {
             frames_.reserve(frame.m_id * 1.5);
             frames_.resize(frame.m_id + 1);
         }

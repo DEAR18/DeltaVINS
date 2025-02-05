@@ -140,6 +140,7 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
 }
 
 void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
+    (void)data;
     Vector3f Pwi, Vwi;
     Vector3f bg, ba;
     auto* camState = frame_now_->state;
