@@ -21,6 +21,7 @@
 
 #if USE_ROS2
 #include "IO/dataSource/dataSource_ROS2.h"
+#include "IO/dataSource/dataSource_ROS2_bag.h"
 #endif
 
 using namespace DeltaVins;
@@ -59,6 +60,9 @@ void InitSlamSystem(const char* configFile) {
     if (Config::DataSourceType == DataSrcROS2)
         dataSourcePtr = std::static_pointer_cast<DataSource>(
             std::make_shared<DataSource_ROS2>());
+    else if (Config::DataSourceType == DataSrcROS2_bag)
+        dataSourcePtr = std::static_pointer_cast<DataSource>(
+            std::make_shared<DataSource_ROS2_bag>(Config::DataSourcePath));
 #endif
     else
         LOGE("Unknown DataSourceType");
@@ -127,8 +131,13 @@ void StartAndJoin() {
     // Join
     dataSourcePtr->Start();
 #if USE_ROS2
-    rclcpp::spin(std::static_pointer_cast<rclcpp::Node>(
-        std::static_pointer_cast<DataSource_ROS2>(dataSourcePtr)));
+    if(Config::DataSourceType == DataSrcROS2){  
+        rclcpp::spin(std::static_pointer_cast<rclcpp::Node>(
+            std::static_pointer_cast<DataSource_ROS2>(dataSourcePtr)));
+    }else if(Config::DataSourceType == DataSrcROS2_bag){
+        // rclcpp::spin(std::static_pointer_cast<rclcpp::Node>(
+        //     std::static_pointer_cast<DataSource_ROS2_bag>(dataSourcePtr)));
+    }
 #endif
 
     dataSourcePtr->Join();

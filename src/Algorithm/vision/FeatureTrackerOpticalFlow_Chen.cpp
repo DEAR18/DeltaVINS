@@ -42,7 +42,7 @@ void FeatureTrackerOpticalFlow_Chen::_ResetMask() {
     memset(mask_, 0xff, mask_buffer_size_);
 }
 
-void FeatureTrackerOpticalFlow_Chen::ShowMask() {
+void FeatureTrackerOpticalFlow_Chen::_ShowMask() {
     int imgStride = CamModel::getCamModel()->width();
     int height = CamModel::getCamModel()->height();
     cv::Mat mask_img(height, imgStride, CV_8UC1, mask_);
@@ -279,7 +279,7 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
         _ExtractMorePoints(vTrackedFeatures);
         TickTock::Stop("Fast");
     }
-    // ShowMask();
+    // _ShowMask();
     last_image_ = image_;
 }
 

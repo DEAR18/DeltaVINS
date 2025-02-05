@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace DeltaVins {
-enum DataSrcType { DataSrcEuroc, DataSrcSynthetic,DataSrcROS2 };
+enum DataSrcType { DataSrcEuroc, DataSrcSynthetic,DataSrcROS2,DataSrcROS2_bag };
 enum class ROS2SensorType{
     MonoCamera,
     StereoCamera,

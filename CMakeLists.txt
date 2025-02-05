@@ -23,6 +23,7 @@ if(USE_ROS)
     find_package(sensor_msgs REQUIRED)
     find_package(std_msgs REQUIRED)
     find_package(nav_msgs REQUIRED)
+    find_package(rosbag2_cpp REQUIRED)
     # uncomment the following section in order to fill in
     # further dependencies manually.
     # find_package(<dependency> REQUIRED)
@@ -132,6 +133,7 @@ if(USE_ROS)
         "std_msgs"
         "cv_bridge"
         "nav_msgs"
+        "rosbag2_cpp"
     )
     target_link_libraries(${CMAKE_PROJECT_NAME}
         Eigen3::Eigen

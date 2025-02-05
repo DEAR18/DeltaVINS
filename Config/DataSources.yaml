@@ -1,8 +1,8 @@
 %YAML:1.0
 ---
 
-DataSourceType: "ROS2" # support: ROS2/Euroc
-DataSourcePath: "" # used for  non-ROS2 data source
+DataSourceType: "ROS2_bag" # support: ROS2/Euroc/ROS2_bag
+DataSourcePath: "/data/V2_03_difficult" # used for  non-ROS2 data source
 ImageStartIdx: 5 # skip the first n images in the dataset
 
 ROSTopics:

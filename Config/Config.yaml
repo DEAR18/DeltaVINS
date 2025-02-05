@@ -1,20 +1,16 @@
 %YAML:1.0
 ---
 # System parameters
-SerialRun: 0
+SerialRun: 1
 RecordImage: 0
 RecordImu: 0
 NoGUI: 0
-NoDebugOutput : 0
+NoDebugOutput : 1
 DataFps : 60
 RunVIO: 1
 ResultOutputPath: ""
 ResultOutputName: ""
 ResultOutputFormat: "TUM" # TUM/KITTI/EUROC
-
-# Data format
-DataSourceType: "ROS2"  # support: ROS2/Euroc
-DataSourcePath: "" # used for non-ROS operation
 
 # Sensor calibration path
 DataSourceConfigFilePath: ""

@@ -140,6 +140,7 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
 }
 
 void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
+    (void)data;
     Vector3f Pwi, Vwi;
     Vector3f bg, ba;
     auto* camState = frame_now_->state;
@@ -193,12 +194,12 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     }
 #endif
     if (!Config::NoDebugOutput) {
-        printf(
-            "Timestamp:%lld\n Position:%f,%f,%f\n "
-            "Q:%f,%f,%f,%f\nVelocity:%f,%f,%f\n",
+        LOGI(
+            "\nTimestamp:%lld\n Position:%f,%f,%f\n "
+            "Q:%f,%f,%f,%f\nVelocity:%f,%f,%f",
             pose->timestamp, Pwi[0], Pwi[1], Pwi[2], _q.w(), _q.x(), _q.y(),
             _q.z(), Vwi[0], Vwi[1], Vwi[2]);
-        printf("Gyro Bias:%9.6f,%9.6f,%9.6f\nAcc Bias:%9.6f,%9.6f,%9.6f\n",
+        LOGI("\nGyro Bias:%9.6f,%9.6f,%9.6f\nAcc Bias:%9.6f,%9.6f,%9.6f",
                bg[0], bg[1], bg[2], ba[0], ba[1], ba[2]);
     }
     // fflush(file);

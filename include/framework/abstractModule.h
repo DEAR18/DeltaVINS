@@ -46,11 +46,11 @@ class AbstractModule {
             {
                 std::unique_lock<std::mutex> ul(wake_up_mutex_);
                 wake_up_condition_variable_.wait(ul, [this]() {
-                    return this->HaveThingsTodo() | !this->keep_running_;
+                    return this->HaveThingsTodo() || !this->keep_running_;
                 });
             }
             // do something when wake up
-            while (HaveThingsTodo() & this->keep_running_) {
+            while (HaveThingsTodo() && this->keep_running_) {
                 DoWhatYouNeedToDo();
             }
         }

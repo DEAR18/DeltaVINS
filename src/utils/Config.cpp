@@ -120,6 +120,7 @@ void Config::loadConfigFile(const std::string& configFile) {
         DataSourceType = DataSrcSynthetic;
 #else
     if (temp == "ROS2") DataSourceType = DataSrcROS2;
+    else if (temp == "ROS2_bag") DataSourceType = DataSrcROS2_bag;
 #endif
     else
         throw std::runtime_error("Unknown DataSource:" + temp);
@@ -182,7 +183,7 @@ void Config::loadConfigFile(const std::string& configFile) {
     outputFileName =
         ResultOutputPath + "/TestResults/" + outputFileName;
 
-    if (DataSourceType == DataSrcROS2) {
+    if (DataSourceType == DataSrcROS2 || DataSourceType == DataSrcROS2_bag) {
         FileNode node = data_source_config_file_cv["ROSTopics"];
         for (FileNodeIterator it = node.begin(); it != node.end(); ++it) {
             ROS2SensorTopic topic;
