@@ -278,6 +278,12 @@ class Parser {
         }
         enable_help();
     }
+    explicit Parser(std::vector<std::string> arguments) : _appname(arguments[0]) {
+        for (int i = 1; i < arguments.size(); ++i) {
+            _arguments.push_back(arguments[i]);
+        }
+        enable_help();
+    }
 
     explicit Parser(int argc, char** argv) : _appname(argv[0]) {
         for (int i = 1; i < argc; ++i) {

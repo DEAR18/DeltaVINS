@@ -99,10 +99,19 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
     int Index0 = binarySearch<long long>(ImuTerm.t0, Left);
     int Index1 = binarySearch<long long>(ImuTerm.t1, Left);
 
+    int try_times = 0;
     while (Index1 < 0) {
+        LOGI("t1:%lld,imu1:%lld", ImuTerm.t1, buf_[getDeltaIndex(head_, -1)].timestamp);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         Index1 = binarySearch<long long>(ImuTerm.t1, Left);
+        try_times++;
+        if(try_times > 10){
+            throw std::runtime_error("IMU is slower than Image, waiting for IMU data...");
+        }
     }
+    // if(Index1 < 0){
+    //     Index1 = getDeltaIndex(head_, -1);
+    // }
 
     if (Index0 < 0 || Index1 < 0) {
         LOGW("dt0:%lld dt1:%lld,dT:%lld", ImuTerm.t0 - buf_[Index0].timestamp,
@@ -211,8 +220,9 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
     // add time
     ImuTerm.dT += ImuTerm.t1 - ImuTerm.t0;
 
-    if (ImuTerm.dT > 70000000)
+    if (ImuTerm.dT > 70000000){
         LOGW("Detected a Frame Drop, dT:%lld ", ImuTerm.dT);
+    }
 
     return true;
 }

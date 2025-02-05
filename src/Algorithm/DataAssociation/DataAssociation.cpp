@@ -6,6 +6,7 @@
 #include "dataStructure/vioStructures.h"
 #include "precompile.h"
 #include "utils/utils.h"
+#include <random>
 
 #define MAX_MSCKF_FEATURE_UPDATE_PER_FRAME MAX_POINT_SIZE
 
@@ -481,11 +482,11 @@ void _tryAddMsckfPoseConstraint(
     }
 #if OUTPUT_DEBUG_INFO
     printf("### %d Points to Update\n", nPointsAllAdded);
-#endif
     printf(
         "### nPointsAdded:%d nPointsTriangleFailed:%d "
         "nPointsMahalaFailed:%d\n",
         nPointsAllAdded, nPointsTriangleFailed, nPointsMahalaFailed);
+#endif
     bufferPoints();
 }
 
@@ -591,8 +592,8 @@ void _tryAddMsckfPoseConstraint(
             }
 #if OUTPUT_DEBUG_INFO
             printf("### %d Points to Update\n", nPointsAllAdded);
-#endif
             printf("### nPointsAdded:%d nPointsTriangleFailed:%d nPointsMahalaFailed:%d\n", nPointsAllAdded, nPointsTriangleFailed, nPointsMahalaFailed);
+#endif
             bufferPoints();
         }
 #endif

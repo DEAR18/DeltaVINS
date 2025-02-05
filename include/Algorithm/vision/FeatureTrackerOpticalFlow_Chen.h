@@ -6,10 +6,6 @@ namespace DeltaVins {
 class FeatureTrackerOpticalFlow_Chen {
    public:
     FeatureTrackerOpticalFlow_Chen(int nMax2Track, int nMaskSize = 41);
-    void _SetMask(int x, int y);
-    bool _IsMasked(int x, int y);
-    void _ResetMask();
-    void ShowMask();
 
     /**
      * @param vTrackedFeatures list of tracked features
@@ -27,6 +23,10 @@ class FeatureTrackerOpticalFlow_Chen {
     void _ExtractFast(const int imgStride, const int halfMaskSize,
                       std::vector<cv::Point2f>& vTemp);
     void _ExtractHarris(std::vector<cv::Point2f>& corners, int max_num);
+    void _SetMask(int x, int y);
+    bool _IsMasked(int x, int y);
+    void _ResetMask();
+    void _ShowMask();
 
     unsigned char* mask_ = nullptr;
     int num_features_;
