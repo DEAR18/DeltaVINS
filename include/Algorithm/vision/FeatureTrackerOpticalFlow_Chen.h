@@ -35,10 +35,13 @@ class FeatureTrackerOpticalFlow_Chen {
     int num_features_tracked_;
     int mask_buffer_size_;
     cv::Mat image_;
+    std::vector<cv::Mat> image_pyramid_;
     cv::Mat right_image_;
+    std::vector<cv::Mat> right_image_pyramid_;
     Frame* cam_state_ = nullptr;
     Frame* cam_state0_ = nullptr;
     cv::Mat last_image_;
+    std::vector<cv::Mat> last_image_pyramid_;
 };
 
 }  // namespace DeltaVins

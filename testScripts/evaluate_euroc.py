@@ -2,7 +2,7 @@ import argparse
 import os
 import time
 
-euroc_test_cases = ["V1_01_easy", "V1_02_medium", "V1_03_difficult","V2_01_easy","V2_02_medium","V2_03_difficult"]
+euroc_test_cases = ["V1_01_easy", "V1_02_medium", "V1_03_difficult","V2_01_easy","V2_02_medium","V2_03_difficult","MH_01_easy"]
 
 
 ate_result = []
@@ -26,7 +26,7 @@ def main(config_file_path, datasets_path, gt_path):
 
         # run evaluation
         os.system(f"evo_ape euroc {gt_path}/{test_case}.csv TestResults/{test_case}.tum -a > TestResults/{test_case}_ate.txt")
-        os.system(f"evo_rpe euroc {gt_path}/{test_case}.csv TestResults/{test_case}.tum -a --delta 5 --delta_unit m > TestResults/{test_case}_rpe.txt")
+        os.system(f"evo_rpe euroc {gt_path}/{test_case}.csv TestResults/{test_case}.tum -a --delta 1 --delta_unit m > TestResults/{test_case}_rpe.txt")
 
         # read the result, get the line with contains "rmse"
         with open(f"TestResults/{test_case}_ate.txt", "r") as file:
@@ -40,6 +40,7 @@ def main(config_file_path, datasets_path, gt_path):
                 if "rmse" in line:
                     # extract the float value after "rmse" and tab
                     rpe_result.append(float(line.split('\t')[1].strip()))
+        print(f"Test Case: {test_case}, ATE: {ate_result[-1]}, RPE: {rpe_result[-1]}")
 
     # print the results in a table, align the columns
     print(f"{'Test Case':<20} {'ATE':<20} {'RPE':<20}")

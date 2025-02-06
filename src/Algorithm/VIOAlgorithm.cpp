@@ -561,6 +561,10 @@ void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
     _DrawPredictImage(data, PredictImage);
     cv::imshow("Predict", PredictImage);
     cv::waitKey(0);
+#elif USE_ROS2
+    cv::Mat trackImage;
+    _DrawTrackImage(data, trackImage);
+    frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols, trackImage.rows, trackImage.channels());
 #endif
     _PostProcess(data, pose);
 }
