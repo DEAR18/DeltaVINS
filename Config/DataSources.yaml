@@ -2,7 +2,7 @@
 ---
 
 DataSourceType: "ROS2_bag" # support: ROS2/Euroc/ROS2_bag
-DataSourcePath: "/data/V2_03_difficult" # used for  non-ROS2 data source
+DataSourcePath: "/data/euroc/V1_01_easy" # used for  non-ROS2 data source
 ImageStartIdx: 5 # skip the first n images in the dataset
 
 ROSTopics:

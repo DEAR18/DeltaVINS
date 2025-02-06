@@ -10,6 +10,7 @@ namespace DeltaVins{
         image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>("debug_image", 10);
         path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("camera_path", 10);
         point_cloud_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 10);
+        current_point_cloud_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("current_point_cloud", 10);
 
     }
 
@@ -95,7 +96,52 @@ namespace DeltaVins{
         }
 
         point_cloud_publisher_->publish(point_cloud_msg);
-        
+
+
+        // create a point cloud message to publish the current point cloud
+        sensor_msgs::msg::PointCloud2 current_point_cloud_msg;
+        current_point_cloud_msg.header.frame_id = "map";
+        current_point_cloud_msg.header.stamp = this->now();
+        current_point_cloud_msg.height = 1;
+        current_point_cloud_msg.width = point_cloud.size();
+        current_point_cloud_msg.fields.resize(6);
+        current_point_cloud_msg.fields[0].name = "x";
+        current_point_cloud_msg.fields[0].offset = 0;
+        current_point_cloud_msg.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+        current_point_cloud_msg.fields[0].count = 1;
+        current_point_cloud_msg.fields[1].name = "y";
+        current_point_cloud_msg.fields[1].offset = 4;
+        current_point_cloud_msg.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+        current_point_cloud_msg.fields[1].count = 1;
+        current_point_cloud_msg.fields[2].name = "z";
+        current_point_cloud_msg.fields[2].offset = 8;
+        current_point_cloud_msg.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+        current_point_cloud_msg.fields[2].count = 1;
+        current_point_cloud_msg.fields[3].name = "r";
+        current_point_cloud_msg.fields[3].offset = 12;  
+        current_point_cloud_msg.fields[3].datatype = sensor_msgs::msg::PointField::FLOAT32;
+        current_point_cloud_msg.fields[3].count = 1;
+        current_point_cloud_msg.fields[4].name = "g";
+        current_point_cloud_msg.fields[4].offset = 16;
+        current_point_cloud_msg.fields[4].datatype = sensor_msgs::msg::PointField::FLOAT32;
+        current_point_cloud_msg.fields[4].count = 1;
+        current_point_cloud_msg.fields[5].name = "b";
+        current_point_cloud_msg.fields[5].offset = 20;
+        current_point_cloud_msg.fields[5].datatype = sensor_msgs::msg::PointField::FLOAT32;
+        current_point_cloud_msg.fields[5].count = 1;
+        current_point_cloud_msg.point_step = 24;
+        current_point_cloud_msg.row_step = 24 * point_cloud.size();
+        current_point_cloud_msg.is_dense = true;
+        current_point_cloud_msg.is_bigendian = false;
+        current_point_cloud_msg.data.resize(24 * point_cloud.size());
+        float color[3] = {1.0f, 0.0f, 0.0f};
+        for(size_t i = 0; i < point_cloud.size(); i++){
+            memcpy(&current_point_cloud_msg.data[i * 24], &point_cloud[i].P.x(), 4);
+            memcpy(&current_point_cloud_msg.data[i * 24 + 4], &point_cloud[i].P.y(), 4);
+            memcpy(&current_point_cloud_msg.data[i * 24 + 8], &point_cloud[i].P.z(), 4);
+            memcpy(&current_point_cloud_msg.data[i * 24 + 12], color, 12);
+        }
+        current_point_cloud_publisher_->publish(current_point_cloud_msg);
     }
 
 }

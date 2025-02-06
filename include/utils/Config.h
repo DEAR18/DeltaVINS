@@ -41,7 +41,7 @@ struct Config {
     static int NoGUI;
     static int NoDebugOutput;
     static int NoResultOutput;
-    static int DataFps;
+    static int MaxRunFPS;
     static std::string outputFileName;
     static std::string ResultOutputPath;
     static int CameraCalibration;

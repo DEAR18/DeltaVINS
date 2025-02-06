@@ -34,6 +34,7 @@ bool VIOModule::HaveThingsTodo() {
 }
 
 void VIOModule::DoWhatYouNeedToDo() {
+    TickTock::get("FullFrame").start();
     static auto& imageBuffer = ImageBuffer::Instance();
 
     auto image = imageBuffer.PopTailImage();
@@ -41,5 +42,15 @@ void VIOModule::DoWhatYouNeedToDo() {
     auto pose = std::make_shared<Pose>();
     vio_algorithm_.AddNewFrame(image, pose);
     if (Config::SerialRun) TellOthersThingsToBeDone();
+    TickTock::get("FullFrame").stop();
+    auto time_cost = TickTock::get("FullFrame").getTimeMilli();
+    if(Config::MaxRunFPS > 0&& Config::SerialRun){
+        auto sleep_time = 1000.0 / Config::MaxRunFPS - time_cost;
+        if(sleep_time > 0){
+            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time)));
+        }
+    }
+    // LOGI("VIOModule::DoWhatYouNeedToDo time cost: %lf ms and fps: %lf", time_cost, TickTock::get("FullFrame").getFPS());
+    TickTock::get("FullFrame").reset();
 }
 }  // namespace DeltaVins

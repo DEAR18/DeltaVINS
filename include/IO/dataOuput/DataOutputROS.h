@@ -33,6 +33,7 @@ class DataOutputROS : public rclcpp::Node,public WorldPointAdapter, public Frame
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr current_point_cloud_publisher_;
     std::unordered_map<int,WorldPointGL> world_points_;
 };
 }  // namespace DeltaVins

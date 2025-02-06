@@ -4,9 +4,9 @@
 SerialRun: 1
 RecordImage: 0
 RecordImu: 0
-NoGUI: 0
+NoGUI: 1
 NoDebugOutput : 1
-MaxRunFPS: 20
+MaxRunFPS: 0
 RunVIO: 1
 ResultOutputPath: ""
 ResultOutputName: ""
@@ -15,7 +15,6 @@ ResultOutputFormat: "TUM" # TUM/KITTI/EUROC
 # Sensor calibration path
 DataSourceConfigFilePath: ""
 CameraCalibrationPath: ""
-
 
 #FeatureTracker Parameters
 MaxNumToTrack: 350
