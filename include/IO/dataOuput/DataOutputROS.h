@@ -14,9 +14,11 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 namespace DeltaVins {
-class DataOutputROS : public rclcpp::Node,public WorldPointAdapter, public FrameAdapter {
+class DataOutputROS : public rclcpp::Node,
+                      public WorldPointAdapter,
+                      public FrameAdapter {
    public:
-   using Ptr = std::shared_ptr<DataOutputROS>;
+    using Ptr = std::shared_ptr<DataOutputROS>;
     DataOutputROS();
     ~DataOutputROS();
 
@@ -27,19 +29,17 @@ class DataOutputROS : public rclcpp::Node,public WorldPointAdapter, public Frame
 
     void PushWorldPoint(const std::vector<WorldPointGL> &v_Point3f) override;
 
-    void FinishFrame() override{}
+    void FinishFrame() override {}
 
    private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_publisher_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr current_point_cloud_publisher_;
-    std::unordered_map<int,WorldPointGL> world_points_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
+        point_cloud_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr
+        current_point_cloud_publisher_;
+    std::unordered_map<int, WorldPointGL> world_points_;
 };
 }  // namespace DeltaVins
-
-
-
-
 
 #endif

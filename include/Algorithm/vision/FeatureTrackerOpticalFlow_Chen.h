@@ -13,7 +13,7 @@ class FeatureTrackerOpticalFlow_Chen {
      * @param camState camera state
      */
     void MatchNewFrame(std::list<TrackedFeaturePtr>& vTrackedFeatures,
-                     const ImageData::Ptr image, Frame* camState);
+                       const ImageData::Ptr image, Frame* camState);
 
     ~FeatureTrackerOpticalFlow_Chen();
 
@@ -42,6 +42,8 @@ class FeatureTrackerOpticalFlow_Chen {
     Frame* cam_state0_ = nullptr;
     cv::Mat last_image_;
     std::vector<cv::Mat> last_image_pyramid_;
+
+    bool use_cache_ = false;
 };
 
 }  // namespace DeltaVins

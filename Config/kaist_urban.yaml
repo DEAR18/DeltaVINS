@@ -1,0 +1,24 @@
+%YAML:1.0
+---
+
+DataSourceType: "ROS2_bag" # support: ROS2/Euroc/ROS2_bag
+DataSourcePath: "/data/euroc/V1_01_easy" # used for  non-ROS2 data source
+ImageStartIdx: 5 # skip the first n images in the dataset
+
+ROSTopics:
+    - 
+      TopicName: "/stereo/left/image_raw"
+      TopicQueueSize: 10
+      SensorID: 0 # Index of each sensor
+      SensorType: "MonoCamera"
+      RightTopicName: "/stereo/right/image_raw"
+    - 
+      TopicName: "/imu/data_raw"
+      TopicQueueSize: 10
+      SensorID: 0
+      SensorType: "IMU"
+    - 
+      TopicName: "/gps/fix"
+      TopicQueueSize: 10
+      SensorID: 0
+      SensorType: "GNSS"

@@ -24,7 +24,8 @@ class RadTanModel : public CamModel {
     }
 
    public:
-    static RadTanModel* createFromConfig(cv::FileStorage& config,bool right=false);
+    static RadTanModel* createFromConfig(cv::FileStorage& config,
+                                         bool right = false);
 
     Vector3f imageToCam(const Vector2f& px) override;
 

@@ -141,16 +141,12 @@ extern FILE* errLog;
 #define LOGE(...) void(0)
 #endif
 
-
-
-#else 
+#else
 #include <rclcpp/rclcpp.hpp>
 
 #define LOGD(...) RCLCPP_DEBUG(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
 #define LOGI(...) RCLCPP_INFO(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
 #define LOGW(...) RCLCPP_WARN(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
 #define LOGE(...) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), __VA_ARGS__)
-
-
 
 #endif

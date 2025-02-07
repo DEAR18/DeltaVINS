@@ -11,8 +11,6 @@ struct ImuData {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Vector3f gyro;
     Vector3f acc;
-    int idx;
-    bool syncFlag;
     long long timestamp;
 
     bool operator<(long long t) { return timestamp < t; }
@@ -22,14 +20,6 @@ struct ImuData {
     bool operator==(long long t) { return timestamp == t; }
 
     bool operator<=(long long t) { return timestamp <= t; }
-
-    bool operator<(int t) { return idx < t; }
-
-    bool operator>(int t) { return idx > t; }
-
-    bool operator==(int t) { return idx == t; }
-
-    bool operator<=(int t) { return idx <= t; }
 };
 
 struct ImageData {
@@ -39,7 +29,7 @@ struct ImageData {
 
     cv::Mat image;
     int cam_id;
-    cv::Mat right_image; // for stereo camera
+    cv::Mat right_image;  // for stereo camera
     using Ptr = std::shared_ptr<ImageData>;
 };
 

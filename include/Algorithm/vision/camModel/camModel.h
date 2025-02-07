@@ -30,9 +30,7 @@ class CamModel {
         return camToImage(pImu + tci_);
     }
 
-    Vector3f camToImu(const Vector3f& pCam){
-        return pCam - tci_;
-    }
+    Vector3f camToImu(const Vector3f& pCam) { return pCam - tci_; }
 
     Vector2f imuToImage(const Vector3f& pImu, Matrix23f& J23) {
         return camToImage(pImu + tci_, J23);

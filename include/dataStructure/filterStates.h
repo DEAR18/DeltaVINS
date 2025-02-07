@@ -38,13 +38,12 @@ struct CamState {
     Vector3f Pwi;     // imu position in world frame
     Vector3f Pw_FEJ;  // First Estimate Jacobian Imu Position in world frame
 
-    int index_in_window;                 // camera idx in sliding window
+    int index_in_window;               // camera idx in sliding window
     bool flag_to_marginalize = false;  // flag to marginalize
-    Frame* host_frame = nullptr;  // pointer to host frame
+    Frame* host_frame = nullptr;       // pointer to host frame
     Vector3f vel;
 
     int m_id = 0;  // only used in visualizer
-
 
     CamState() {
         static int counter = 0;
@@ -56,7 +55,7 @@ struct MsckfState {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     std::vector<FramePtr> frames;  // All frames in sliding window
-    Vector3f vel;                     // linear velocity
+    Vector3f vel;                  // linear velocity
 };
 
 }  // namespace DeltaVins

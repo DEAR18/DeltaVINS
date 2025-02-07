@@ -21,7 +21,7 @@ class EquiDistantModel : public CamModel {
 
    public:
     static EquiDistantModel* createFromConfig(cv::FileStorage& config,
-                                              bool right=false) {
+                                              bool right = false) {
         cv::Mat K;
         cv::Mat D;
         if (right) {

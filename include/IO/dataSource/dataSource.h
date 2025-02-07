@@ -37,14 +37,14 @@ class DataSource : public AbstractModule {
     }
     void DeleteImuObserver(ImuObserver* observer) {
         std::lock_guard<std::mutex> lck(mtx_imu_observer_);
-        auto it = std::find(imu_observers_.begin(), imu_observers_.end(),
-                            observer);
+        auto it =
+            std::find(imu_observers_.begin(), imu_observers_.end(), observer);
         if (it != imu_observers_.end()) imu_observers_.erase(it);
     }
     void DeleteImageObserver(ImageObserver* observer) {
         std::lock_guard<std::mutex> lck(mtx_image_observer_);
-        auto it = std::find(image_observers_.begin(),
-                            image_observers_.end(), observer);
+        auto it = std::find(image_observers_.begin(), image_observers_.end(),
+                            observer);
         if (it != image_observers_.end()) image_observers_.erase(it);
     }
 

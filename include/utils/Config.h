@@ -3,20 +3,21 @@
 #include <vector>
 
 namespace DeltaVins {
-enum DataSrcType { DataSrcEuroc, DataSrcSynthetic,DataSrcROS2,DataSrcROS2_bag };
-enum class ROS2SensorType{
-    MonoCamera,
-    StereoCamera,
-    IMU,
+enum DataSrcType {
+    DataSrcEuroc,
+    DataSrcSynthetic,
+    DataSrcROS2,
+    DataSrcROS2_bag
 };
-struct ROS2SensorTopic{
+enum class ROS2SensorType { MonoCamera, StereoCamera, IMU, GNSS };
+struct ROS2SensorTopic {
     ROS2SensorType type;
     std::vector<std::string> topics;
     int sensor_id;
     int queue_size;
 };
 
-enum class ResultOutputFormat{
+enum class ResultOutputFormat {
     TUM,
     KITTI,
     EUROC,
@@ -60,7 +61,6 @@ struct Config {
 
     static std::string VisualizerServerIP;
     static int UploadImage;
-
 
     static std::vector<ROS2SensorTopic> ROS2SensorTopics;
 };

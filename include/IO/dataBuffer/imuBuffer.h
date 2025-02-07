@@ -18,7 +18,6 @@ class ImuBuffer : public CircularBuffer<ImuData, 10>,
     Vector3f GetGravity(long long timestamp);
     Vector3f GetGravity();
 
-    long long GetNextSyncTimestamp(int& imuIdx, long long lastTimeStamp);
     bool GetDataByBinarySearch(ImuData& imuData) const;
 
     bool ImuPreIntegration(ImuPreintergration& ImuTerm) const;
@@ -34,6 +33,11 @@ class ImuBuffer : public CircularBuffer<ImuData, 10>,
     bool DetectStatic(long long timestamp) const;
 
     void UpdateBiasByStatic(long long timestamp);
+
+    // only for debug
+    ImuData GetLastImuData() const { return buf_[getDeltaIndex(head_, -1)]; }
+
+    ImuData GetOldestImuData() const { return buf_[tail_]; }
 
    private:
     ImuBuffer();

@@ -30,8 +30,7 @@ std::vector<std::vector<Vector2f>> CamModel::m_imagePoints;
 
 void CamModel::loadCalibrations() {
     cv::FileStorage config;
-    config.open(Config::CameraCalibFile,
-                cv::FileStorage::READ);
+    config.open(Config::CameraCalibFile, cv::FileStorage::READ);
 
     if (Config::CameraCalibration) {
         std::string type;
@@ -39,8 +38,7 @@ void CamModel::loadCalibrations() {
 
         CamModel::loadChessboardPoints();
         config.release();
-        config.open(Config::CameraCalibFile,
-                    cv::FileStorage::WRITE);
+        config.open(Config::CameraCalibFile, cv::FileStorage::WRITE);
 
         if (type == "Equidistant") EquiDistantModel::calibrate(config);
         return;
@@ -85,14 +83,17 @@ void CamModel::loadCalibrations() {
         }
     }
     Eigen::Matrix4f Tci_eigen;
-    Tci_eigen.topLeftCorner<3,3>() = Tic_eigen.topLeftCorner<3,3>().transpose();
-    Tci_eigen.topRightCorner<3,1>() = -Tic_eigen.topLeftCorner<3,3>().transpose() * Tic_eigen.topRightCorner<3,1>();
+    Tci_eigen.topLeftCorner<3, 3>() =
+        Tic_eigen.topLeftCorner<3, 3>().transpose();
+    Tci_eigen.topRightCorner<3, 1>() =
+        -Tic_eigen.topLeftCorner<3, 3>().transpose() *
+        Tic_eigen.topRightCorner<3, 1>();
     cam_model_->Rci_ = Tci_eigen.block<3, 3>(0, 0);
     cam_model_->tci_ = Tci_eigen.block<3, 1>(0, 3);
     cam_model_->Pic_ = Tic_eigen.block<3, 1>(0, 3);
-    if(cam_model_->is_stereo_) {
+    if (cam_model_->is_stereo_) {
         cv::Mat Tic_right;
-        config["Tic_right"] >> Tic_right;   
+        config["Tic_right"] >> Tic_right;
         Eigen::Matrix4f Tic_eigen_right;
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
@@ -100,13 +101,17 @@ void CamModel::loadCalibrations() {
             }
         }
         Eigen::Matrix4f Tci_eigen_right;
-        Tci_eigen_right .topLeftCorner<3,3>() = Tic_eigen_right.topLeftCorner<3,3>().transpose();
-        Tci_eigen_right.topRightCorner<3,1>() = -Tic_eigen_right.topLeftCorner<3,3>().transpose() * Tic_eigen_right.topRightCorner<3,1>();
+        Tci_eigen_right.topLeftCorner<3, 3>() =
+            Tic_eigen_right.topLeftCorner<3, 3>().transpose();
+        Tci_eigen_right.topRightCorner<3, 1>() =
+            -Tic_eigen_right.topLeftCorner<3, 3>().transpose() *
+            Tic_eigen_right.topRightCorner<3, 1>();
         cam_model_right_->Rci_ = Tci_eigen_right.block<3, 3>(0, 0);
         cam_model_right_->tci_ = Tci_eigen_right.block<3, 1>(0, 3);
         cam_model_right_->Pic_ = Tic_eigen_right.block<3, 1>(0, 3);
-        cam_model_->baseline_ = (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
-        cam_model_right_->baseline_ = cam_model_->baseline_; 
+        cam_model_->baseline_ =
+            (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
+        cam_model_right_->baseline_ = cam_model_->baseline_;
     }
 
     // Matrix3f Rci;
@@ -136,8 +141,9 @@ void CamModel::loadCalibrations() {
     //     cam_model_right_->tci_ = cam_model_right_->Pic_;
     //     cam_model_right_->Pic_ =
     //         -(cam_model_right_->Rci_.transpose() * cam_model_right_->Pic_);
-    //     cam_model_->baseline_ = (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
-    //     cam_model_right_->baseline_ = cam_model_->baseline_;
+    //     cam_model_->baseline_ = (cam_model_->Pic_ -
+    //     cam_model_right_->Pic_).norm(); cam_model_right_->baseline_ =
+    //     cam_model_->baseline_;
     // }
 }
 
@@ -151,7 +157,8 @@ void CamModel::loadChessboardPoints() {
         throw std::runtime_error("Failed to read number of object points");
     }
     if (fscanf(fimagePoints, "%d %d\n", &nImages, &nImagePoints) != 2) {
-        throw std::runtime_error("Failed to read number of images and image points");
+        throw std::runtime_error(
+            "Failed to read number of images and image points");
     }
     assert(nImagePoints == nObjPoints);
     m_objectPoints.resize(nObjPoints);
@@ -171,7 +178,8 @@ void CamModel::loadChessboardPoints() {
         for (int j = 0; j < nImagePoints; ++j) {
             float x, y;
             if (fscanf(fimagePoints, "%f %f\n", &x, &y) != 2) {
-                throw std::runtime_error("Failed to read image point coordinates");
+                throw std::runtime_error(
+                    "Failed to read image point coordinates");
             }
             m_imagePoints[i][j].x() = x;
             m_imagePoints[i][j].y() = y;

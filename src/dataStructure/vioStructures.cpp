@@ -64,14 +64,11 @@ TrackedFeature::TrackedFeature() : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false) {
     host_frame = nullptr;
 #endif
 
-
     static int counter = 0;
     m_id = counter++;
 }
 
 bool TrackedFeature::Triangulate() {
-
-
     if (verbose_) LOGI("###PointID:%d", m_id);
     // if (point_state_) return m_Result.bConverged;
     static Vector3f Tci = CamModel::getCamModel()->getTci();
@@ -218,8 +215,7 @@ void TrackedFeature::AddVisualObservation(const Vector2f& px, Frame* frame) {
     float minDot = 2;
     for (size_t i = 0, length = visual_obs.size() - 1; i < length; i++) {
         auto& visualOb = visual_obs[i];
-        float dot =
-            (visualOb.link_frame->state->Rwi * visualOb.ray).dot(ray1);
+        float dot = (visualOb.link_frame->state->Rwi * visualOb.ray).dot(ray1);
         if (dot < minDot) minDot = dot;
     }
     if (minDot > 0 && minDot < 1) {
@@ -229,23 +225,17 @@ void TrackedFeature::AddVisualObservation(const Vector2f& px, Frame* frame) {
 
 void TrackedFeature::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
     for (size_t i = 0; i < visual_obs.size() - 1; ++i) {
-        if ((visual_obs[i].px - visual_obs[i + 1].px).squaredNorm() >
-            900)
+        if ((visual_obs[i].px - visual_obs[i + 1].px).squaredNorm() > 900)
             continue;
-        cv::line(image,
-                 cv::Point(visual_obs[i].px.x(), visual_obs[i].px.y()),
-                 cv::Point(visual_obs[i + 1].px.x(),
-                           visual_obs[i + 1].px.y()),
+        cv::line(image, cv::Point(visual_obs[i].px.x(), visual_obs[i].px.y()),
+                 cv::Point(visual_obs[i + 1].px.x(), visual_obs[i + 1].px.y()),
                  _GREEN_SCALAR, 1);
-        cv::circle(
-            image,
-            cv::Point(visual_obs[i].px.x(), visual_obs[i].px.y()), 2,
-            color);
+        cv::circle(image, cv::Point(visual_obs[i].px.x(), visual_obs[i].px.y()),
+                   2, color);
     }
-    cv::circle(
-        image,
-        cv::Point(visual_obs.back().px.x(), visual_obs.back().px.y()),
-        8, color);
+    cv::circle(image,
+               cv::Point(visual_obs.back().px.x(), visual_obs.back().px.y()), 8,
+               color);
 }
 
 void TrackedFeature::Reproject() {
@@ -277,14 +267,14 @@ void TrackedFeature::DrawObservationsAndReprojection(int time) {
         if (first) {
             cv::circle(display, cv::Point(ob.px.x(), ob.px.y()), 8,
                        _GREEN_SCALAR);
-            cv::circle(display, cv::Point(ob.px_reprj.x(), ob.px_reprj.y()),
-                       10, _BLUE_SCALAR);
+            cv::circle(display, cv::Point(ob.px_reprj.x(), ob.px_reprj.y()), 10,
+                       _BLUE_SCALAR);
             first = 0;
         } else {
             cv::circle(display, cv::Point(ob.px.x(), ob.px.y()), 4,
                        _GREEN_SCALAR);
-            cv::circle(display, cv::Point(ob.px_reprj.x(), ob.px_reprj.y()),
-                       6, _BLUE_SCALAR);
+            cv::circle(display, cv::Point(ob.px_reprj.x(), ob.px_reprj.y()), 6,
+                       _BLUE_SCALAR);
         }
         cv::imshow("ob and reproj", display);
         cv::waitKey(time);
@@ -297,8 +287,7 @@ void TrackedFeature::DrawObservationsAndReprojection(int time) {
 void TrackedFeature::PrintObservations() {
     for (size_t i = 0; i < visual_obs.size(); ++i) {
         LOGI("Idx:%ld,Px: %f %f,Pos:%f %f %f", i, visual_obs[i].px.x(),
-             visual_obs[i].px.y(),
-             visual_obs[i].link_frame->state->Pwi.x(),
+             visual_obs[i].px.y(), visual_obs[i].link_frame->state->Pwi.x(),
              visual_obs[i].link_frame->state->Pwi.y(),
              visual_obs[i].link_frame->state->Pwi.z());
     }

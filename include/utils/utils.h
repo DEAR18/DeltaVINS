@@ -64,7 +64,6 @@ inline Matrix3f crossMat(const Vector3f& x) {
     return X;
 }
 
-
 // calculate a rotation matrix which aligns vec to vec_ref
 inline Matrix3f GetRotByAlignVector(const Vector3f& vec,
                                     const Vector3f& vec_ref) {

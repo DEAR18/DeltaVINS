@@ -101,12 +101,14 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
 
     int try_times = 0;
     while (Index1 < 0) {
-        LOGI("t1:%lld,imu1:%lld", ImuTerm.t1, buf_[getDeltaIndex(head_, -1)].timestamp);
+        LOGI("t1:%lld,imu1:%lld", ImuTerm.t1,
+             buf_[getDeltaIndex(head_, -1)].timestamp);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         Index1 = binarySearch<long long>(ImuTerm.t1, Left);
         try_times++;
-        if(try_times > 10){
-            throw std::runtime_error("IMU is slower than Image, waiting for IMU data...");
+        if (try_times > 10) {
+            throw std::runtime_error(
+                "IMU is slower than Image, waiting for IMU data...");
         }
     }
     // if(Index1 < 0){
@@ -220,7 +222,7 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
     // add time
     ImuTerm.dT += ImuTerm.t1 - ImuTerm.t0;
 
-    if (ImuTerm.dT > 70000000){
+    if (ImuTerm.dT > 70000000) {
         LOGW("Detected a Frame Drop, dT:%lld ", ImuTerm.dT);
     }
 
@@ -260,54 +262,21 @@ Vector3f ImuBuffer::GetGravity(long long timestamp) {
     return gravity;
 }
 
-long long ImuBuffer::GetNextSyncTimestamp(int& imuIdx,
-                                          long long lastTimeStamp) {
-    if (imuIdx == -1) {
-        do {
-            BufferIndex _index = tail_;
-            while (_index != head_) {
-                if (buf_[_index].syncFlag) {
-                    imuIdx = buf_[_index].idx;
-                    return buf_[_index].timestamp;
-                }
-                _index = getDeltaIndex(_index, 1);
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        } while (imuIdx < 0);
-    } else {
-        int ret = -1;
-        while (ret == -1) {
-            int nextIndex = imuIdx + Config::nImuPerImage;
-            int ret = binarySearch<int>(nextIndex, Exact);
-            if (ret > 0) {
-                imuIdx = buf_[ret].idx;
-                return buf_[ret].timestamp;
-            } else if (ret == -2) {
-                imuIdx = nextIndex;
-                return lastTimeStamp + 1000000000 / Config::nImageSample;
-            } else if (ret == -3) {
-                throw std::runtime_error("Image Slow");
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    }
-    return 0;
-}
-
-void ImuBuffer::UpdateBiasByStatic(long long timestamp){
+void ImuBuffer::UpdateBiasByStatic(long long timestamp) {
     BufferIndex index = binarySearch(timestamp, Left);
     index = getDeltaIndex(head_, -1);
     int nSize = index > tail_ ? index - tail_ : index + _END - tail_;
-    BufferIndex index_start = getDeltaIndex(index, nSize > 100 ? -100 : -nSize + 1);
-    Vector3f sum_gyro(0,0,0);
-    for(int i = 0; i < nSize; i++){
+    BufferIndex index_start =
+        getDeltaIndex(index, nSize > 100 ? -100 : -nSize + 1);
+    Vector3f sum_gyro(0, 0, 0);
+    for (int i = 0; i < nSize; i++) {
         sum_gyro += buf_[getDeltaIndex(index_start, i)].gyro;
     }
     Vector3f mean_gyro = sum_gyro / nSize;
-    SetBias(mean_gyro, Vector3f(0,0,0));
-    LOGI("Update bias by static, mean_gyro:%f %f %f", mean_gyro.x(), mean_gyro.y(), mean_gyro.z());
+    SetBias(mean_gyro, Vector3f(0, 0, 0));
+    LOGI("Update bias by static, mean_gyro:%f %f %f", mean_gyro.x(),
+         mean_gyro.y(), mean_gyro.z());
 }
-
 
 bool ImuBuffer::DetectStatic(long long timestamp) const {
     BufferIndex index1 = binarySearch(timestamp, Left);

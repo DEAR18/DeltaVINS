@@ -44,13 +44,15 @@ void VIOModule::DoWhatYouNeedToDo() {
     if (Config::SerialRun) TellOthersThingsToBeDone();
     TickTock::get("FullFrame").stop();
     auto time_cost = TickTock::get("FullFrame").getTimeMilli();
-    if(Config::MaxRunFPS > 0&& Config::SerialRun){
+    if (Config::MaxRunFPS > 0 && Config::SerialRun) {
         auto sleep_time = 1000.0 / Config::MaxRunFPS - time_cost;
-        if(sleep_time > 0){
-            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time)));
+        if (sleep_time > 0) {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(static_cast<int>(sleep_time)));
         }
     }
-    // LOGI("VIOModule::DoWhatYouNeedToDo time cost: %lf ms and fps: %lf", time_cost, TickTock::get("FullFrame").getFPS());
+    // LOGI("VIOModule::DoWhatYouNeedToDo time cost: %lf ms and fps: %lf",
+    // time_cost, TickTock::get("FullFrame").getFPS());
     TickTock::get("FullFrame").reset();
 }
 }  // namespace DeltaVins

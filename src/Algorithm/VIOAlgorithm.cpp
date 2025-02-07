@@ -4,16 +4,17 @@
 
 #include "Algorithm/DataAssociation/DataAssociation.h"
 #include "Algorithm/vision/FeatureTrackerOpticalFlow_Chen.h"
+#include "Algorithm/vision/camModel/camModel.h"
 #include "IO/dataBuffer/imuBuffer.h"
 #include "precompile.h"
 #include "utils/TickTock.h"
 #include "utils/constantDefine.h"
 #include "utils/utils.h"
-#include "Algorithm/vision/camModel/camModel.h"
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
-    feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(Config::MaxNumToTrack, Config::MaskSize);
+    feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(Config::MaxNumToTrack,
+                                                          Config::MaskSize);
     solver_ = new SquareRootEKFSolver();
     DataAssociation::InitDataAssociation(solver_);
     states_.init_state_ = InitState::NeedFirstFrame;
@@ -132,6 +133,10 @@ void VIOAlgorithm::_PreProcess(const ImageData::Ptr imageData) {
     imuBuffer.ImuPreIntegration(preintergration_);
     preintergration_.t0 = preintergration_.t1;
 
+    // static FILE* file = fopen("TestResults/preintergration.csv", "w");
+    // fprintf(file, "%lld %lld %lld\n", imageData->timestamp,
+    // imuBuffer.GetOldestImuData().timestamp,imuBuffer.GetLastImuData().timestamp);
+
     // Init system
     if (states_.init_state_ == InitState::NotInitialized) {
         _Initialization(imageData);
@@ -174,23 +179,22 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
 
     // Vector3f ea = Rwi.transpose().eulerAngles(0, 1, 2);
 #ifndef PLATORM_ARM
-    if(Config::OutputFormat == ResultOutputFormat::EUROC){
-    fprintf(file,
+    if (Config::OutputFormat == ResultOutputFormat::EUROC) {
+        fprintf(
+            file,
             "%lld,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%9.6f,%9.6f,%9.6f,%9.6f,%9.6f,%"
             "9.6f\n",
             pose->timestamp, Pwi[0], Pwi[1], Pwi[2], _q.w(), _q.x(), _q.y(),
             _q.z(), Vwi[0], Vwi[1], Vwi[2], bg[0], bg[1], bg[2], ba[0], ba[1],
             ba[2]);
-            fflush(file);
-    }else if(Config::OutputFormat == ResultOutputFormat::KITTI){
+        fflush(file);
+    } else if (Config::OutputFormat == ResultOutputFormat::KITTI) {
         // TODO: Implement KITTI format
         throw std::runtime_error("KITTI format is not implemented");
-    }else if(Config::OutputFormat == ResultOutputFormat::TUM){
-        fprintf(file,
-            "%lf %f %f %f %f %f %f %f\n",
-            pose->timestamp/1e9, Pwi[0], Pwi[1], Pwi[2],  _q.x(), _q.y(),
-            _q.z(), _q.w());
-            fflush(file);
+    } else if (Config::OutputFormat == ResultOutputFormat::TUM) {
+        fprintf(file, "%lf %f %f %f %f %f %f %f\n", pose->timestamp / 1e9,
+                Pwi[0], Pwi[1], Pwi[2], _q.x(), _q.y(), _q.z(), _q.w());
+        fflush(file);
     }
 #endif
     if (!Config::NoDebugOutput) {
@@ -199,8 +203,8 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
             "Q:%f,%f,%f,%f\nVelocity:%f,%f,%f",
             pose->timestamp, Pwi[0], Pwi[1], Pwi[2], _q.w(), _q.x(), _q.y(),
             _q.z(), Vwi[0], Vwi[1], Vwi[2]);
-        LOGI("\nGyro Bias:%9.6f,%9.6f,%9.6f\nAcc Bias:%9.6f,%9.6f,%9.6f",
-               bg[0], bg[1], bg[2], ba[0], ba[1], ba[2]);
+        LOGI("\nGyro Bias:%9.6f,%9.6f,%9.6f\nAcc Bias:%9.6f,%9.6f,%9.6f", bg[0],
+             bg[1], bg[2], ba[0], ba[1], ba[2]);
     }
     // fflush(file);
 
@@ -505,7 +509,6 @@ void VIOAlgorithm::_StackInformationFactorMatrix() {
 }
 
 bool VIOAlgorithm::_VisionStatic() {
-
     int nPxStatic = 0;
     int nAllPx = 0;
     float ratioThresh = 0.3;
@@ -523,7 +526,6 @@ bool VIOAlgorithm::_VisionStatic() {
 
     if (float(nPxStatic) / float(nAllPx) > ratioThresh) return true;
     return false;
-
 }
 
 void VIOAlgorithm::_DetectStill() {
@@ -545,9 +547,13 @@ void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
     _AddImuInformation();
     _MarginFrames();
     if (!feature_tracker_)
-        feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(350);
+        feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(
+            Config::MaxNumToTrack, Config::MaskSize);
 
     feature_tracker_->MatchNewFrame(states_.tfs_, data, frame_now_.get());
+
+    // static FILE* file = fopen("TestResults/tracked_features.csv", "w");
+    // fprintf(file, "%lld %zu\n", data->timestamp, states_.tfs_.size());
 
     states_.tfs_.remove_if(
         [](TrackedFeature::Ptr& lf) { return lf->flag_dead; });
@@ -562,9 +568,13 @@ void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
     cv::imshow("Predict", PredictImage);
     cv::waitKey(0);
 #elif USE_ROS2
-    cv::Mat trackImage;
-    _DrawTrackImage(data, trackImage);
-    frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols, trackImage.rows, trackImage.channels());
+    if (!Config::NoGUI) {
+        cv::Mat trackImage;
+        _DrawTrackImage(data, trackImage);
+        frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols,
+                                         trackImage.rows,
+                                         trackImage.channels());
+    }
 #endif
     _PostProcess(data, pose);
 }

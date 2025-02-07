@@ -18,9 +18,9 @@ struct VisualObservation {
     VisualObservation(const Vector2f& px, const Vector3f& ray, Frame* frame)
         : px(px), ray(ray), link_frame(frame) {}
 
-    Vector2f px_reprj;           // reprojected position only used for debug
-    Vector2f px;                 // feature position
-    Vector3f ray;                // camera ray
+    Vector2f px_reprj;            // reprojected position only used for debug
+    Vector2f px;                  // feature position
+    Vector3f ray;                 // camera ray
     Frame* link_frame = nullptr;  // pointer to linked frame
 };
 
@@ -57,11 +57,11 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
 
     ~TrackedFeature();
 
-    bool flag_dead;        // still be tracked
+    bool flag_dead;          // still be tracked
     int flag_dead_frame_id;  // used for debug
-    int num_obs;          // the number of observations matched
-    float ray_angle;  // ray angle between current camera ray and the first ray
-    float ray_angle0;    // last ray angle
+    int num_obs;             // the number of observations matched
+    float ray_angle;   // ray angle between current camera ray and the first ray
+    float ray_angle0;  // last ray angle
     float last_moved_px;  // the pixel distance last frame moved
     int m_id;             // used for debug
     Vector3f Pw_stereo_prior;
@@ -80,7 +80,7 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     std::vector<Vector3f> dts;
 
     void AddVisualObservation(const Vector2f& px, Frame* frame);
-    void AddVisualObservation(const Vector2f& px, Frame* frame,float depth);
+    void AddVisualObservation(const Vector2f& px, Frame* frame, float depth);
     void PopObservation();
 
     void RemoveLinksInCamStates();
@@ -99,7 +99,6 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     float EvaluateF(bool bNewZ, float huberThresh) override;
     bool UserDefinedDecentFail() override;
     using Ptr = std::shared_ptr<TrackedFeature>;
-
 };
 
 }  // namespace DeltaVins

@@ -238,10 +238,13 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     for (size_t i = 0; i < status.size(); ++i) {
         Vector2f px;
         if (status[i]) {
-            if (do_back_track &&
-                (!back_track_status[i] ||
-                 cv::normL2Sqr(&pre[i].x, &back_track_pre[i].x, 2) > 1))
-                continue;
+            if (do_back_track) {
+                if (!back_track_status[i] ||
+                    cv::normL2Sqr(&pre[i].x, &back_track_pre[i].x, 2) > 1) {
+                    goodTracks[i]->flag_dead = true;
+                    continue;
+                }
+            }
             px.x() = now[i].x;
             px.y() = now[i].y;
             if (camModel->inView(px, 5)) {
@@ -262,7 +265,9 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     DataAssociation::RemoveOutlierBy2PointRansac(dR, vTrackedFeatures);
 
     // LOGW("nPointsLast:%d nPointsTracked:%d nPointsAfterRansac:%d",
-    // pre.size(), num_features_tracked_, nRansac);
+    // pre.size(),
+    //      num_features_tracked_, nRansac);
+    num_features_tracked_ = nRansac;
 }
 
 void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(

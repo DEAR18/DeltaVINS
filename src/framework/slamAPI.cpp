@@ -48,7 +48,7 @@ void InitSlamSystem(const char* configFile) {
     CamModel::loadCalibrations();
     if (Config::CameraCalibration) return;
 
-        // Init DataSource
+    // Init DataSource
 #ifndef USE_ROS2
     if (Config::DataSourceType == DataSrcEuroc)
         dataSourcePtr = std::static_pointer_cast<DataSource>(
@@ -59,10 +59,10 @@ void InitSlamSystem(const char* configFile) {
 #else
     if (Config::DataSourceType == DataSrcROS2)
         dataSourcePtr = std::static_pointer_cast<DataSource>(
-            std::make_shared<DataSource_ROS2>());
+            std::make_shared<DataSource_ROS2>(false));
     else if (Config::DataSourceType == DataSrcROS2_bag)
         dataSourcePtr = std::static_pointer_cast<DataSource>(
-            std::make_shared<DataSource_ROS2_bag>(Config::DataSourcePath));
+            std::make_shared<DataSource_ROS2>(true));
 #endif
     else
         LOGE("Unknown DataSourceType");
@@ -104,8 +104,8 @@ void InitSlamSystem(const char* configFile) {
         if (Config::RunVIO) {
             vioModulePtr->SetFrameAdapter(rosPtr.get());
             vioModulePtr->SetPointAdapter(rosPtr.get());
-        } 
-   }
+        }
+    }
 #endif
 
     // add links between modules
@@ -131,10 +131,10 @@ void StartAndJoin() {
     // Join
     dataSourcePtr->Start();
 #if USE_ROS2
-    if(Config::DataSourceType == DataSrcROS2){  
+    if (Config::DataSourceType == DataSrcROS2) {
         rclcpp::spin(std::static_pointer_cast<rclcpp::Node>(
             std::static_pointer_cast<DataSource_ROS2>(dataSourcePtr)));
-    }else if(Config::DataSourceType == DataSrcROS2_bag){
+    } else if (Config::DataSourceType == DataSrcROS2_bag) {
         // rclcpp::spin(std::static_pointer_cast<rclcpp::Node>(
         //     std::static_pointer_cast<DataSource_ROS2_bag>(dataSourcePtr)));
     }

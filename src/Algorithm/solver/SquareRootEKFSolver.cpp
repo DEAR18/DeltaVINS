@@ -118,7 +118,6 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
 
     // make residual vector
     residual_.segment(0, CURRENT_DIM).setZero();
-
 }
 #if 0
 	void SquareRootEKFSolver::Propagate(const ImuPreintergration* imu_term)
@@ -778,7 +777,6 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
 
 #endif
 
-
     stacked_rows_ = nTotalObs;
     return nTotalObs;
 }
@@ -821,7 +819,6 @@ void SquareRootEKFSolver::SolveAndUpdateStates() {
             iDim += 3;
         }
     }
-
 
     msckf_points_.clear();
 }

@@ -200,6 +200,8 @@ void Config::loadConfigFile(const std::string& configFile) {
                 topic.type = ROS2SensorType::MonoCamera;
             } else if (topic_type == "IMU") {
                 topic.type = ROS2SensorType::IMU;
+            } else if (topic_type == "GNSS") {
+                topic.type = ROS2SensorType::GNSS;
             } else {
                 throw std::runtime_error("Unknown ROS2 topic type: " +
                                          topic_type);
@@ -229,10 +231,9 @@ void Config::loadConfigFile(const std::string& configFile) {
         throw std::runtime_error("Unknown ResultOutputFormat: " + temp);
     }
 
-    if(DataSourceType == DataSrcROS2_bag){
-        SerialRun = 1; // run in serial mode if data source is ROS2_bag
+    if (DataSourceType == DataSrcROS2_bag) {
+        SerialRun = 1;  // run in serial mode if data source is ROS2_bag
     }
-
 }
 
 void Config::_clear() {

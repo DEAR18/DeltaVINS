@@ -58,9 +58,9 @@ void DataRecorder::DoWhatYouNeedToDo() {
                 break;
             }
             ImuData &data = imuBuffer.buf_[imuTail];
-            fprintf(imu_file_, "%lld,%d,%d,%f,%f,%f,%f,%f,%f\n", data.timestamp,
-                    data.idx, data.syncFlag, data.gyro(0), data.gyro(1),
-                    data.gyro(2), data.acc(0), data.acc(1), data.acc(2));
+            fprintf(imu_file_, "%lld,%f,%f,%f,%f,%f,%f\n", data.timestamp,
+                    data.gyro(0), data.gyro(1), data.gyro(2), data.acc(0),
+                    data.acc(1), data.acc(2));
             imuTail = imuBuffer.getDeltaIndex(imuTail, 1);
         }
         fflush(imu_file_);
@@ -78,10 +78,11 @@ void DataRecorder::DoWhatYouNeedToDo() {
     }
     if (!Config::NoGUI && frame_adapter_) {
         if (image_data_->image.channels() == 1)
-            cv::cvtColor(image_data_->image, image_data_->image, cv::COLOR_GRAY2BGR);
+            cv::cvtColor(image_data_->image, image_data_->image,
+                         cv::COLOR_GRAY2BGR);
         frame_adapter_->PushImageTexture(
-            image_data_->image.data, image_data_->image.cols, image_data_->image.rows,
-            image_data_->image.channels());
+            image_data_->image.data, image_data_->image.cols,
+            image_data_->image.rows, image_data_->image.channels());
     }
     flag_have_image_ = false;
     fflush(cam_file_);

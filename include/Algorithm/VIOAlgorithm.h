@@ -21,7 +21,12 @@ class VIOAlgorithm {
     void SetFrameAdapter(FrameAdapter* adapter);
 
    private:
-    enum class InitState { NeedFirstFrame, NotInitialized, Initialized, Failed };
+    enum class InitState {
+        NeedFirstFrame,
+        NotInitialized,
+        Initialized,
+        Failed
+    };
     struct SystemStates {
         Vector3f vel;
         std::vector<Frame::Ptr> frames_;

@@ -75,7 +75,8 @@ void NonLinear_LM<nDim, Type>::solve() {
         m_Result.bConverged = true;
     }
 
-    for (num_iter_ = 1; !m_Result.bConverged && num_iter_ < max_iters_; ++num_iter_) {
+    for (num_iter_ = 1; !m_Result.bConverged && num_iter_ < max_iters_;
+         ++num_iter_) {
         Eigen::Matrix<Type, nDim, nDim> H_ =
             H + Eigen::Matrix<Type, nDim, nDim>::Identity(3, 3) * mu;
 
