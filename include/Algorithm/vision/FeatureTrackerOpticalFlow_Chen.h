@@ -42,6 +42,9 @@ class FeatureTrackerOpticalFlow_Chen {
     Frame* cam_state0_ = nullptr;
     cv::Mat last_image_;
     std::vector<cv::Mat> last_image_pyramid_;
+
+
+    bool use_cache_ = false;
 };
 
 }  // namespace DeltaVins
