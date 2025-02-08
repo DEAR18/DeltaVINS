@@ -320,6 +320,7 @@ void TrackedFeature::PopObservation() {
     visual_obs.back().link_frame->RemoveLinksFromAllTrackedFeatures(this);
     ray_angle = ray_angle0;
     visual_obs.pop_back();
+    num_obs--;
 }
 
 void TrackedFeature::RemoveLinksInCamStates() {

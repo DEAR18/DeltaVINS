@@ -216,23 +216,40 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     use_predict = true;
 #endif
     std::vector<float> err;
-    cv::calcOpticalFlowPyrLK(
-        last_image_pyramid_, image_pyramid_, pre, now, status, err,
-        cv::Size(21, 21), 3,
-        cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30,
-                         0.01),
-        use_predict
-            ? cv::OPTFLOW_USE_INITIAL_FLOW | cv::OPTFLOW_LK_GET_MIN_EIGENVALS
-            : 0,
-        5e-3);
+    if (use_cache_) {
+        cv::calcOpticalFlowPyrLK(
+            last_image_pyramid_, image_pyramid_, pre, now, status, err,
+            cv::Size(21, 21), 3,
+            cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+                             30, 0.01),
+            use_predict ? cv::OPTFLOW_USE_INITIAL_FLOW |
+                              cv::OPTFLOW_LK_GET_MIN_EIGENVALS
+                        : 0,
+            5e-3);
+    } else {
+        cv::calcOpticalFlowPyrLK(
+            last_image_, image_, pre, now, status, err, cv::Size(21, 21), 3,
+            cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+                             30, 0.01),
+            use_predict ? cv::OPTFLOW_USE_INITIAL_FLOW |
+                              cv::OPTFLOW_LK_GET_MIN_EIGENVALS
+                        : 0,
+            5e-3);
+    }
     bool do_back_track = true;
     // back track
     std::vector<cv::Point2f> back_track_pre;
     std::vector<unsigned char> back_track_status;
     if (do_back_track) {
-        cv::calcOpticalFlowPyrLK(image_pyramid_, last_image_pyramid_, now,
-                                 back_track_pre, back_track_status, err,
-                                 cv::Size(21, 21), 3);
+        if (use_cache_) {
+            cv::calcOpticalFlowPyrLK(image_pyramid_, last_image_pyramid_, now,
+                                     back_track_pre, back_track_status, err,
+                                     cv::Size(21, 21), 3);
+        } else {
+            cv::calcOpticalFlowPyrLK(image_, last_image_, now, back_track_pre,
+                                     back_track_status, err, cv::Size(21, 21),
+                                     3);
+        }
     }
 
     for (size_t i = 0; i < status.size(); ++i) {
@@ -254,15 +271,15 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
                 num_features_tracked_++;
                 goodTracks[i]->AddVisualObservation(px, cam_state_);
                 // _SetMask(px.x(), px.y());
-                continue;
                 // }
+                continue;
             }
         }
         goodTracks[i]->flag_dead = true;
     }
 
-    // int nRansac =
-    DataAssociation::RemoveOutlierBy2PointRansac(dR, vTrackedFeatures);
+    int nRansac =
+        DataAssociation::RemoveOutlierBy2PointRansac(dR, vTrackedFeatures);
 
     // LOGW("nPointsLast:%d nPointsTracked:%d nPointsAfterRansac:%d",
     // pre.size(),
@@ -278,12 +295,15 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
     if (CamModel::getCamModel()->IsStereo()) {
         right_image_ = image->right_image;
     }
-    image_pyramid_.clear();
-    cv::buildOpticalFlowPyramid(image_, image_pyramid_, cv::Size(21, 21), 3);
-    if (CamModel::getCamModel()->IsStereo()) {
-        right_image_pyramid_.clear();
-        cv::buildOpticalFlowPyramid(right_image_, right_image_pyramid_,
-                                    cv::Size(21, 21), 3);
+    if (use_cache_) {
+        image_pyramid_.clear();
+        cv::buildOpticalFlowPyramid(image_, image_pyramid_, cv::Size(21, 21),
+                                    3);
+        if (CamModel::getCamModel()->IsStereo()) {
+            right_image_pyramid_.clear();
+            cv::buildOpticalFlowPyramid(right_image_, right_image_pyramid_,
+                                        cv::Size(21, 21), 3);
+        }
     }
 
     cam_state0_ = cam_state_;
@@ -311,7 +331,9 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
     }
     // _ShowMask();
     last_image_ = image_;
-    last_image_pyramid_ = image_pyramid_;
+    if (use_cache_) {
+        last_image_pyramid_ = image_pyramid_;
+    }
 }
 
 FeatureTrackerOpticalFlow_Chen::~FeatureTrackerOpticalFlow_Chen() {
