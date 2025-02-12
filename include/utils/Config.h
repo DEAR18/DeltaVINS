@@ -29,16 +29,8 @@ struct Config {
     static int DataSourceType;
     static std::string DataSourcePath;
     static int ImageStartIdx;
-    static std::string CameraCalibFile;
-    static float GyroBiasNoise2;
-    static float AccBiasNoise2;
-    static float GyroNoise2;
-    static float AccNoise2;
-    static float ImageNoise2;
+    static std::string CalibrationPath;
     static int SerialRun;
-    static int nImuSample;
-    static int nImageSample;
-    static int nImuPerImage;
     static int NoGUI;
     static int NoDebugOutput;
     static int NoResultOutput;
@@ -63,5 +55,7 @@ struct Config {
     static int UploadImage;
 
     static std::vector<ROS2SensorTopic> ROS2SensorTopics;
+    static bool UseGnss;
+    static bool UseStereo;
 };
 }  // namespace DeltaVins

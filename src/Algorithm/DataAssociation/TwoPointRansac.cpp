@@ -17,6 +17,7 @@
 #include "Algorithm/DataAssociation/TwoPointRansac.h"
 
 #include "Algorithm/vision/camModel/camModel.h"
+#include "utils/SensorConfig.h"
 #include "precompile.h"
 #include "utils/utils.h"
 
@@ -57,10 +58,11 @@ void TwoPointRansac::ComputeEssentialMatrix() {
         0;
 }
 
-int TwoPointRansac::SelectInliers(std::vector<bool>& inliers) {
+int TwoPointRansac::SelectInliers(std::vector<bool>& inliers, int sensor_id) {
     static float maxSqrErr = max_sqr_reproj_err_;
     int nInliers = 0;
-    static const float focal2 = std::pow(CamModel::getCamModel()->focal(), 2);
+    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(sensor_id);
+    static const float focal2 = camModel->focal() * camModel->focal();
     for (int i = 0; i < num_points_; ++i) {
         Eigen::Vector3f l1 = mE_ * ray10_[i];
         float a0 = (*ray1_)[i].dot(l1);
@@ -86,7 +88,7 @@ int TwoPointRansac::FindInliers(const std::vector<Eigen::Vector2f>& px0,
                                 const std::vector<Eigen::Vector2f>& px1,
                                 const std::vector<Eigen::Vector3f>& ray1,
                                 const Eigen::Matrix3f& dR,
-                                std::vector<bool>& inliers) {
+                                std::vector<bool>& inliers, int sensor_id) {
     num_points_ = ray0.size();
     if (num_points_ < 2) {
         inliers.assign(num_points_, false);
@@ -110,7 +112,7 @@ int TwoPointRansac::FindInliers(const std::vector<Eigen::Vector2f>& px0,
     for (int it = 0, n = max_iter_num_; it < n; ++it) {
         if (!NextSample()) break;
         ComputeEssentialMatrix();
-        const int nInliers = SelectInliers(vInliers);
+        const int nInliers = SelectInliers(vInliers, sensor_id);
         if (nInliers > nMaxInliers) {
             inliers = vInliers;
             nMaxInliers = nInliers;

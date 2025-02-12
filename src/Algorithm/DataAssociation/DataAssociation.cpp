@@ -7,7 +7,7 @@
 #include "precompile.h"
 #include "utils/utils.h"
 #include <random>
-
+#include "utils/SensorConfig.h"
 #define MAX_MSCKF_FEATURE_UPDATE_PER_FRAME MAX_POINT_SIZE
 
 namespace DeltaVins {
@@ -110,8 +110,9 @@ void InitDataAssociation(SquareRootEKFSolver* solver) {
     g_grid22.resize(4);
 }
 
-int RemoveOutlierBy2PointRansac(
-    Matrix3f& dR, std::list<TrackedFeaturePtr>& vTrackedFeatures) {
+int RemoveOutlierBy2PointRansac(Matrix3f& dR,
+                                std::list<TrackedFeaturePtr>& vTrackedFeatures,
+                                int sensor_id) {
     assert(g_two_point_ransac);
 
     std::vector<Vector3f> ray0, ray1;
@@ -137,7 +138,8 @@ int RemoveOutlierBy2PointRansac(
     }
 
     std::vector<bool> vInliers;
-    g_two_point_ransac->FindInliers(p0, ray0, p1, ray1, dR, vInliers);
+    g_two_point_ransac->FindInliers(p0, ray0, p1, ray1, dR, vInliers,
+                                    sensor_id);
     for (int i = 0, n = vInliers.size(); i < n; ++i) {
         if (!vInliers[i]) {
             auto& track = goodTracks[i];
@@ -234,7 +236,7 @@ void _addDeadPoints(
 void _pushPoints2Grid(
     const std::vector<std::shared_ptr<TrackedFeature>>& vDeadFeature) {
     static std::vector<std::vector<TrackedFeaturePtr>> vvGrid44(4 * 4);
-    static CamModel* camModel = CamModel::getCamModel();
+    static CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
     static const int STEPX = camModel->width() / 4;
     static const int STEPY = camModel->height() / 4;
 
@@ -316,9 +318,10 @@ void _tryAddMsckfPoseConstraint(
     int nPointsTriangleFailed = 0;
     int nPointsMahalaFailed = 0;
 
+    // Todo: we need to grid the features on each camera
 #if USE_KEYFRAME
-    int halfX = CamModel::getCamModel()->width() / 2;
-    int halfY = CamModel::getCamModel()->height() / 2;
+    int halfX = SensorConfig::Instance().GetCamModel(0)->width() / 2;
+    int halfY = SensorConfig::Instance().GetCamModel(0)->height() / 2;
     // int nPointsSlamPerGrid = MAX_POINT_SIZE / 4;
     std::vector<int> vPointsSLAMLeft{0, 0, 0, 0};
     std::vector<int> vPointsSLAMNow{0, 0, 0, 0};

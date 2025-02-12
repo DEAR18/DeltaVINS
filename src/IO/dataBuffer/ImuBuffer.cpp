@@ -21,15 +21,23 @@
 #include "Algorithm/IMU/ImuPreintergration.h"
 #include "utils/utils.h"
 #include "precompile.h"
+#include "utils/SensorConfig.h"
 
 namespace DeltaVins {
 ImuBuffer::ImuBuffer() : CircularBuffer<ImuData, 10>() {
     gyro_bias_.setZero();
     acc_bias_.setZero();
 
+    IMUParams imuParams = SensorConfig::Instance().GetIMUParams(0);
+    static const float gyro_noise = imuParams.gyro_noise;
+    static const float acc_noise = imuParams.acc_noise;
+    static const int imu_fps = imuParams.fps;
+    static const float gyro_noise2 = gyro_noise * (gyro_noise * imu_fps);
+    static const float acc_noise2 = acc_noise * (acc_noise * imu_fps);
+
     noise_cov_.setIdentity(6, 6);
-    noise_cov_.topLeftCorner(3, 3) *= Config::GyroNoise2;
-    noise_cov_.bottomRightCorner(3, 3) *= Config::AccNoise2;
+    noise_cov_.topLeftCorner(3, 3) *= gyro_noise2;
+    noise_cov_.bottomRightCorner(3, 3) *= acc_noise2;
 
     gravity_.setZero();
 }
@@ -160,6 +168,7 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
         auto& imuData = buf_[index];
         int nextIndex = getDeltaIndex(index, 1);
         auto& nextImuData = buf_[nextIndex];
+        ImuTerm.sensor_id = imuData.sensor_id;
 
         if (index == Index0) {
             dt = nextImuData.timestamp - ImuTerm.t0;

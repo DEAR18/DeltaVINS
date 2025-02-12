@@ -7,6 +7,7 @@
 #include <IO/dataOuput/DataRecorder.h>
 #include <IO/dataOuput/PoseOutputTCP.h>
 #include <utils/utils.h>
+#include <utils/SensorConfig.h>
 
 #include "precompile.h"
 
@@ -49,11 +50,13 @@ void DataRecorder::DoWhatYouNeedToDo() {
     // static ImageBuffer &imageBuffer = ImageBuffer::Instance();
 
     char fileName[100];
-
+    static int imu_fps = SensorConfig::Instance().GetIMUParams(0).fps;
+    static int image_fps = SensorConfig::Instance().GetCameraParams(0).fps;
+    static int nImuPerImage = imu_fps / image_fps;
     static int imuTail = -1;
     if (Config::RecordIMU) {
         if (imuTail == -1) imuTail = imuBuffer.tail_;
-        for (int i = 0; i < Config::nImuPerImage + 10; ++i) {
+        for (int i = 0; i < nImuPerImage + 10; ++i) {
             if (imuTail == imuBuffer.head_) {
                 break;
             }
@@ -95,4 +98,5 @@ bool DataRecorder::HaveThingsTodo() {
     else
         return !buffer.empty();
 }
+
 }  // namespace DeltaVins

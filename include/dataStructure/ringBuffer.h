@@ -7,7 +7,11 @@
 #include <typeinfo>
 
 namespace DeltaVins {
-
+/**
+ * @brief Circular Buffer
+ * @tparam T Data Type
+ * @tparam N Buffer Size (2^N)
+ */
 template <typename T, int N>
 struct CircularBuffer {
    public:

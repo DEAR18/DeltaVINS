@@ -32,18 +32,10 @@ string Config::DataSourcePath;
 int Config::SerialRun;
 int Config::ImageStartIdx;
 
-int Config::nImuSample;
-int Config::nImageSample;
-int Config::nImuPerImage;
-float Config::ImageNoise2;
-float Config::GyroNoise2;
-float Config::AccNoise2;
-float Config::GyroBiasNoise2;
-float Config::AccBiasNoise2;
 float Config::ExposureTime;
 float Config::Gain;
 
-string Config::CameraCalibFile;
+string Config::CalibrationPath;
 string Config::outputFileName;
 string Config::ResultOutputPath;
 
@@ -63,7 +55,8 @@ ResultOutputFormat Config::OutputFormat;
 string Config::VisualizerServerIP;
 int Config::MaxNumToTrack;
 int Config::MaskSize;
-
+bool Config::UseGnss;
+bool Config::UseStereo;
 std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
 
 void Config::loadConfigFile(const std::string& configFile) {
@@ -98,20 +91,20 @@ void Config::loadConfigFile(const std::string& configFile) {
     } else {
         LOGI("Load data source config :%s", DataSourceConfigFilePath.c_str());
     }
-    config_file_cv["CameraCalibrationPath"] >> CameraCalibFile;
-    if (CameraCalibFile.empty()) {
+    config_file_cv["CalibrationPath"] >> CalibrationPath;
+    if (CalibrationPath.empty()) {
         // get config file folder path
         std::filesystem::path config_path;
         config_path = std::filesystem::path(configFile).parent_path();
-        CameraCalibFile = config_path.string() + "/calibrations.yaml";
+        CalibrationPath = config_path.string() + "/calibrations";
     }
-    camera_calib_file_cv.open(CameraCalibFile, FileStorage::READ);
-    if (!camera_calib_file_cv.isOpened()) {
-        throw std::runtime_error("fail to open camera calibration file at " +
-                                 CameraCalibFile);
-    } else {
-        LOGI("Load camera calibration :%s", CameraCalibFile.c_str());
-    }
+    // camera_calib_file_cv.open(CalibrationPath, FileStorage::READ);
+    // if (!camera_calib_file_cv.isOpened()) {
+    //     throw std::runtime_error("fail to open camera calibration file at " +
+    //                              CalibrationPath);
+    // } else {
+    //     LOGI("Load camera calibration :%s", CalibrationPath.c_str());
+    // }
     config_file_cv["PlaneConstraint"] >> PlaneConstraint;
 
     string temp;
@@ -134,25 +127,11 @@ void Config::loadConfigFile(const std::string& configFile) {
 
     data_source_config_file_cv["DataSourcePath"] >> DataSourcePath;
 
-    camera_calib_file_cv["ImuSampleFps"] >> nImuSample;
-    camera_calib_file_cv["ImageSampleFps"] >> nImageSample;
-    camera_calib_file_cv["PixelNoise"] >> ImageNoise2;
-    camera_calib_file_cv["GyroNoise"] >> GyroNoise2;
-    camera_calib_file_cv["AccNoise"] >> AccNoise2;
-    camera_calib_file_cv["GyroBiasNoise"] >> GyroBiasNoise2;
-    camera_calib_file_cv["AccBiasNoise"] >> AccBiasNoise2;
-    nImuPerImage = nImuSample / nImageSample;
-    if (nImuSample == 0 || nImageSample == 0 || nImuSample % nImageSample) {
-        throw std::runtime_error(
-            "Imu Sample Speed or Image Sample Speed Error, or Imu Sample Speed "
-            "is not a multiple of Image Sample Speed.");
-    }
-
-    GyroNoise2 = GyroNoise2 * (GyroNoise2 * nImuSample);
-    AccNoise2 = AccNoise2 * (AccNoise2 * nImuSample);
-    GyroBiasNoise2 = GyroBiasNoise2 * (GyroBiasNoise2 * nImuSample);
-    AccBiasNoise2 = AccBiasNoise2 * (AccBiasNoise2 * nImuSample);
-    ImageNoise2 = ImageNoise2 * ImageNoise2;
+    // GyroNoise2 = GyroNoise2 * (GyroNoise2 * nImuSample);
+    // AccNoise2 = AccNoise2 * (AccNoise2 * nImuSample);
+    // GyroBiasNoise2 = GyroBiasNoise2 * (GyroBiasNoise2 * nImuSample);
+    // AccBiasNoise2 = AccBiasNoise2 * (AccBiasNoise2 * nImuSample);
+    // ImageNoise2 = ImageNoise2 * ImageNoise2;
 
     data_source_config_file_cv["ImageStartIdx"] >> ImageStartIdx;
     config_file_cv["SerialRun"] >> SerialRun;
@@ -172,6 +151,8 @@ void Config::loadConfigFile(const std::string& configFile) {
     config_file_cv["ResultOutputName"] >> outputFileName;
     config_file_cv["MaxNumToTrack"] >> MaxNumToTrack;
     config_file_cv["MaskSize"] >> MaskSize;
+    config_file_cv["UseGnss"] >> UseGnss;
+    config_file_cv["UseStereo"] >> UseStereo;
 
     if (RecordImage || RecordIMU) RecordData = 1;
 
@@ -240,9 +221,6 @@ void Config::_clear() {
     RecordData = 0;
     RecordIMU = 0;
     RecordImage = 0;
-    nImuSample = 0;
-    nImageSample = 0;
-    nImuPerImage = 0;
     NoResultOutput = 0;
     ExposureTime = 0.01f;
     Gain = 1.0f;

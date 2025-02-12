@@ -10,6 +10,7 @@
 #include "utils/TickTock.h"
 #include "utils/constantDefine.h"
 #include "utils/utils.h"
+#include "utils/SensorConfig.h"
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
@@ -161,7 +162,7 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     ImuBuffer::Instance().GetBias(bg, ba);
 
     Quaternionf _q(Rwi);
-    auto camModel = CamModel::getCamModel();
+    auto camModel = SensorConfig::Instance().GetCamModel(0);
     Eigen::Isometry3f Tci_isometry = Eigen::Isometry3f::Identity();
     Tci_isometry.linear() = camModel->getRci();
     // Tci_isometry.translation() = camModel->getTci();

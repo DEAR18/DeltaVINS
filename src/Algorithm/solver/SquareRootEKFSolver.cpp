@@ -6,6 +6,7 @@
 #include "Algorithm/vision/camModel/camModel.h"
 #include "IO/dataBuffer/imuBuffer.h"
 #include "precompile.h"
+#include "utils/SensorConfig.h"
 #include "utils/TickTock.h"
 #include "utils/constantDefine.h"
 #include "utils/utils.h"
@@ -87,12 +88,22 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
 
     // Make Noise Covariance Matrix Q
     static Eigen::Matrix<float, NEW_STATE_DIM, NEW_STATE_DIM> noise_cov;
+    const float gyro_bias_noise =
+        SensorConfig::Instance().GetIMUParams(imu_term->sensor_id).gyro_noise;
+    const float acc_bias_noise =
+        SensorConfig::Instance().GetIMUParams(imu_term->sensor_id).acc_noise;
+    const int nImuSample =
+        SensorConfig::Instance().GetIMUParams(imu_term->sensor_id).fps;
+    const float gyro_bias_noise2 =
+        gyro_bias_noise * (gyro_bias_noise * nImuSample);
+    const float acc_bias_noise2 =
+        acc_bias_noise * (acc_bias_noise * nImuSample);
     noise_cov = noise_transition_matrix * imu_term->Cov *
                 noise_transition_matrix.transpose();
     noise_cov.block<3, 3>(6, 6) =
-        Matrix3f::Identity() * (Config::GyroBiasNoise2 * dt * dt);
+        Matrix3f::Identity() * (gyro_bias_noise2 * dt * dt);
     noise_cov.block<3, 3>(12, 12) =
-        Matrix3f::Identity() * (Config::AccBiasNoise2 * dt * dt);
+        Matrix3f::Identity() * (acc_bias_noise2 * dt * dt);
 
     static Eigen::Matrix<float, NEW_STATE_DIM, NEW_STATE_DIM> NoiseFactor;
     NoiseFactor.setIdentity();
@@ -387,9 +398,12 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
 #if USE_NAIVE_ML_DATAASSOCIATION
     float phi;
 #if USE_KEYFRAME
+    static const float ImageNoise2 =
+        SensorConfig::Instance().GetCameraParams(0).image_noise *
+        SensorConfig::Instance().GetCameraParams(0).image_noise;
     if (state->flag_slam_point) {
         Matrix2f S;
-        Matrix2f R = MatrixXf::Identity(2, 2) * Config::ImageNoise2 * 2;
+        Matrix2f R = MatrixXf::Identity(2, 2) * ImageNoise2 * 2;
         MatrixXf E;
         E.resize(CURRENT_DIM, 9);
         int iLeft = IMU_STATE_DIM;
@@ -409,13 +423,13 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
         phi = z.transpose() * S.inverse() * z;
     } else {
 #endif
-        phi = z.dot(z) / (2 * Config::ImageNoise2);
+        phi = z.dot(z) / (2 * ImageNoise2);
 #if USE_KEYFRAME
     }
 #endif
 #else
     MatrixXf S = MatrixXf::Zero(num_obs, num_obs);
-    MatrixXf R = MatrixXf::Identity(num_obs, num_obs) * Config::ImageNoise2 * 2;
+    MatrixXf R = MatrixXf::Identity(num_obs, num_obs) * ImageNoise2 * 2;
 
     MatrixXf B =
         state->H.leftCols(nExceptPoint) *
@@ -482,7 +496,8 @@ int SquareRootEKFSolver::ComputeJacobians(TrackedFeature* track) {
     // observation number
     int index = 0;
 
-    static CamModel* cam_model = CamModel::getCamModel();
+    CamModel::Ptr cam_model =
+        SensorConfig::Instance().GetCamModel(track->sensor_id);
     static Vector3f Tci = cam_model->getTci();
     int num_cams = cam_states_.size();
 
@@ -742,7 +757,8 @@ int SquareRootEKFSolver::StackInformationFactorMatrix() {
         return 0;
     }
 
-    float invSigma = 1 / sqrt(Config::ImageNoise2);
+    float invSigma =
+        1 / SensorConfig::Instance().GetCameraParams(0).image_noise;
     MatrixXf H_j;
 
     for (auto& track : msckf_points_) {

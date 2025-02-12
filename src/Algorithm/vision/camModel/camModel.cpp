@@ -23,96 +23,74 @@
 #include "Algorithm/vision/camModel/camModel_RadTan.h"
 #include "precompile.h"
 namespace DeltaVins {
-CamModel* CamModel::cam_model_ = nullptr;
-CamModel* CamModel::cam_model_right_ = nullptr;
-std::vector<Vector3f> CamModel::m_objectPoints;
-std::vector<std::vector<Vector2f>> CamModel::m_imagePoints;
 
-void CamModel::loadCalibrations() {
+CamModel::Ptr CamModel::CreateFromConfig(const std::string& config_path) {
     cv::FileStorage config;
-    config.open(Config::CameraCalibFile, cv::FileStorage::READ);
+    config.open(config_path, cv::FileStorage::READ);
+    return CreateFromConfig(config);
+}
 
-    if (Config::CameraCalibration) {
-        std::string type;
-        config["CamType"] >> type;
-
-        CamModel::loadChessboardPoints();
-        config.release();
-        config.open(Config::CameraCalibFile, cv::FileStorage::WRITE);
-
-        if (type == "Equidistant") EquiDistantModel::calibrate(config);
-        return;
-    }
-
+CamModel::Ptr CamModel::CreateFromConfig(const cv::FileStorage& config) {
     std::string type;
     config["CamType"] >> type;
 
     bool is_stereo;
     config["IsStereo"] >> is_stereo;
+
+    CamModel::Ptr cam_model;
     if (type == "Pinhole") {
-        cam_model_ = PinholeModel::createFromConfig(config);
-        if (is_stereo) {
-            cam_model_right_ = PinholeModel::createFromConfig(config, true);
-        }
+        cam_model = PinholeModel::CreateFromConfig(config, is_stereo);
     } else if (type == "RadTan") {
-        cam_model_ = RadTanModel::createFromConfig(config);
-        if (is_stereo) {
-            cam_model_right_ = RadTanModel::createFromConfig(config, true);
-        }
+        cam_model = RadTanModel::CreateFromConfig(config, is_stereo);
     } else if (type == "Fisheye") {
-        cam_model_ = FisheyeModel::createFromConfig(config);
-        if (is_stereo) {
-            cam_model_right_ = FisheyeModel::createFromConfig(config, true);
-        }
+        cam_model = FisheyeModel::CreateFromConfig(config, is_stereo);
     } else if (type == "Equidistant") {
-        cam_model_ = EquiDistantModel::createFromConfig(config);
-        if (is_stereo) {
-            cam_model_right_ = EquiDistantModel::createFromConfig(config, true);
-        }
+        cam_model = EquiDistantModel::CreateFromConfig(config, is_stereo);
     }
-    cam_model_->is_stereo_ = is_stereo;
+    cam_model->is_stereo_ = is_stereo;
+    return cam_model;
 
     // Transformation Matrix from imu frame to camera frame
-    cv::Mat Tic;
+    // cv::Mat Tic;
 
-    config["Tic"] >> Tic;
-    Eigen::Matrix4f Tic_eigen;
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            Tic_eigen(i, j) = Tic.at<double>(i, j);
-        }
-    }
-    Eigen::Matrix4f Tci_eigen;
-    Tci_eigen.topLeftCorner<3, 3>() =
-        Tic_eigen.topLeftCorner<3, 3>().transpose();
-    Tci_eigen.topRightCorner<3, 1>() =
-        -Tic_eigen.topLeftCorner<3, 3>().transpose() *
-        Tic_eigen.topRightCorner<3, 1>();
-    cam_model_->Rci_ = Tci_eigen.block<3, 3>(0, 0);
-    cam_model_->tci_ = Tci_eigen.block<3, 1>(0, 3);
-    cam_model_->Pic_ = Tic_eigen.block<3, 1>(0, 3);
-    if (cam_model_->is_stereo_) {
-        cv::Mat Tic_right;
-        config["Tic_right"] >> Tic_right;
-        Eigen::Matrix4f Tic_eigen_right;
-        for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-                Tic_eigen_right(i, j) = Tic_right.at<double>(i, j);
-            }
-        }
-        Eigen::Matrix4f Tci_eigen_right;
-        Tci_eigen_right.topLeftCorner<3, 3>() =
-            Tic_eigen_right.topLeftCorner<3, 3>().transpose();
-        Tci_eigen_right.topRightCorner<3, 1>() =
-            -Tic_eigen_right.topLeftCorner<3, 3>().transpose() *
-            Tic_eigen_right.topRightCorner<3, 1>();
-        cam_model_right_->Rci_ = Tci_eigen_right.block<3, 3>(0, 0);
-        cam_model_right_->tci_ = Tci_eigen_right.block<3, 1>(0, 3);
-        cam_model_right_->Pic_ = Tic_eigen_right.block<3, 1>(0, 3);
-        cam_model_->baseline_ =
-            (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
-        cam_model_right_->baseline_ = cam_model_->baseline_;
-    }
+    // config["Tic"] >> Tic;
+    // Eigen::Matrix4f Tic_eigen;
+    // for (int i = 0; i < 4; ++i) {
+    //     for (int j = 0; j < 4; ++j) {
+    //         Tic_eigen(i, j) = Tic.at<double>(i, j);
+    //     }
+    // }
+    // Eigen::Matrix4f Tci_eigen;
+    // Tci_eigen.topLeftCorner<3, 3>() =
+    //     Tic_eigen.topLeftCorner<3, 3>().transpose();
+    // Tci_eigen.topRightCorner<3, 1>() =
+    //     -Tic_eigen.topLeftCorner<3, 3>().transpose() *
+    //     Tic_eigen.topRightCorner<3, 1>();
+    // cam_model_->Rci_ = Tci_eigen.block<3, 3>(0, 0);
+    // cam_model_->tci_ = Tci_eigen.block<3, 1>(0, 3);
+    // cam_model_->Pic_ = Tic_eigen.block<3, 1>(0, 3);
+    // if (cam_model_->is_stereo_) {
+    //     cv::Mat Tic_right;
+    //     config["Tic_right"] >> Tic_right;
+    //     Eigen::Matrix4f Tic_eigen_right;
+    //     for (int i = 0; i < 4; ++i) {
+    //         for (int j = 0; j < 4; ++j) {
+    //             Tic_eigen_right(i, j) = Tic_right.at<double>(i, j);
+    //         }
+    //     }
+    //     Eigen::Matrix4f Tci_eigen_right;
+    //     Tci_eigen_right.topLeftCorner<3, 3>() =
+    //         Tic_eigen_right.topLeftCorner<3, 3>().transpose();
+    //     Tci_eigen_right.topRightCorner<3, 1>() =
+    //         -Tic_eigen_right.topLeftCorner<3, 3>().transpose() *
+    //         Tic_eigen_right.topRightCorner<3, 1>();
+    //     cam_model_right_->Rci_ = Tci_eigen_right.block<3, 3>(0, 0);
+    //     cam_model_right_->tci_ = Tci_eigen_right.block<3, 1>(0, 3);
+    //     cam_model_right_->Pic_ = Tic_eigen_right.block<3, 1>(0, 3);
+    //     cam_model_->baseline_ =
+    //         (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
+    //     cam_model_right_->baseline_ = cam_model_->baseline_;
+    // }
 
     // Matrix3f Rci;
 
@@ -147,48 +125,10 @@ void CamModel::loadCalibrations() {
     // }
 }
 
-void CamModel::loadChessboardPoints() {
-    FILE* fimagePoints =
-        fopen((Config::CameraCalibFile + "/imagePoints.txt").c_str(), "r");
-    FILE* fobjPoints =
-        fopen((Config::CameraCalibFile + "/worldPoints.txt").c_str(), "r");
-    int nObjPoints, nImages, nImagePoints;
-    if (fscanf(fobjPoints, "%d\n", &nObjPoints) != 1) {
-        throw std::runtime_error("Failed to read number of object points");
-    }
-    if (fscanf(fimagePoints, "%d %d\n", &nImages, &nImagePoints) != 2) {
-        throw std::runtime_error(
-            "Failed to read number of images and image points");
-    }
-    assert(nImagePoints == nObjPoints);
-    m_objectPoints.resize(nObjPoints);
-    m_imagePoints.resize(nImages);
-    for (int i = 0; i < nObjPoints; ++i) {
-        float x, y;
-        if (fscanf(fobjPoints, "%f %f\n", &x, &y) != 2) {
-            throw std::runtime_error("Failed to read object point coordinates");
-        }
-        m_objectPoints[i].x() = x;
-        m_objectPoints[i].y() = y;
-        m_objectPoints[i].z() = 0;
-    }
-
-    for (int i = 0; i < nImages; ++i) {
-        m_imagePoints[i].resize(nImagePoints);
-        for (int j = 0; j < nImagePoints; ++j) {
-            float x, y;
-            if (fscanf(fimagePoints, "%f %f\n", &x, &y) != 2) {
-                throw std::runtime_error(
-                    "Failed to read image point coordinates");
-            }
-            m_imagePoints[i][j].x() = x;
-            m_imagePoints[i][j].y() = y;
-        }
-    }
-}
-
 void CamModel::rectifyImage(cv::Mat& image, cv::Mat& rectifyImage, int width,
-                            int height, float focal, float cx, float cy) {
+                            int height, float focal, float cx, float cy,
+                            int cam_id) {
+    (void)cam_id;
     assert(image.channels() == 1);
     rectifyImage = cv::Mat(height, width, CV_8U);
 
@@ -206,16 +146,4 @@ void CamModel::rectifyImage(cv::Mat& image, cv::Mat& rectifyImage, int width,
         }
     }
 }
-#if 0
-	void CamModel::generateCalibrations(const std::string& path)
-	{
-		cv::FileStorage config(Config::CameraCalibFile + "/calibrations.yaml", cv::FileStorage::WRITE);
-		config.writeComment("Camera Type: Pinhole or RadTan");
-		config.write("CamType", "Pinhole");
-		config.writeComment("Tci: Transformation Matrix from imu frame to camera frame");
-		cv::Mat Tci(3, 4, CV_64F);
-		setIdentity(Tci);
-		config.write("Tci", Tci);
-	}
-#endif
 }  // namespace DeltaVins

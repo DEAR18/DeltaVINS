@@ -5,6 +5,7 @@
 
 #include "Algorithm/vision/camModel/camModel.h"
 #include "utils/Config.h"
+#include "utils/SensorConfig.h"
 
 namespace DeltaVins {
 
@@ -129,6 +130,26 @@ DataSource_ROS2::~DataSource_ROS2() {
     }
 }
 
+void DataSource_ROS2::NavSatFixCallback(
+    const sensor_msgs::msg::NavSatFix::SharedPtr msg, int sensor_id) {
+    NavSatFixData navSatFixData;
+    navSatFixData.timestamp =
+        msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+    navSatFixData.latitude = msg->latitude;
+    navSatFixData.longitude = msg->longitude;
+    navSatFixData.altitude = msg->altitude;
+    navSatFixData.status = static_cast<NavSatFixStatus>(msg->status.status);
+    navSatFixData.sensor_id = sensor_id;
+    memcpy(navSatFixData.covariance, msg->position_covariance.data(),
+           sizeof(double) * 9);
+    {
+        std::lock_guard<std::mutex> lck(mtx_nav_sat_fix_observer_);
+        for (auto& observer : nav_sat_fix_observers_) {
+            observer->OnNavSatFixReceived(navSatFixData);
+        }
+    }
+}
+
 void DataSource_ROS2::ImageCallback(
     const sensor_msgs::msg::Image::SharedPtr msg, int sensor_id) {
     // Convert ROS2 image to cv::Mat
@@ -146,7 +167,7 @@ void DataSource_ROS2::ImageCallback(
     image_data->timestamp =
         msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
 
-    image_data->cam_id = sensor_id;
+    image_data->sensor_id = sensor_id;
 
     image_count_++;
     cv::cvtColor(cv_ptr->image, image_data->image, cv::COLOR_BGR2GRAY);
@@ -170,7 +191,8 @@ void DataSource_ROS2::ImageCallback(
 void DataSource_ROS2::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr msg,
                                   int sensor_id) {
     (void)sensor_id;
-    Matrix3f Rci = CamModel::getCamModel()->getRci();
+    auto camModel = SensorConfig::Instance().GetCamModel(0);
+    Matrix3f Rci = camModel->getRci();
     // Publish IMU data
     ImuData imu_data;
     imu_data.timestamp =
@@ -179,6 +201,7 @@ void DataSource_ROS2::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr msg,
                         msg->linear_acceleration.z);
     Eigen::Vector3f gyro(msg->angular_velocity.x, msg->angular_velocity.y,
                          msg->angular_velocity.z);
+    imu_data.sensor_id = sensor_id;
 
     // Rotate the acceleration and angular velocity to the camera frame
     imu_data.acc = Rci * acc;
@@ -234,7 +257,7 @@ void DataSource_ROS2::StereoCallback(
                          cv::COLOR_BGR2GRAY);
             image_data->timestamp =
                 left->header.stamp.sec * 1e9 + left->header.stamp.nanosec;
-            image_data->cam_id = sensor_id;
+            image_data->sensor_id = sensor_id;
             cv::cvtColor(cv_ptr_right->image, image_data->right_image,
                          cv::COLOR_BGR2GRAY);
             if (is_bag_) {
@@ -316,6 +339,14 @@ void DataSource_ROS2::DoWhatYouNeedToDo() {
                                                   sensor_msg_img.get());
             StereoCallback(sensor_msg_img, stereo_map_bag_[topic_name],
                            sensor_id);
+        } else if (sensor_type == ROS2SensorType::GNSS) {
+            sensor_msgs::msg::NavSatFix::SharedPtr sensor_msg_nav_sat_fix =
+                std::make_shared<sensor_msgs::msg::NavSatFix>();
+            rclcpp::SerializedMessage serialized_msg(
+                *bag_message->serialized_data);
+            nav_sat_fix_serializer_.deserialize_message(
+                &serialized_msg, sensor_msg_nav_sat_fix.get());
+            NavSatFixCallback(sensor_msg_nav_sat_fix, sensor_id);
         }
     } else {
         // sleep 100ms

@@ -21,8 +21,10 @@
 
 #if USE_ROS2
 #include "IO/dataSource/dataSource_ROS2.h"
-#include "IO/dataSource/dataSource_ROS2_bag.h"
 #endif
+
+#include "IO/dataBuffer/GnssBuffer.h"
+#include "utils/SensorConfig.h"
 
 using namespace DeltaVins;
 
@@ -45,7 +47,8 @@ void InitSlamSystem(const char* configFile) {
 
     // load config file
     Config::loadConfigFile(configFile);
-    CamModel::loadCalibrations();
+    SensorConfig::Instance().LoadConfig(Config::CalibrationPath);
+    // CamModel::loadCalibrations();
     if (Config::CameraCalibration) return;
 
     // Init DataSource
@@ -111,6 +114,9 @@ void InitSlamSystem(const char* configFile) {
     // add links between modules
     if (Config::RunVIO) dataSourcePtr->AddImageObserver(vioModulePtr.get());
     dataSourcePtr->AddImuObserver(&ImuBuffer::Instance());
+    if (Config::UseGnss) {
+        dataSourcePtr->AddNavSatFixObserver(&GnssBuffer::Instance());
+    }
 }
 
 void StartAndJoin() {

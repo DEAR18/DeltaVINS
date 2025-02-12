@@ -6,8 +6,9 @@ namespace DeltaVins {
 namespace DataAssociation {
 
 void InitDataAssociation(SquareRootEKFSolver* solver);
-int RemoveOutlierBy2PointRansac(
-    Matrix3f& dR, std::list<TrackedFeature::Ptr>& trackedFeatures);
+int RemoveOutlierBy2PointRansac(Matrix3f& dR,
+                                std::list<TrackedFeature::Ptr>& trackedFeatures,
+                                int sensor_id);
 
 void DoDataAssociation(std::list<TrackedFeature::Ptr>& trackedFeatures,
                        bool bstatic);

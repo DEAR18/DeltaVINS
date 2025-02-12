@@ -53,10 +53,12 @@ struct Frame {
 struct TrackedFeature : public NonLinear_LM<3, float> {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    TrackedFeature();
+    TrackedFeature(int sensor_id);
 
     ~TrackedFeature();
 
+    int sensor_id;
+    int cam_id;
     bool flag_dead;          // still be tracked
     int flag_dead_frame_id;  // used for debug
     int num_obs;             // the number of observations matched

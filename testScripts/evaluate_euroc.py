@@ -16,7 +16,7 @@ def main(config_file_path, datasets_path, gt_path):
         test_case_path = datasets_path + "/" + test_case
         print("test_case_path: ", test_case_path)
         # run ros2 node
-        os.system(f"ros2 run delta_vins DeltaVINSTest {config_file_path} --ros-args -p DataSourcePath:={test_case_path} -p TestCaseName:={test_case}")
+        os.system(f"ros2 run delta_vins RunDeltaVINS {config_file_path} --ros-args -p DataSourcePath:={test_case_path} -p TestCaseName:={test_case}")
         # wait for 10 seconds
         time.sleep(2)
         # rename the result file from "TestResults/outputPose.tum" to "TestResults/<test_case>.tum"
@@ -42,10 +42,17 @@ def main(config_file_path, datasets_path, gt_path):
                     rpe_result.append(float(line.split('\t')[1].strip()))
         print(f"Test Case: {test_case}, ATE: {ate_result[-1]}, RPE: {rpe_result[-1]}")
 
-    # print the results in a table, align the columns
-    print(f"{'Test Case':<20} {'ATE':<20} {'RPE':<20}")
-    for i in range(len(euroc_test_cases)):
-        print(f"{euroc_test_cases[i]:<20} {ate_result[i]:<20} {rpe_result[i]:<20}")
+    # print the results in a table, align the columns and write to a file
+    if os.path.exists("TestResults/euroc_results.txt"):
+        # rename the file to euroc_results_old.txt
+        os.rename("TestResults/euroc_results.txt", "TestResults/euroc_results_old.txt")
+    with open("TestResults/euroc_results.txt", "w") as file:
+        print(f"{'Test Case':<20} {'ATE':<20} {'RPE':<20}", file=file)
+        print(f"{'Test Case':<20} {'ATE':<20} {'RPE':<20}")
+        for i in range(len(euroc_test_cases)):
+            print(f"{euroc_test_cases[i]:<20} {ate_result[i]:<20} {rpe_result[i]:<20}", file=file)
+            print(f"{euroc_test_cases[i]:<20} {ate_result[i]:<20} {rpe_result[i]:<20}")
+    
 
 
 

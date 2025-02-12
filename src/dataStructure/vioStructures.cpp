@@ -3,6 +3,7 @@
 #include "Algorithm/vision/camModel/camModel.h"
 #include "precompile.h"
 #include "utils/utils.h"
+#include "utils/SensorConfig.h"
 
 namespace DeltaVins {
 Frame::Frame() {
@@ -53,12 +54,14 @@ TrackedFeature::~TrackedFeature() {
     }
 }
 
-TrackedFeature::TrackedFeature() : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false) {
+TrackedFeature::TrackedFeature(int sensor_id)
+    : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false), sensor_id(sensor_id) {
     flag_dead = false;
     num_obs = 0;
     ray_angle = 0;
     last_moved_px = 0;
     point_state_ = nullptr;
+    this->sensor_id = sensor_id;
 #if USE_KEYFRAME
     flag_slam_point_candidate = 0;
     host_frame = nullptr;
@@ -71,7 +74,8 @@ TrackedFeature::TrackedFeature() : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false) {
 bool TrackedFeature::Triangulate() {
     if (verbose_) LOGI("###PointID:%d", m_id);
     // if (point_state_) return m_Result.bConverged;
-    static Vector3f Tci = CamModel::getCamModel()->getTci();
+    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(sensor_id);
+    static Vector3f Tci = camModel->getTci();
 
     clear();
 
@@ -142,11 +146,11 @@ float TrackedFeature::EvaluateF(bool bNewZ, float huberThresh) {
     bTemp.setZero();
     J33 << position[2], 0, -position[0] * position[2], 0, position[2],
         -position[1] * position[2], 0, 0, -position[2] * position[2];
+    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(sensor_id);
     for (int i = 0; i < nSize; ++i) {
         Vector3f p_cam = dRs[i] * position + dts[i];
 
-        visual_obs[i].px_reprj =
-            CamModel::getCamModel()->camToImage(p_cam, J23);
+        visual_obs[i].px_reprj = camModel->camToImage(p_cam, J23);
 
         Vector2f r = visual_obs[i].px - visual_obs[i].px_reprj;
 #if HUBER || 1
@@ -176,7 +180,7 @@ float TrackedFeature::EvaluateF(bool bNewZ, float huberThresh) {
 bool TrackedFeature::UserDefinedDecentFail() { return zNew[2] < 0; }
 
 void TrackedFeature::AddVisualObservation(const Vector2f& px, Frame* frame) {
-    assert(CamModel::getCamModel()->inView(px));
+    assert(SensorConfig::Instance().GetCamModel(sensor_id)->inView(px));
     flag_dead = false;
 
     if (!visual_obs.empty()) {
@@ -201,7 +205,8 @@ void TrackedFeature::AddVisualObservation(const Vector2f& px, Frame* frame) {
 
 #endif
 
-    Vector3f ray0 = CamModel::getCamModel()->imageToImu(px);
+    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(sensor_id);
+    Vector3f ray0 = camModel->imageToImu(px);
 
     visual_obs.emplace_back(px, ray0, frame);
 
@@ -240,7 +245,7 @@ void TrackedFeature::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
 
 void TrackedFeature::Reproject() {
     assert(point_state_);
-    auto camModel = CamModel::getCamModel();
+    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(sensor_id);
     float reprojErr = 0;
     for (auto& ob : visual_obs) {
         ob.px_reprj = camModel->imuToImage(

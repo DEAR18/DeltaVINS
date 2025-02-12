@@ -1,4 +1,6 @@
 %YAML:1.0
+SensorType: StereoCamera
+SensorId: 0
 CamType: RadTan
 Intrinsic: !!opencv-matrix
    rows: 1
@@ -10,7 +12,7 @@ Distortion: !!opencv-matrix
    cols: 5
    dt: d
    data: [ -0.28340811, 0.07395907, 0.00019359, 1.76187114e-05, 0. ]
-Tic: !!opencv-matrix
+Tbs: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
@@ -29,7 +31,7 @@ Distortion_right: !!opencv-matrix
     cols: 5
     dt: d
     data: [ -0.28368365,  0.07451284, -0.00010473, -3.55590700e-05, 0. ]
-Tic_right: !!opencv-matrix
+Tbs_right: !!opencv-matrix
     rows: 4
     cols: 4
     dt: d
@@ -39,10 +41,5 @@ Tic_right: !!opencv-matrix
          0.0, 0.0, 0.0, 1.0]
 
 # IMU parameters (TODO: move to a calibration file)
-GyroNoise: 2e-4  # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
-AccNoise: 2e-3   # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
-GyroBiasNoise: 2e-5 # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
-AccBiasNoise: 3e-3 # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
 PixelNoise: 0.7
-ImuSampleFps: 200
 ImageSampleFps: 20
