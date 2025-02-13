@@ -1,4 +1,5 @@
 # DeltaVINS
+## An imprementation of SRIF(Square root information filter) with MSCKF
 This project can be compiled and run on both Linux and macOS. It also supports both ROS and non-ROS environments. For detailed information on supported environments, please see the table.
 |           | Linux      | macOS    |
 |-----------|------------|----------|
