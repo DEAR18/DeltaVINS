@@ -61,7 +61,7 @@ void DataRecorder::DoWhatYouNeedToDo() {
                 break;
             }
             ImuData &data = imuBuffer.buf_[imuTail];
-            fprintf(imu_file_, "%lld,%f,%f,%f,%f,%f,%f\n", data.timestamp,
+            fprintf(imu_file_, "%ld,%f,%f,%f,%f,%f,%f\n", data.timestamp,
                     data.gyro(0), data.gyro(1), data.gyro(2), data.acc(0),
                     data.acc(1), data.acc(2));
             imuTail = imuBuffer.getDeltaIndex(imuTail, 1);
@@ -74,8 +74,8 @@ void DataRecorder::DoWhatYouNeedToDo() {
     if (Config::RecordImage) {
         {
             std::lock_guard<std::mutex> lck(image_mutex_);
-            sprintf(fileName, "cam0/%lld.png", image_data_->timestamp);
-            fprintf(cam_file_, "%lld,%s\n", image_data_->timestamp, fileName);
+            sprintf(fileName, "cam0/%ld.png", image_data_->timestamp);
+            fprintf(cam_file_, "%ld,%s\n", image_data_->timestamp, fileName);
             cv::imwrite(dat_dir_ + "/" + fileName, image_data_->image);
         }
     }

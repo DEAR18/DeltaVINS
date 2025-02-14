@@ -59,6 +59,8 @@ void SensorConfig::LoadConfig(const std::string& config_path) {
             camera_params.sensor_id = sensor_id;
             fs["ImageSampleFps"] >> camera_params.fps;
             fs["PixelNoise"] >> camera_params.image_noise;
+            bool is_stereo;
+            fs["IsStereo"] >> is_stereo;
             camera_params_[sensor_id] = camera_params;
 
             CamModel::Ptr cam_model = CamModel::CreateFromConfig(fs);
@@ -80,7 +82,8 @@ void SensorConfig::LoadConfig(const std::string& config_path) {
             Tbi.child_frame_id = "camera" + std::to_string(sensor_id);
             Tbi.T_parent_child = Tbs_eigen_iso;
             Tfs<float>::Instance().AddStaticTransform(Tbi);
-            if (sensor_type == "StereoCamera") {
+
+            if (sensor_type == "StereoCamera" && is_stereo) {
                 fs["Tbs_right"] >> Tbs;
                 for (int i = 0; i < 4; ++i) {
                     for (int j = 0; j < 4; ++j) {

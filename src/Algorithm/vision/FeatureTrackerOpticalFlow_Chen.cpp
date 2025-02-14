@@ -285,14 +285,15 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
         goodTracks[i]->flag_dead = true;
     }
 
-    int nRansac = DataAssociation::RemoveOutlierBy2PointRansac(
-        dR, vTrackedFeatures, image_->sensor_id);
+    // int nRansac = DataAssociation::RemoveOutlierBy2PointRansac(
+    //     dR, vTrackedFeatures, image_->sensor_id);
 
-    num_features_tracked_ = nRansac;
+    // num_features_tracked_ = nRansac;
 
-    // // LOGW("nPointsLast:%d nPointsTracked:%d nPointsAfterRansac:%d",
-    // // pre.size(),
-    // //      num_features_tracked_, nRansac);
+    // LOGW("nPointsLast:%zu nPointsTracked:%d",
+    //      pre.size(), num_features_tracked_);
+    // static FILE* fp = fopen("track_points.txt", "w");
+    // fprintf(fp, "%f\n", num_features_tracked_ / float(pre.size()));
 }
 
 void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(

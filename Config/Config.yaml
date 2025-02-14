@@ -17,8 +17,8 @@ UseGnss: 1
 UseStereo: 1
 
 # Sensor calibration path
-DataSourceConfigFilePath: ""
-CalibrationPath: ""
+DataSourceConfigFilePath: "/home/kc/Codes/DeltaVINS_ws/install/delta_vins/share/delta_vins/Config/kaist_urban.yaml"
+CalibrationPath: "/home/kc/Codes/DeltaVINS_ws/install/delta_vins/share/delta_vins/Config/calibrations/kaist_urban"
 
 
 #FeatureTracker Parameters

@@ -1,0 +1,4 @@
+Fast:Mean time:1.870401 ms
+KLT:Mean time:5.437140 ms
+AddFrame:Mean time:-nan ms
+FullFrame:Mean time:13.885867 ms

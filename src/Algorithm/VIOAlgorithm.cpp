@@ -546,18 +546,15 @@ void VIOAlgorithm::_DetectStill() {
 void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
                                      Pose::Ptr pose) {
     _AddImuInformation();
-    _MarginFrames();
-    if (!feature_tracker_)
-        feature_tracker_ = new FeatureTrackerOpticalFlow_Chen(
-            Config::MaxNumToTrack, Config::MaskSize);
 
-    feature_tracker_->MatchNewFrame(states_.tfs_, data, frame_now_.get());
+    _TrackFrame(data);
+
+    _MarginFrames();
+
+    _RemoveDeadFeatures();
 
     // static FILE* file = fopen("TestResults/tracked_features.csv", "w");
     // fprintf(file, "%lld %zu\n", data->timestamp, states_.tfs_.size());
-
-    states_.tfs_.remove_if(
-        [](TrackedFeature::Ptr& lf) { return lf->flag_dead; });
 
     LOGI("%zu Point remain", states_.tfs_.size());
 

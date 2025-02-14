@@ -1,0 +1,15 @@
+%YAML:1.0
+---
+SensorType: IMU
+SensorId: 0
+Tbs: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [ 1., 0., 0., -7.0000000298023224e-02, 0., 1., 0., 0., 0., 0.,
+       1., 1.7000000476837158e+00, 0., 0., 0., 1. ]
+ImuSampleFps: 100
+GyroNoise: 2.0000000000000001e-04
+AccNoise: 2.0000000000000000e-03
+GyroBiasNoise: 2.0000000000000002e-05
+AccBiasNoise: 3.0000000000000001e-03

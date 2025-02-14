@@ -11,7 +11,7 @@ struct ImuData {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     Vector3f gyro;
     Vector3f acc;
-    long long timestamp;
+    int64_t timestamp;
     int sensor_id;
 
     bool operator<(long long t) { return timestamp < t; }
@@ -26,7 +26,7 @@ struct ImuData {
 struct ImageData {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    long long timestamp;
+    int64_t timestamp;
 
     cv::Mat image;
     int sensor_id;
@@ -42,7 +42,7 @@ enum class NavSatFixStatus {
 };
 
 struct NavSatFixData {
-    long long timestamp;
+    int64_t timestamp;
     int sensor_id;
     NavSatFixStatus status;
     double latitude;
@@ -52,7 +52,7 @@ struct NavSatFixData {
 };
 
 struct OdometerData {
-    long long timestamp;
+    int64_t timestamp;
 
     int encoderL;
     int encoderR;

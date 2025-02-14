@@ -19,8 +19,8 @@ def generate_launch_description():
     )
     delta_vins_node = Node(
             package='delta_vins',
-            executable='DeltaVINSTest',
-            name='DeltaVINSTest',
+            executable='RunDeltaVINS',
+            name='RunDeltaVINS',
             arguments=[config_file_path]
         )
     return LaunchDescription([
