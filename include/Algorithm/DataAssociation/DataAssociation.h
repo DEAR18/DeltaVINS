@@ -7,11 +7,10 @@ namespace DataAssociation {
 
 void InitDataAssociation(SquareRootEKFSolver* solver);
 int RemoveOutlierBy2PointRansac(Matrix3f& dR,
-                                std::list<TrackedFeature::Ptr>& trackedFeatures,
+                                std::list<Landmark::Ptr>& trackedFeatures,
                                 int sensor_id);
 
-void DoDataAssociation(std::list<TrackedFeature::Ptr>& trackedFeatures,
-                       bool bstatic);
+void DoDataAssociation(std::list<Landmark::Ptr>& trackedFeatures, bool bstatic);
 void DrawPointsAfterUpdates(std::vector<PointState*>& pointStates);
 void DrawPointsBeforeUpdates(std::vector<PointState*>& pointStates);
 void Clear();

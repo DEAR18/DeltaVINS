@@ -30,7 +30,7 @@ class VIOAlgorithm {
     struct SystemStates {
         Vector3f vel;
         std::vector<Frame::Ptr> frames_;
-        std::list<TrackedFeature::Ptr> tfs_;
+        std::list<Landmark::Ptr> tfs_;
         bool static_;
         InitState init_state_;
     };

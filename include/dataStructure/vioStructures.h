@@ -10,7 +10,7 @@
 namespace DeltaVins {
 struct Frame;
 
-struct TrackedFeature;
+struct Landmark;
 
 struct VisualObservation {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -18,6 +18,7 @@ struct VisualObservation {
     VisualObservation(const Vector2f& px, const Vector3f& ray, Frame* frame)
         : px(px), ray(ray), link_frame(frame) {}
 
+    int cam_id;                   // left or right
     Vector2f px_reprj;            // reprojected position only used for debug
     Vector2f px;                  // feature position
     Vector3f ray;                 // camera ray
@@ -31,18 +32,18 @@ struct Frame {
 
     ~Frame();
 
-    void RemoveLinksFromAllTrackedFeatures(TrackedFeature* ftTrack);
+    void RemoveLinksFromAllLandmarks(Landmark* ftTrack);
 
-    void RemoveAllFeatures();
+    void RemoveAllLandmarks();
 
     cv::Mat image;  // image captured from camera
 
     CamState* state =
         nullptr;  // pointer to camera states including position,rotation,etc.
 
-    std::unordered_set<TrackedFeature*>
+    std::unordered_set<Landmark*>
         tracked_features;  // All tracked feature in this frame.
-    long long timestamp;
+    int64_t timestamp;
 
 #if USE_KEYFRAME
     bool flag_keyframe;
@@ -50,12 +51,12 @@ struct Frame {
     using Ptr = std::shared_ptr<Frame>;
 };
 
-struct TrackedFeature : public NonLinear_LM<3, float> {
+struct Landmark : public NonLinear_LM<3, float> {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    TrackedFeature(int sensor_id);
+    Landmark(int sensor_id);
 
-    ~TrackedFeature();
+    ~Landmark();
 
     int sensor_id;
     int cam_id;
@@ -96,11 +97,11 @@ struct TrackedFeature : public NonLinear_LM<3, float> {
     // Triangulation
     bool UserDefinedConvergeCriteria() override;
     void PrintPositions();
-    bool Triangulate();
+    bool TriangulateLM();
     bool StereoTriangulate();
     float EvaluateF(bool bNewZ, float huberThresh) override;
     bool UserDefinedDecentFail() override;
-    using Ptr = std::shared_ptr<TrackedFeature>;
+    using Ptr = std::shared_ptr<Landmark>;
 };
 
 }  // namespace DeltaVins

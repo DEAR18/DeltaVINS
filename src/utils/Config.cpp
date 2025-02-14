@@ -57,6 +57,7 @@ int Config::MaxNumToTrack;
 int Config::MaskSize;
 bool Config::UseGnss;
 bool Config::UseStereo;
+bool Config::UseBackTracking;
 std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
 
 void Config::loadConfigFile(const std::string& configFile) {
@@ -153,6 +154,7 @@ void Config::loadConfigFile(const std::string& configFile) {
     config_file_cv["MaskSize"] >> MaskSize;
     config_file_cv["UseGnss"] >> UseGnss;
     config_file_cv["UseStereo"] >> UseStereo;
+    config_file_cv["UseBackTracking"] >> UseBackTracking;
 
     if (RecordImage || RecordIMU) RecordData = 1;
 

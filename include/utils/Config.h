@@ -57,5 +57,6 @@ struct Config {
     static std::vector<ROS2SensorTopic> ROS2SensorTopics;
     static bool UseGnss;
     static bool UseStereo;
+    static bool UseBackTracking;
 };
 }  // namespace DeltaVins

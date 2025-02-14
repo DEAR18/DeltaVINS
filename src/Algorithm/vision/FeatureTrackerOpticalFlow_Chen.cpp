@@ -12,6 +12,7 @@ FeatureTrackerOpticalFlow_Chen::FeatureTrackerOpticalFlow_Chen(int nMax2Track,
                                                                int nMaskSize)
     : max_num_to_track_(nMax2Track), mask_size_(nMaskSize) {
     assert(nMaskSize % 2);
+    use_back_tracking_ = Config::UseBackTracking;
 }
 
 inline void FeatureTrackerOpticalFlow_Chen::_SetMask(int x, int y) {
@@ -130,7 +131,7 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
         if (mask_[x + y * imgStride]) {
             _SetMask(x, y);
             j--;
-            auto tf = std::make_shared<TrackedFeature>(image_->sensor_id);
+            auto tf = std::make_shared<Landmark>(image_->sensor_id);
             if (SensorConfig::Instance()
                     .GetCamModel(image_->sensor_id)
                     ->IsStereo()) {
@@ -175,7 +176,7 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     Matrix3f dR = cam_state_->state->Rwi.transpose() * cam_state0_->state->Rwi;
     std::vector<cv::Point2f> pre, now;
     std::vector<unsigned char> status;
-    std::vector<TrackedFeature*> goodTracks;
+    std::vector<Landmark*> goodTracks;
     goodTracks.reserve(vTrackedFeatures.size());
     pre.reserve(vTrackedFeatures.size());
     now.reserve(vTrackedFeatures.size());
@@ -222,47 +223,28 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     use_predict = true;
 #endif
     std::vector<float> err;
-    if (use_cache_) {
-        cv::calcOpticalFlowPyrLK(
-            last_image_pyramid_, image_pyramid_, pre, now, status, err,
-            cv::Size(21, 21), 3,
-            cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-                             30, 0.01),
-            use_predict ? cv::OPTFLOW_USE_INITIAL_FLOW |
-                              cv::OPTFLOW_LK_GET_MIN_EIGENVALS
-                        : 0,
-            5e-3);
-    } else {
-        cv::calcOpticalFlowPyrLK(
-            last_image_->image, image_->image, pre, now, status, err,
-            cv::Size(21, 21), 3,
-            cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-                             30, 0.01),
-            use_predict ? cv::OPTFLOW_USE_INITIAL_FLOW |
-                              cv::OPTFLOW_LK_GET_MIN_EIGENVALS
-                        : 0,
-            5e-3);
-    }
-    bool do_back_track = true;
+    cv::calcOpticalFlowPyrLK(
+        last_image_pyramid_, image_pyramid_, pre, now, status, err,
+        cv::Size(21, 21), 3,
+        cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30,
+                         0.01),
+        use_predict
+            ? cv::OPTFLOW_USE_INITIAL_FLOW | cv::OPTFLOW_LK_GET_MIN_EIGENVALS
+            : 0,
+        5e-3);
     // back track
     std::vector<cv::Point2f> back_track_pre;
     std::vector<unsigned char> back_track_status;
-    if (do_back_track) {
-        if (use_cache_) {
-            cv::calcOpticalFlowPyrLK(image_pyramid_, last_image_pyramid_, now,
-                                     back_track_pre, back_track_status, err,
-                                     cv::Size(21, 21), 3);
-        } else {
-            cv::calcOpticalFlowPyrLK(image_->image, last_image_->image, now,
-                                     back_track_pre, back_track_status, err,
-                                     cv::Size(21, 21), 3);
-        }
+    if (use_back_tracking_) {
+        cv::calcOpticalFlowPyrLK(image_pyramid_, last_image_pyramid_, now,
+                                 back_track_pre, back_track_status, err,
+                                 cv::Size(21, 21), 3);
     }
 
     for (size_t i = 0; i < status.size(); ++i) {
         Vector2f px;
         if (status[i]) {
-            if (do_back_track) {
+            if (use_back_tracking_) {
                 if (!back_track_status[i] ||
                     cv::normL2Sqr(&pre[i].x, &back_track_pre[i].x, 2) > 1) {
                     goodTracks[i]->flag_dead = true;
@@ -272,13 +254,9 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
             px.x() = now[i].x;
             px.y() = now[i].y;
             if (camModel->inView(px, 5)) {
-                // if (goodTracks[i]->point_state_ || !_IsMasked(px.x(),
-                // px.y())) {
                 num_features_++;
                 num_features_tracked_++;
                 goodTracks[i]->AddVisualObservation(px, cam_state_);
-                // _SetMask(px.x(), px.y());
-                // }
                 continue;
             }
         }
@@ -296,24 +274,18 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     // fprintf(fp, "%f\n", num_features_tracked_ / float(pre.size()));
 }
 
-void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
-    std::list<TrackedFeaturePtr>& vTrackedFeatures, const ImageData::Ptr image,
-    Frame* camState) {
+void FeatureTrackerOpticalFlow_Chen::_PreProcess(const ImageData::Ptr image,
+                                                 Frame* camState) {
     num_features_ = 0;
     image_ = image;
-    if (use_cache_) {
-        image_pyramid_.clear();
-        cv::buildOpticalFlowPyramid(image_->image, image_pyramid_,
+    image_pyramid_.clear();
+    cv::buildOpticalFlowPyramid(image_->image, image_pyramid_, cv::Size(21, 21),
+                                3);
+    if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
+        right_image_pyramid_.clear();
+        cv::buildOpticalFlowPyramid(image_->right_image, right_image_pyramid_,
                                     cv::Size(21, 21), 3);
-        if (SensorConfig::Instance()
-                .GetCamModel(image_->sensor_id)
-                ->IsStereo()) {
-            right_image_pyramid_.clear();
-            cv::buildOpticalFlowPyramid(
-                image_->right_image, right_image_pyramid_, cv::Size(21, 21), 3);
-        }
     }
-
     cam_state0_ = cam_state_;
     cam_state_ = camState;
 
@@ -326,12 +298,25 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
         mask_buffer_size_ = camModel->area();
         mask_ = new unsigned char[mask_buffer_size_];
     }
+}
+
+void FeatureTrackerOpticalFlow_Chen::_PostProcess() {
+    last_image_ = image_;
+    last_image_pyramid_ = image_pyramid_;
+}
+
+void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
+    std::list<TrackedFeaturePtr>& vTrackedFeatures, const ImageData::Ptr image,
+    Frame* camState) {
+    _PreProcess(image, camState);
+
     // ReSet Mask Pattern
     // _ResetMask();
 
     TickTock::Start("KLT");
     _TrackPoints(vTrackedFeatures);
     TickTock::Stop("KLT");
+
     // Extract more points if there are more points can be tracked.
     if (num_features_tracked_ < max_num_to_track_) {
         TickTock::Start("Fast");
@@ -339,10 +324,7 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
         TickTock::Stop("Fast");
     }
     // _ShowMask();
-    last_image_ = image_;
-    if (use_cache_) {
-        last_image_pyramid_ = image_pyramid_;
-    }
+    _PostProcess();
 }
 
 FeatureTrackerOpticalFlow_Chen::~FeatureTrackerOpticalFlow_Chen() {

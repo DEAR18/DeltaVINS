@@ -6,8 +6,8 @@
 namespace DeltaVins {
 struct Frame;
 typedef std::shared_ptr<Frame> FramePtr;
-struct TrackedFeature;
-typedef std::shared_ptr<TrackedFeature> TrackedFeaturePtr;
+struct Landmark;
+typedef std::shared_ptr<Landmark> TrackedFeaturePtr;
 
 struct PointState {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -15,7 +15,7 @@ struct PointState {
     Vector3f Pw_FEJ;  //	point position First Estimate Jacobian
 
     MatrixXfR H;  //	Observation Matrix
-    TrackedFeature* host = nullptr;
+    Landmark* host = nullptr;
 
     bool flag_to_marginalize = false;
     bool flag_to_next_marginalize = false;

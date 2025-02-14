@@ -35,7 +35,7 @@ class SquareRootEKFSolver {
 
     bool MahalanobisTest(PointState *state);
 
-    int ComputeJacobians(TrackedFeature *track);
+    int ComputeJacobians(Landmark *track);
 
     void AddMsckfPoint(PointState *state);
 

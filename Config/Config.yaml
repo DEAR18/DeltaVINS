@@ -11,16 +11,16 @@ RunVIO: 1
 ResultOutputPath: ""
 ResultOutputName: ""
 ResultOutputFormat: "TUM" # TUM/KITTI/EUROC
-
 # sensor switch
 UseGnss: 1
 UseStereo: 1
 
 # Sensor calibration path
-DataSourceConfigFilePath: "/home/kc/Codes/DeltaVINS_ws/install/delta_vins/share/delta_vins/Config/kaist_urban.yaml"
-CalibrationPath: "/home/kc/Codes/DeltaVINS_ws/install/delta_vins/share/delta_vins/Config/calibrations/kaist_urban"
+DataSourceConfigFilePath: ""
+CalibrationPath: ""
 
 
 #FeatureTracker Parameters
 MaxNumToTrack: 350
 MaskSize: 41 #Must be Odd
+UseBackTracking: 1

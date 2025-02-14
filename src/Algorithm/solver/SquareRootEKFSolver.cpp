@@ -492,7 +492,7 @@ void rowMajorMatrixQRByGivensInMsckf(MatrixHfR& H, int row, int col) {
     }
 }
 
-int SquareRootEKFSolver::ComputeJacobians(TrackedFeature* track) {
+int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
     // observation number
     int index = 0;
 

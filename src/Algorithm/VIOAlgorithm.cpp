@@ -355,7 +355,7 @@ void VIOAlgorithm::_AddImuInformation() {
 }
 
 void VIOAlgorithm::_RemoveDeadFeatures() {
-    states_.tfs_.remove_if([](const TrackedFeature::Ptr& tracked_feature) {
+    states_.tfs_.remove_if([](const Landmark::Ptr& tracked_feature) {
         return tracked_feature->flag_dead;
     });
 }

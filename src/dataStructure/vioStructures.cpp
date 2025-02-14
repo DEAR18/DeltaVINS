@@ -18,7 +18,7 @@ Frame::~Frame() {
     if (state) delete state;
 }
 
-void Frame::RemoveLinksFromAllTrackedFeatures(TrackedFeature* ftTrack) {
+void Frame::RemoveLinksFromAllLandmarks(Landmark* ftTrack) {
     tracked_features.erase(ftTrack);
 }
 
@@ -46,7 +46,7 @@ void Frame::RemoveAllFeatures() {
     tracked_features.clear();
 }
 
-TrackedFeature::~TrackedFeature() {
+Landmark::~Landmark() {
     if (!visual_obs.empty()) RemoveLinksInCamStates();
     if (point_state_) {
         delete point_state_;
@@ -54,7 +54,7 @@ TrackedFeature::~TrackedFeature() {
     }
 }
 
-TrackedFeature::TrackedFeature(int sensor_id)
+Landmark::Landmark(int sensor_id)
     : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false), sensor_id(sensor_id) {
     flag_dead = false;
     num_obs = 0;
@@ -71,7 +71,7 @@ TrackedFeature::TrackedFeature(int sensor_id)
     m_id = counter++;
 }
 
-bool TrackedFeature::Triangulate() {
+bool Landmark::TriangulateLM() {
     if (verbose_) LOGI("###PointID:%d", m_id);
     // if (point_state_) return m_Result.bConverged;
     CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(sensor_id);
@@ -126,7 +126,7 @@ bool TrackedFeature::Triangulate() {
     return m_Result.bConverged;
 }
 
-float TrackedFeature::EvaluateF(bool bNewZ, float huberThresh) {
+float Landmark::EvaluateF(bool bNewZ, float huberThresh) {
     float cost = 0.f;
     const int nSize = visual_obs.size();
     Matrix23f J23;
@@ -177,9 +177,9 @@ float TrackedFeature::EvaluateF(bool bNewZ, float huberThresh) {
     return cost;
 }
 
-bool TrackedFeature::UserDefinedDecentFail() { return zNew[2] < 0; }
+bool Landmark::UserDefinedDecentFail() { return zNew[2] < 0; }
 
-void TrackedFeature::AddVisualObservation(const Vector2f& px, Frame* frame) {
+void Landmark::AddVisualObservation(const Vector2f& px, Frame* frame) {
     assert(SensorConfig::Instance().GetCamModel(sensor_id)->inView(px));
     flag_dead = false;
 
@@ -228,7 +228,7 @@ void TrackedFeature::AddVisualObservation(const Vector2f& px, Frame* frame) {
     }
 }
 
-void TrackedFeature::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
+void Landmark::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
     for (size_t i = 0; i < visual_obs.size() - 1; ++i) {
         if ((visual_obs[i].px - visual_obs[i + 1].px).squaredNorm() > 900)
             continue;
@@ -243,7 +243,7 @@ void TrackedFeature::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
                color);
 }
 
-void TrackedFeature::Reproject() {
+void Landmark::Reproject() {
     assert(point_state_);
     CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(sensor_id);
     float reprojErr = 0;
@@ -262,7 +262,7 @@ void TrackedFeature::Reproject() {
     }
 }
 
-void TrackedFeature::DrawObservationsAndReprojection(int time) {
+void Landmark::DrawObservationsAndReprojection(int time) {
 #if ENABLE_VISUALIZER && !defined(PLATFORM_ARM)
     if (Config::NoGUI) return;
     cv::Mat display;
@@ -289,7 +289,7 @@ void TrackedFeature::DrawObservationsAndReprojection(int time) {
 #endif
 }
 
-void TrackedFeature::PrintObservations() {
+void Landmark::PrintObservations() {
     for (size_t i = 0; i < visual_obs.size(); ++i) {
         LOGI("Idx:%ld,Px: %f %f,Pos:%f %f %f", i, visual_obs[i].px.x(),
              visual_obs[i].px.y(), visual_obs[i].link_frame->state->Pwi.x(),
@@ -298,7 +298,7 @@ void TrackedFeature::PrintObservations() {
     }
 }
 #if USE_KEYFRAME
-void TrackedFeature::RemoveUselessObservationForSlamPoint() {
+void Landmark::RemoveUselessObservationForSlamPoint() {
     assert(point_state_ && point_state_->flag_slam_point);
     std::vector<VisualObservation> obs;
     for (int i = 0, n = visual_obs.size(); i < n; ++i) {
@@ -313,24 +313,24 @@ void TrackedFeature::RemoveUselessObservationForSlamPoint() {
     visual_obs = obs;
 }
 #endif
-bool TrackedFeature::UserDefinedConvergeCriteria() {
+bool Landmark::UserDefinedConvergeCriteria() {
     if (m_Result.cost < 10) m_Result.bConverged = true;
     if (m_Result.cost > 40) m_Result.bConverged = false;
     return true;
 }
 
-void TrackedFeature::PrintPositions() {}
+void Landmark::PrintPositions() {}
 
-void TrackedFeature::PopObservation() {
-    visual_obs.back().link_frame->RemoveLinksFromAllTrackedFeatures(this);
+void Landmark::PopObservation() {
+    visual_obs.back().link_frame->RemoveLinksFromAllLandmarks(this);
     ray_angle = ray_angle0;
     visual_obs.pop_back();
     num_obs--;
 }
 
-void TrackedFeature::RemoveLinksInCamStates() {
+void Landmark::RemoveLinksInCamStates() {
     for (auto& ob : visual_obs)
-        ob.link_frame->RemoveLinksFromAllTrackedFeatures(this);
+        ob.link_frame->RemoveLinksFromAllLandmarks(this);
     visual_obs.clear();
 }
 

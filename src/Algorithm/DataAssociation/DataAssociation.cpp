@@ -117,7 +117,7 @@ int RemoveOutlierBy2PointRansac(Matrix3f& dR,
 
     std::vector<Vector3f> ray0, ray1;
     std::vector<Vector2f> p0, p1;
-    std::vector<TrackedFeature*> goodTracks;
+    std::vector<Landmark*> goodTracks;
     ray0.reserve(600);
     ray1.reserve(600);
     p0.reserve(600);
@@ -155,8 +155,7 @@ int RemoveOutlierBy2PointRansac(Matrix3f& dR,
     return nGoodPoints;
 }
 
-void _addBufferPoints(
-    std::vector<std::shared_ptr<TrackedFeature>>& vDeadFeature) {
+void _addBufferPoints(std::vector<std::shared_ptr<Landmark>>& vDeadFeature) {
     constexpr int MAX_BUFFER_OBS = 5;
     for (auto trackedFeature : g_tracked_feature_next_update) {
 #if USE_KEYFRAME
@@ -175,9 +174,8 @@ void _addBufferPoints(
     g_tracked_feature_next_update.clear();
 }
 
-void _addDeadPoints(
-    std::list<TrackedFeaturePtr>& vTrackedFeatures,
-    std::vector<std::shared_ptr<TrackedFeature>>& vDeadFeature) {
+void _addDeadPoints(std::list<TrackedFeaturePtr>& vTrackedFeatures,
+                    std::vector<std::shared_ptr<Landmark>>& vDeadFeature) {
     constexpr int MIN_OBS = 4;
     int nDeadPoints2Updates = 0;
     int nDeadPointsAbandoned = 0;
@@ -234,7 +232,7 @@ void _addDeadPoints(
 }
 
 void _pushPoints2Grid(
-    const std::vector<std::shared_ptr<TrackedFeature>>& vDeadFeature) {
+    const std::vector<std::shared_ptr<Landmark>>& vDeadFeature) {
     static std::vector<std::vector<TrackedFeaturePtr>> vvGrid44(4 * 4);
     static CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
     static const int STEPX = camModel->width() / 4;
@@ -325,7 +323,7 @@ void _tryAddMsckfPoseConstraint(
     // int nPointsSlamPerGrid = MAX_POINT_SIZE / 4;
     std::vector<int> vPointsSLAMLeft{0, 0, 0, 0};
     std::vector<int> vPointsSLAMNow{0, 0, 0, 0};
-    static std::vector<std::vector<TrackedFeature*>> m_slamPointGrid22(4);
+    static std::vector<std::vector<Landmark*>> m_slamPointGrid22(4);
     int nSlamPoint = 0;
 
     std::for_each(m_slamPointGrid22.begin(), m_slamPointGrid22.end(),
@@ -389,7 +387,7 @@ void _tryAddMsckfPoseConstraint(
 #endif
 
     auto triangleAndVerify = [&](TrackedFeaturePtr& track) {
-        if (track->Triangulate()) {
+        if (track->TriangulateLM()) {
 #if OUTPUT_DEBUG_INFO
             printf("#### Triangulation Success\n");
 #endif
@@ -506,7 +504,7 @@ void _tryAddMsckfPoseConstraint(
 
             auto triangleAndVerify = [&](TrackedFeaturePtr& track)
             {
-                if (track->Triangulate())
+                if (track->TriangulateLM())
                 {
 #if OUTPUT_DEBUG_INFO
                     printf("#### Triangulation Success\n");
