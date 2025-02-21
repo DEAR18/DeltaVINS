@@ -15,7 +15,7 @@ FeatureTrackerOpticalFlow_Chen::FeatureTrackerOpticalFlow_Chen(int nMax2Track,
     use_back_tracking_ = Config::UseBackTracking;
 }
 
-inline void FeatureTrackerOpticalFlow_Chen::_SetMask(int x, int y) {
+inline void FeatureTrackerOpticalFlow_Chen::_SetMask(int x, int y, int cam_id) {
     auto camModel = SensorConfig::Instance().GetCamModel(image_->sensor_id);
     const int imgStride = camModel->width();
     const int height = camModel->height();
@@ -26,23 +26,56 @@ inline void FeatureTrackerOpticalFlow_Chen::_SetMask(int x, int y) {
     if (x >= imgStride - halfMaskSize - 1) x = imgStride - halfMaskSize - 2;
     if (y >= height - halfMaskSize - 1) y = height - halfMaskSize - 2;
 
-    unsigned char* pMask0 =
-        mask_ + x + (y - halfMaskSize) * imgStride - halfMaskSize;
-    unsigned char* pMask1 = pMask0 + imgStride * mask_size_;
-    assert(pMask1 + mask_size_ <= mask_ + mask_buffer_size_);
+    unsigned char* pMask0 = nullptr;
+    unsigned char* pMask1 = nullptr;
+    if (cam_id == 0) {
+        pMask0 = mask_ + x + (y - halfMaskSize) * imgStride - halfMaskSize;
+        pMask1 = pMask0 + imgStride * mask_size_;
+        assert(pMask1 + mask_size_ <= mask_ + mask_buffer_size_);
+    } else {
+        pMask0 =
+            mask_right_ + x + (y - halfMaskSize) * imgStride - halfMaskSize;
+        pMask1 = pMask0 + imgStride * mask_size_;
+        assert(pMask1 + mask_size_ <= mask_right_ + mask_buffer_size_);
+    }
     for (; pMask0 < pMask1; pMask0 += imgStride) {
         memset(pMask0, 0, mask_size_);
     }
 }
 
-bool FeatureTrackerOpticalFlow_Chen::_IsMasked(int x, int y) {
+bool FeatureTrackerOpticalFlow_Chen::IsStaticLastFrame() {
+    int nPxStatic = 0;
+    int nAllPx = 0;
+    float ratioThresh = 0.3;
+
+    float pxThreshSqr = 0.5 * 0.5;
+
+    for (auto moved_px : last_frame_moved_pixels_sqr_) {
+        if (moved_px < pxThreshSqr) nPxStatic++;
+        nAllPx++;
+    }
+
+    if (nAllPx == 0) return false;
+
+    if (float(nPxStatic) / float(nAllPx) > ratioThresh) return true;
+    return false;
+}
+
+bool FeatureTrackerOpticalFlow_Chen::_IsMasked(int x, int y, int cam_id) {
     auto camModel = SensorConfig::Instance().GetCamModel(image_->sensor_id);
     const int imgStride = camModel->width();
-    return !mask_[x + y * imgStride];
+    if (cam_id == 0) {
+        return !mask_[x + y * imgStride];
+    } else {
+        return !mask_right_[x + y * imgStride];
+    }
 }
 
 void FeatureTrackerOpticalFlow_Chen::_ResetMask() {
     memset(mask_, 0xff, mask_buffer_size_);
+    if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
+        memset(mask_right_, 0xff, mask_buffer_size_);
+    }
 }
 
 void FeatureTrackerOpticalFlow_Chen::_ShowMask() {
@@ -55,16 +88,24 @@ void FeatureTrackerOpticalFlow_Chen::_ShowMask() {
 }
 
 void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
-    std::list<TrackedFeaturePtr>& vTrackedFeatures) {
+    std::list<LandmarkPtr>& vTrackedFeatures) {
     _ResetMask();
     // Set Mask Pattern
     auto camModel = SensorConfig::Instance().GetCamModel(image_->sensor_id);
     const int imgStride = camModel->width();
 
+    bool is_stereo = camModel->IsStereo();
     for (auto tf : vTrackedFeatures) {
         if (!tf->flag_dead) {
-            auto xy = tf->visual_obs.back().px;
-            _SetMask(xy.x(), xy.y());
+            auto xy = tf->last_obs_->px;
+            _SetMask(xy.x(), xy.y(), tf->last_obs_->cam_id);
+            if (is_stereo) {
+                if (tf->last_obs_->stereo_obs) {
+                    auto xy_right = tf->last_obs_->stereo_obs->px;
+                    _SetMask(xy_right.x(), xy_right.y(),
+                             tf->last_obs_->stereo_obs->cam_id);
+                }
+            }
         }
     }
     // Todo: test mask correctness
@@ -73,24 +114,23 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
     int halfMaskSize = (mask_size_ - 1) / 2;
 
     std::vector<cv::Point2f> corners;
+    std::vector<cv::Point2f> corners_right;
+
+    // First we extract left image features
 
 #if USE_HARRIS
-
-    _ExtractHarris(corners, max_num_to_track_ - num_features_tracked_);
-
+    _ExtractHarris(corners, max_num, 0);
 #else
-    _ExtractFast(imgStride, halfMaskSize, corners);
-
+    _ExtractFast(imgStride, halfMaskSize, corners, 0);
 #endif
+
+    // Then we find the right stereo features if stereo is enabled
     std::vector<cv::Point2f> stereo_corners;
     std::vector<cv::Point2f> stereo_corners_back;
     std::vector<unsigned char> stereo_status, stereo_status_back, final_status;
     std::vector<float> err;
 
-    if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
-        auto cv_point_distance_sqr = [](cv::Point2f a, cv::Point2f b) {
-            return ((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
-        };
+    if (is_stereo) {
         cv::calcOpticalFlowPyrLK(image_pyramid_, right_image_pyramid_, corners,
                                  stereo_corners, stereo_status, err);
         cv::calcOpticalFlowPyrLK(right_image_pyramid_, image_pyramid_,
@@ -98,7 +138,8 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
                                  stereo_status_back, err);
         for (size_t i = 0; i < stereo_corners.size(); i++) {
             if (stereo_status[i] && stereo_status_back[i] &&
-                cv_point_distance_sqr(corners[i], stereo_corners_back[i]) < 1) {
+                cv::normL2Sqr(&corners[i].x, &stereo_corners_back[i].x, 2) <
+                    1) {
                 final_status.push_back(1);
             } else {
                 final_status.push_back(0);
@@ -123,21 +164,28 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
         // cv::waitKey(0);
     }
 
-    for (size_t i = 0, j = max_num_to_track_ - num_features_tracked_;
-         i < corners.size() && j > 0; ++i) {
-        int x = corners[i].x;
-        int y = corners[i].y;
+    for (size_t corner_idx = 0,
+                track_candidates = max_num_to_track_ - num_features_tracked_;
+         corner_idx < corners.size() && track_candidates > 0; ++corner_idx) {
+        int x = corners[corner_idx].x;
+        int y = corners[corner_idx].y;
         assert(x + y * imgStride < mask_buffer_size_);
         if (mask_[x + y * imgStride]) {
             _SetMask(x, y);
-            j--;
-            auto tf = std::make_shared<Landmark>(image_->sensor_id);
-            if (SensorConfig::Instance()
-                    .GetCamModel(image_->sensor_id)
-                    ->IsStereo()) {
+            track_candidates--;
+            auto tf = std::make_shared<Landmark>();
+            auto obs = cam_state_->AddVisualObservation(Vector2f(x, y), 0);
+            if (is_stereo) {
                 // auto left_model = CamModel::getCamModel(0);
                 // auto right_model = CamModel::getCamModel(1);
-                if (final_status[i]) {
+                if (final_status[corner_idx]) {
+                    auto obs_right = cam_state_->AddVisualObservation(
+                        Vector2f(stereo_corners[corner_idx].x,
+                                 stereo_corners[corner_idx].y),
+                        1);
+                    obs_right->stereo_obs = obs.get();
+                    obs->stereo_obs = obs_right.get();
+
                     // Vector2f px1 =
                     //     left_model->camToImage(left_model->imageToCam(
                     //         Vector2f(corners[i].x, corners[i].y)));
@@ -156,10 +204,10 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
                     // tf->AddVisualObservation(Vector2f(x, y), cam_state_,
                     //                          depth_prior);
                 } else {
-                    tf->AddVisualObservation(Vector2f(x, y), cam_state_);
+                    tf->AddVisualObservation(obs);
                 }
             } else {
-                tf->AddVisualObservation(Vector2f(x, y), cam_state_);
+                tf->AddVisualObservation(obs);
             }
             vTrackedFeatures.push_back(tf);
             ++num_features_;
@@ -171,7 +219,7 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
 }
 
 void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
-    std::list<TrackedFeaturePtr>& vTrackedFeatures) {
+    std::list<LandmarkPtr>& vTrackedFeatures) {
     if (last_image_ == nullptr) return;
     Matrix3f dR = cam_state_->state->Rwi.transpose() * cam_state0_->state->Rwi;
     std::vector<cv::Point2f> pre, now;
@@ -180,15 +228,16 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     goodTracks.reserve(vTrackedFeatures.size());
     pre.reserve(vTrackedFeatures.size());
     now.reserve(vTrackedFeatures.size());
+    last_frame_moved_pixels_sqr_.clear();
 
     auto camModel = SensorConfig::Instance().GetCamModel(image_->sensor_id);
     // float mean_moved_pixels = 0;
     for (auto tf : vTrackedFeatures) {
         if (!tf->flag_dead) {
-            auto& lastVisualOb = tf->visual_obs.back();
+            auto& lastVisualOb = tf->last_obs_;
 
 #if USE_ROTATION_PREDICTION
-            Vector3f ray = dR * lastVisualOb.ray;
+            Vector3f ray = dR * lastVisualOb->ray_in_imu;
 
             Vector2f px = camModel->camToImage(ray);
             if (!camModel->inView(px)) {
@@ -196,18 +245,18 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
                 continue;
             }
             now.emplace_back(px.x(), px.y());
-            pre.emplace_back(lastVisualOb.px.x(), lastVisualOb.px.y());
+            pre.emplace_back(lastVisualOb->px.x(), lastVisualOb->px.y());
             goodTracks.push_back(tf.get());
             tf->predicted_px = px;
 #else
 #if 0
-                Vector3f ray = dR * lastVisualOb.ray;
+                Vector3f ray = dR * lastVisualOb.ray_in_imu;
 
                 static Matrix3f Rci = camModel->getRci();
                 Vector2f px = camModel->camToImage(Rci * ray);
                 tf->predicted_px = px;
 #endif
-            pre.emplace_back(lastVisualOb.px.x(), lastVisualOb.px.y());
+            pre.emplace_back(lastVisualOb->px.x(), lastVisualOb->px.y());
             now.emplace_back(pre.back());
             goodTracks.push_back(tf.get());
 #endif
@@ -254,9 +303,12 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
             px.x() = now[i].x;
             px.y() = now[i].y;
             if (camModel->inView(px, 5)) {
+                auto obs = cam_state_->AddVisualObservation(px);
                 num_features_++;
                 num_features_tracked_++;
-                goodTracks[i]->AddVisualObservation(px, cam_state_);
+                goodTracks[i]->AddVisualObservation(obs);
+                last_frame_moved_pixels_sqr_.push_back(
+                    cv::normL2Sqr(&now[i].x, &pre[i].x, 2));
                 continue;
             }
         }
@@ -298,15 +350,26 @@ void FeatureTrackerOpticalFlow_Chen::_PreProcess(const ImageData::Ptr image,
         mask_buffer_size_ = camModel->area();
         mask_ = new unsigned char[mask_buffer_size_];
     }
+    if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
+        if (mask_right_ == nullptr) {
+            auto camModel =
+                SensorConfig::Instance().GetCamModel(image_->sensor_id);
+            mask_buffer_size_ = camModel->area(1);
+            mask_right_ = new unsigned char[mask_buffer_size_];
+        }
+    }
 }
 
 void FeatureTrackerOpticalFlow_Chen::_PostProcess() {
     last_image_ = image_;
     last_image_pyramid_ = image_pyramid_;
+    if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
+        last_right_image_pyramid_ = right_image_pyramid_;
+    }
 }
 
 void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
-    std::list<TrackedFeaturePtr>& vTrackedFeatures, const ImageData::Ptr image,
+    std::list<LandmarkPtr>& vTrackedFeatures, const ImageData::Ptr image,
     Frame* camState) {
     _PreProcess(image, camState);
 
@@ -334,18 +397,26 @@ FeatureTrackerOpticalFlow_Chen::~FeatureTrackerOpticalFlow_Chen() {
 
 void FeatureTrackerOpticalFlow_Chen::_ExtractFast(
     const int imgStride, const int halfMaskSize,
-    std::vector<cv::Point2f>& corner) {
+    std::vector<cv::Point2f>& corner, int cam_id) {
     std::vector<fast::fast_xy> vXys;
     std::vector<int> vScores, vNms;
     std::vector<std::pair<int, fast::fast_xy>> vTemp;
+    unsigned char* image_data = nullptr;
+    unsigned char* mask_data = nullptr;
+    if (cam_id == 0) {
+        image_data =
+            image_->image.data + halfMaskSize + halfMaskSize * imgStride;
+        mask_data = mask_ + halfMaskSize + halfMaskSize * imgStride;
+    } else {
+        image_data =
+            image_->right_image.data + halfMaskSize + halfMaskSize * imgStride;
+        mask_data = mask_right_ + halfMaskSize + halfMaskSize * imgStride;
+    }
     fast::fast_corner_detect_10_mask(
-        image_->image.data + halfMaskSize + halfMaskSize * imgStride,
-        mask_ + halfMaskSize + halfMaskSize * imgStride,
-        image_->image.cols - mask_size_ + 1,
+        image_data, mask_data, image_->image.cols - mask_size_ + 1,
         image_->image.rows - mask_size_ + 1, image_->image.step1(), 15, vXys);
-    fast::fast_corner_score_10(
-        image_->image.data + halfMaskSize + halfMaskSize * imgStride,
-        image_->image.step1(), vXys, 15, vScores);
+    fast::fast_corner_score_10(image_data, image_->image.step1(), vXys, 15,
+                               vScores);
     fast::fast_nonmax_3x3(vXys, vScores, vNms);
 
     vTemp.reserve(vXys.size());
@@ -376,9 +447,12 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractFast(
 }
 
 void FeatureTrackerOpticalFlow_Chen::_ExtractHarris(
-    std::vector<cv::Point2f>& corners, int max_num) {
+    std::vector<cv::Point2f>& corners, int max_num, int cam_id) {
     auto camModel = SensorConfig::Instance().GetCamModel(image_->sensor_id);
-    cv::Mat mask(camModel->height(), camModel->width(), CV_8UC1, mask_);
+    unsigned char* mask_data = nullptr;
+    mask_data = cam_id == 0 ? mask_ : mask_right_;
+    cv::Mat mask(camModel->height(), camModel->width(), CV_8UC1, mask_data);
+    cv::Mat image = cam_id == 0 ? image_->image : image_->right_image;
     cv::goodFeaturesToTrack(image_->image, corners, max_num, 0.1, 20, mask);
 }
 }  // namespace DeltaVins

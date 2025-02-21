@@ -12,25 +12,28 @@ class FeatureTrackerOpticalFlow_Chen {
      * @param image image
      * @param camState camera state
      */
-    void MatchNewFrame(std::list<TrackedFeaturePtr>& vTrackedFeatures,
+    void MatchNewFrame(std::list<LandmarkPtr>& vTrackedFeatures,
                        const ImageData::Ptr image, Frame* camState);
 
+    bool IsStaticLastFrame();
     ~FeatureTrackerOpticalFlow_Chen();
 
    private:
     void _PreProcess(const ImageData::Ptr image, Frame* camState);
     void _PostProcess();
-    void _ExtractMorePoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
-    void _TrackPoints(std::list<TrackedFeaturePtr>& vTrackedFeatures);
+    void _ExtractMorePoints(std::list<LandmarkPtr>& vTrackedFeatures);
+    void _TrackPoints(std::list<LandmarkPtr>& vTrackedFeatures);
     void _ExtractFast(const int imgStride, const int halfMaskSize,
-                      std::vector<cv::Point2f>& vTemp);
-    void _ExtractHarris(std::vector<cv::Point2f>& corners, int max_num);
-    void _SetMask(int x, int y);
-    bool _IsMasked(int x, int y);
+                      std::vector<cv::Point2f>& vTemp, int cam_id);
+    void _ExtractHarris(std::vector<cv::Point2f>& corners, int max_num,
+                        int cam_id);
+    void _SetMask(int x, int y, int cam_id);
+    bool _IsMasked(int x, int y, int cam_id);
     void _ResetMask();
     void _ShowMask();
 
     unsigned char* mask_ = nullptr;
+    unsigned char* mask_right_ = nullptr;
     int num_features_;
     int max_num_to_track_;
     int mask_size_;
@@ -45,9 +48,12 @@ class FeatureTrackerOpticalFlow_Chen {
     Frame* cam_state0_ = nullptr;
     // cv::Mat last_image_;
     std::vector<cv::Mat> last_image_pyramid_;
+    std::vector<cv::Mat> last_right_image_pyramid_;
 
     ImageData::Ptr image_;
     ImageData::Ptr last_image_;
+
+    std::vector<float> last_frame_moved_pixels_sqr_;
 };
 
 }  // namespace DeltaVins
