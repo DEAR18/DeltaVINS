@@ -10,7 +10,7 @@ ROSTopics:
       TopicName: "/cam0/image_raw"
       TopicQueueSize: 10
       SensorID: 0 # Index of each sensor
-      SensorType: "MonoCamera"
+      SensorType: "StereoCamera"
       RightTopicName: "/cam1/image_raw"
     - 
       TopicName: "/imu0"

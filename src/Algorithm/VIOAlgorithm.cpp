@@ -7,10 +7,10 @@
 #include "Algorithm/vision/camModel/camModel.h"
 #include "IO/dataBuffer/imuBuffer.h"
 #include "precompile.h"
+#include "utils/SensorConfig.h"
 #include "utils/TickTock.h"
 #include "utils/constantDefine.h"
 #include "utils/utils.h"
-#include "utils/SensorConfig.h"
 
 namespace DeltaVins {
 VIOAlgorithm::VIOAlgorithm() {
@@ -165,17 +165,17 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
     ImuBuffer::Instance().GetBias(bg, ba);
 
     Quaternionf _q(Rwi);
-    auto camModel = SensorConfig::Instance().GetCamModel(0);
-    Eigen::Isometry3f Tci_isometry = Eigen::Isometry3f::Identity();
-    Tci_isometry.linear() = camModel->getRci();
-    // Tci_isometry.translation() = camModel->getTci();
-    Eigen::Isometry3f Twc_isometry = Eigen::Isometry3f::Identity();
-    Twc_isometry.linear() = Rwi;
-    Twc_isometry.translation() = Pwi;
-    Eigen::Isometry3f Twi_isometry = Twc_isometry * Tci_isometry;
-    Rwi = Twi_isometry.rotation();
-    Pwi = Twi_isometry.translation();
-    _q = Quaternionf(Rwi);
+    // auto camModel = SensorConfig::Instance().GetCamModel(0);
+    // Eigen::Isometry3f Tci_isometry = Eigen::Isometry3f::Identity();
+    // Tci_isometry.linear() = camModel->getRci();
+    // // Tci_isometry.translation() = camModel->getTci();
+    // Eigen::Isometry3f Twc_isometry = Eigen::Isometry3f::Identity();
+    // Twc_isometry.linear() = Rwi;
+    // Twc_isometry.translation() = Pwi;
+    // Eigen::Isometry3f Twi_isometry = Twc_isometry * Tci_isometry;
+    // Rwi = Twi_isometry.rotation();
+    // Pwi = Twi_isometry.translation();
+    // _q = Quaternionf(Rwi);
 
     std::string outputName = Config::outputFileName;
     static FILE* file = fopen(outputName.c_str(), "w");
@@ -214,12 +214,24 @@ void VIOAlgorithm::_PostProcess(ImageData::Ptr data, Pose::Ptr pose) {
 
 #if ENABLE_VISUALIZER || ENABLE_VISUALIZER_TCP || USE_ROS2
     if (!Config::NoGUI) {
-        cv::Mat trackImage;
-        _DrawTrackImage(data, trackImage);
+        cv::Mat trackImage_left;
+        cv::Mat trackImage_right;
+        _DrawTrackImage(data, trackImage_left, 0);
+        bool is_stereo = SensorConfig::Instance().GetCamModel(0)->IsStereo();
+        if (is_stereo) {
+            _DrawTrackImage(data, trackImage_right, 1);
+        }
         if (frame_adapter_) {
-            frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols,
-                                             trackImage.rows,
-                                             trackImage.channels());
+            frame_adapter_->PushImageTexture(
+                trackImage_left.data, trackImage_left.cols,
+                trackImage_left.rows, trackImage_left.channels(),
+                "track_image_left");
+            if (is_stereo) {
+                frame_adapter_->PushImageTexture(
+                    trackImage_right.data, trackImage_right.cols,
+                    trackImage_right.rows, trackImage_right.channels(),
+                    "track_image_right");
+            }
             frame_adapter_->FinishFrame();
         } else {
             LOGW("frame_adapter_ is nullptr");
@@ -266,67 +278,79 @@ void VIOAlgorithm::_UpdatePointsAndCamsToVisualizer() {
 #endif
 }
 
-void VIOAlgorithm::_DrawTrackImage(ImageData::Ptr dataPtr,
-                                   cv::Mat& trackImage) {
-    cvtColor(dataPtr->image, trackImage, cv::COLOR_GRAY2BGR);
+void VIOAlgorithm::_DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage,
+                                   int cam_id) {
+    if (cam_id == 0)
+        cvtColor(dataPtr->image, trackImage, cv::COLOR_GRAY2BGR);
+    else
+        cvtColor(dataPtr->right_image, trackImage, cv::COLOR_GRAY2BGR);
 
+    int num_features_tracked = 0;
     for (auto lTrack : states_.tfs_) {
-        if (!lTrack->flag_dead) {
+        if (!lTrack->flag_dead[cam_id]) {
+            num_features_tracked++;
             if (lTrack->point_state_ && lTrack->point_state_->flag_slam_point)
-                lTrack->DrawFeatureTrack(trackImage, _GREEN_SCALAR);
-            else if (lTrack->num_obs > 5)
-                lTrack->DrawFeatureTrack(trackImage, _BLUE_SCALAR);
+                lTrack->DrawFeatureTrack(trackImage, _GREEN_SCALAR, cam_id);
+            else if (lTrack->num_obs_tracked > 5)
+                lTrack->DrawFeatureTrack(trackImage, _BLUE_SCALAR, cam_id);
             else
-                lTrack->DrawFeatureTrack(trackImage, _RED_SCALAR);
+                lTrack->DrawFeatureTrack(trackImage, _RED_SCALAR, cam_id);
         }
     }
+    cv::putText(trackImage,
+                "Num Features Tracked: " + std::to_string(num_features_tracked),
+                cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, _GREEN_SCALAR,
+                2);
 }
 
 void VIOAlgorithm::_DrawPredictImage(ImageData::Ptr dataPtr,
-                                     cv::Mat& predictImage) {
+                                     cv::Mat& predictImage, int cam_id) {
     static std::ofstream fout("Predict.txt");
-    cvtColor(dataPtr->image, predictImage, cv::COLOR_GRAY2BGR);
+    if (cam_id == 0)
+        cvtColor(dataPtr->image, predictImage, cv::COLOR_GRAY2BGR);
+    else
+        cvtColor(dataPtr->right_image, predictImage, cv::COLOR_GRAY2BGR);
 
     for (auto lTrack : states_.tfs_) {
         if (!lTrack->flag_dead) {
-            if (lTrack->visual_obs.size() >= 2) {
+            if (lTrack->visual_obs[cam_id].size() >= 2) {
                 // int nSize = lTrack->visual_obs.size();
                 cv::line(predictImage,
-                         cv::Point(lTrack->last_last_obs_->px.x(),
-                                   lTrack->last_last_obs_->px.y()),
-                         cv::Point(lTrack->last_obs_->px.x(),
-                                   lTrack->last_obs_->px.y()),
+                         cv::Point(lTrack->last_last_obs_[cam_id]->px.x(),
+                                   lTrack->last_last_obs_[cam_id]->px.y()),
+                         cv::Point(lTrack->last_obs_[cam_id]->px.x(),
+                                   lTrack->last_obs_[cam_id]->px.y()),
                          _GREEN_SCALAR);
                 cv::line(predictImage,
-                         cv::Point(lTrack->last_last_obs_->px.x(),
-                                   lTrack->last_last_obs_->px.y()),
-                         cv::Point(lTrack->predicted_px.x(),
-                                   lTrack->predicted_px.y()),
+                         cv::Point(lTrack->last_last_obs_[cam_id]->px.x(),
+                                   lTrack->last_last_obs_[cam_id]->px.y()),
+                         cv::Point(lTrack->predicted_px[cam_id].x(),
+                                   lTrack->predicted_px[cam_id].y()),
                          _BLUE_SCALAR);
                 cv::circle(predictImage,
-                           cv::Point(lTrack->last_last_obs_->px.x(),
-                                     lTrack->last_last_obs_->px.y()),
+                           cv::Point(lTrack->last_last_obs_[cam_id]->px.x(),
+                                     lTrack->last_last_obs_[cam_id]->px.y()),
                            2, _RED_SCALAR);
                 cv::circle(predictImage,
-                           cv::Point(lTrack->last_obs_->px.x(),
-                                     lTrack->last_obs_->px.y()),
+                           cv::Point(lTrack->last_obs_[cam_id]->px.x(),
+                                     lTrack->last_obs_[cam_id]->px.y()),
                            2, _GREEN_SCALAR);
                 cv::circle(predictImage,
-                           cv::Point(lTrack->predicted_px.x(),
-                                     lTrack->predicted_px.y()),
+                           cv::Point(lTrack->predicted_px[cam_id].x(),
+                                     lTrack->predicted_px[cam_id].y()),
                            2, _BLUE_SCALAR);
 
-                fout << lTrack->last_obs_->px.x() -
-                            lTrack->last_last_obs_->px.x()
+                fout << lTrack->last_obs_[cam_id]->px.x() -
+                            lTrack->last_last_obs_[cam_id]->px.x()
                      << " "
-                     << lTrack->last_obs_->px.y() -
-                            lTrack->last_last_obs_->px.y()
+                     << lTrack->last_obs_[cam_id]->px.y() -
+                            lTrack->last_last_obs_[cam_id]->px.y()
                      << " "
-                     << lTrack->predicted_px.x() -
-                            lTrack->last_last_obs_->px.x()
+                     << lTrack->predicted_px[cam_id].x() -
+                            lTrack->last_last_obs_[cam_id]->px.x()
                      << " "
-                     << lTrack->predicted_px.y() -
-                            lTrack->last_last_obs_->px.y()
+                     << lTrack->predicted_px[cam_id].y() -
+                            lTrack->last_last_obs_[cam_id]->px.y()
                      << std::endl;
             }
         }
@@ -359,7 +383,7 @@ void VIOAlgorithm::_AddImuInformation() {
 
 void VIOAlgorithm::_RemoveDeadFeatures() {
     states_.tfs_.remove_if([](const Landmark::Ptr& tracked_feature) {
-        return tracked_feature->flag_dead;
+        return tracked_feature->flag_dead_all;
     });
 }
 
@@ -535,11 +559,22 @@ void VIOAlgorithm::_TestVisionModule(const ImageData::Ptr data,
     cv::waitKey(0);
 #elif USE_ROS2
     if (!Config::NoGUI) {
-        cv::Mat trackImage;
-        _DrawTrackImage(data, trackImage);
-        frame_adapter_->PushImageTexture(trackImage.data, trackImage.cols,
-                                         trackImage.rows,
-                                         trackImage.channels());
+        cv::Mat trackImage_left;
+        cv::Mat trackImage_right;
+        _DrawTrackImage(data, trackImage_left, 0);
+        bool is_stereo = SensorConfig::Instance().GetCamModel(0)->IsStereo();
+        if (is_stereo) {
+            _DrawTrackImage(data, trackImage_right, 1);
+        }
+        frame_adapter_->PushImageTexture(
+            trackImage_left.data, trackImage_left.cols, trackImage_left.rows,
+            trackImage_left.channels(), "track_image_left");
+        if (is_stereo) {
+            frame_adapter_->PushImageTexture(
+                trackImage_right.data, trackImage_right.cols,
+                trackImage_right.rows, trackImage_right.channels(),
+                "track_image_right");
+        }
     }
 #endif
     _PostProcess(data, pose);

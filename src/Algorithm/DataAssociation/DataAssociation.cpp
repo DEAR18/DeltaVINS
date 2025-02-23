@@ -1,13 +1,14 @@
 #include "Algorithm/DataAssociation/DataAssociation.h"
 
+#include <random>
+
 #include "Algorithm/DataAssociation/TwoPointRansac.h"
 #include "Algorithm/solver/SquareRootEKFSolver.h"
 #include "Algorithm/vision/camModel/camModel.h"
 #include "dataStructure/vioStructures.h"
 #include "precompile.h"
-#include "utils/utils.h"
-#include <random>
 #include "utils/SensorConfig.h"
+#include "utils/utils.h"
 #define MAX_MSCKF_FEATURE_UPDATE_PER_FRAME MAX_POINT_SIZE
 
 namespace DeltaVins {
@@ -28,12 +29,13 @@ void Clear() {
     delete g_two_point_ransac;
 }
 
-void DrawPointsAfterUpdates(std::vector<PointState*>& m_PointStates) {
+void DrawPointsAfterUpdates(std::vector<PointState*>& m_PointStates,
+                            int cam_id) {
     if (Config::NoGUI) return;
     reprojImage2 = cv::Mat::zeros(480, 640, CV_8UC3);
     for (auto& p : g_tracked_feature_to_update) {
         p->Reproject();
-        for (auto& ob : p->visual_obs) {
+        for (auto& ob : p->visual_obs[cam_id]) {
             cv::circle(reprojImage2, cv::Point(ob->px.x(), ob->px.y()), 4,
                        _BLUE_SCALAR);
             cv::circle(reprojImage2,
@@ -56,7 +58,7 @@ void DrawPointsAfterUpdates(std::vector<PointState*>& m_PointStates) {
     for (auto& p2 : m_PointStates) {
         auto p = p2->host;
         p->Reproject();
-        auto& ob = p->last_obs_;
+        auto& ob = p->last_obs_[cam_id];
         cv::circle(reprojImage2, cv::Point(ob->px.x(), ob->px.y()), 10,
                    _BLUE_SCALAR);
         cv::circle(reprojImage2, cv::Point(ob->px_reprj.x(), ob->px_reprj.y()),
@@ -66,13 +68,14 @@ void DrawPointsAfterUpdates(std::vector<PointState*>& m_PointStates) {
     }
     // cv::imshow("Points After Updates", reprojImage2);
 }
-void DrawPointsBeforeUpdates(std::vector<PointState*>& m_PointStates) {
+void DrawPointsBeforeUpdates(std::vector<PointState*>& m_PointStates,
+                             int cam_id) {
     if (Config::NoGUI) return;
     reprojImage = cv::Mat::zeros(480, 640, CV_8UC3);
 
     for (auto& p : g_tracked_feature_to_update) {
         p->Reproject();
-        for (auto& ob : p->visual_obs) {
+        for (auto& ob : p->visual_obs[cam_id]) {
             cv::circle(reprojImage, cv::Point(ob->px.x(), ob->px.y()), 4,
                        _BLUE_SCALAR);
             cv::circle(reprojImage,
@@ -96,7 +99,7 @@ void DrawPointsBeforeUpdates(std::vector<PointState*>& m_PointStates) {
     for (auto& p2 : m_PointStates) {
         auto p = p2->host;
         p->Reproject();
-        auto& ob = p->last_obs_;
+        auto& ob = p->last_obs_[cam_id];
         cv::circle(reprojImage, cv::Point(ob->px.x(), ob->px.y()), 10,
                    _BLUE_SCALAR);
         cv::circle(reprojImage, cv::Point(ob->px_reprj.x(), ob->px_reprj.y()),
@@ -115,7 +118,7 @@ void InitDataAssociation(SquareRootEKFSolver* solver) {
 
 int RemoveOutlierBy2PointRansac(Matrix3f& dR,
                                 std::list<LandmarkPtr>& vTrackedFeatures,
-                                int sensor_id) {
+                                int sensor_id, int cam_id) {
     assert(g_two_point_ransac);
 
     std::vector<Vector3f> ray0, ray1;
@@ -131,11 +134,11 @@ int RemoveOutlierBy2PointRansac(Matrix3f& dR,
     for (const auto& tracked_feature : vTrackedFeatures) {
         if (tracked_feature->flag_dead) continue;
         // int nObs = tracked_feature->visual_obs.size();
-        auto& lastOb = tracked_feature->last_obs_;
-        ray1.push_back(lastOb->ray_in_imu);
+        auto& lastOb = tracked_feature->last_obs_[cam_id];
+        ray1.push_back(lastOb->ray_in_cam);
         p1.push_back(lastOb->px);
-        auto& lastSecondOb = tracked_feature->last_last_obs_;
-        ray0.push_back(lastSecondOb->ray_in_imu);
+        auto& lastSecondOb = tracked_feature->last_last_obs_[cam_id];
+        ray0.push_back(lastSecondOb->ray_in_cam);
         p0.push_back(lastSecondOb->px);
         goodTracks.push_back(tracked_feature.get());
     }
@@ -147,9 +150,9 @@ int RemoveOutlierBy2PointRansac(Matrix3f& dR,
         if (!vInliers[i]) {
             auto& track = goodTracks[i];
 
-            track->flag_dead_frame_id =
-                track->last_obs_->link_frame->state->m_id;
-            track->PopObservation();
+            track->flag_dead_frame_id[cam_id] =
+                track->last_obs_[cam_id]->link_frame->state->m_id;
+            track->PopObservation(cam_id);
             continue;
         }
         nGoodPoints++;
@@ -162,7 +165,7 @@ void _addBufferPoints(std::vector<std::shared_ptr<Landmark>>& vDeadFeature) {
     for (auto trackedFeature : g_tracked_feature_next_update) {
         if (trackedFeature->point_state_)
             assert(!trackedFeature->point_state_->flag_slam_point);
-        if (trackedFeature->visual_obs.size() > MAX_BUFFER_OBS)
+        if (trackedFeature->valid_obs_num > MAX_BUFFER_OBS)
             vDeadFeature.push_back(trackedFeature);
         else
             trackedFeature->RemoveLinksInCamStates();
@@ -192,9 +195,9 @@ void _addDeadPoints(std::list<LandmarkPtr>& vTrackedFeatures,
             continue;
         }
 
-        if (tracked_feature->flag_dead) {
-            if (tracked_feature->num_obs >= MIN_OBS_TRACKED &&
-                tracked_feature->visual_obs.size() >= MIN_OBS) {
+        if (tracked_feature->flag_dead_all) {
+            if (tracked_feature->num_obs_tracked >= MIN_OBS_TRACKED &&
+                tracked_feature->valid_obs_num >= MIN_OBS) {
                 vDeadFeature.push_back(tracked_feature);
                 nDeadPoints2Updates++;
             } else {
@@ -204,8 +207,8 @@ void _addDeadPoints(std::list<LandmarkPtr>& vTrackedFeatures,
             iter = vTrackedFeatures.erase(iter);
             continue;
         }
-        if (tracked_feature->visual_obs.size() >= MIN_OBS_ALIVE &&
-            tracked_feature->num_obs > MIN_OBS_TRACKED) {
+        if (tracked_feature->valid_obs_num >= MIN_OBS_ALIVE &&
+            tracked_feature->num_obs_tracked > MIN_OBS_TRACKED) {
             nAlivePoints2Updates++;
             vDeadFeature.push_back(tracked_feature);
         }
@@ -227,8 +230,9 @@ void _pushPoints2Grid(
     static const int STEPY = camModel->height() / 4;
 
     auto comparator_less = [](const LandmarkPtr& a, const LandmarkPtr& b) {
-        return a->flag_dead == b->flag_dead ? a->ray_angle < b->ray_angle
-                                            : a->flag_dead < b->flag_dead;
+        return a->flag_dead_all == b->flag_dead_all
+                   ? a->ray_angle < b->ray_angle
+                   : a->flag_dead_all < b->flag_dead_all;
     };
 
     auto selectTop2 = [&](const std::vector<LandmarkPtr>& src,
@@ -237,14 +241,14 @@ void _pushPoints2Grid(
         if (!src.empty()) {
             for (auto tracked_feature : src) {
                 if (!pSecond || comparator_less(pSecond, tracked_feature)) {
-                    if (pSecond && pSecond->flag_dead)
+                    if (pSecond && pSecond->flag_dead_all)
                         g_tracked_feature_next_update.push_back(pSecond);
                     pSecond = tracked_feature;
                     if (!pFirst || comparator_less(pFirst, pSecond)) {
                         std::swap(pFirst, pSecond);
                     }
                 } else {
-                    if (tracked_feature->flag_dead)
+                    if (tracked_feature->flag_dead_all)
                         g_tracked_feature_next_update.push_back(
                             tracked_feature);
                 }
@@ -255,9 +259,20 @@ void _pushPoints2Grid(
     };
 
     for (auto deadFeature : vDeadFeature) {
-        auto& ob = deadFeature->last_obs_;
-        vvGrid44[int(ob->px.x() / STEPX) + 4 * int(ob->px.y() / STEPY)]
-            .push_back(deadFeature);
+        // Todo: here right camera observation is handled with left camera
+        // observation,
+        //  need to properly handle the right camera observation
+        auto& ob = deadFeature->last_obs_[0];
+        if (ob) {
+            vvGrid44[int(ob->px.x() / STEPX) + 4 * int(ob->px.y() / STEPY)]
+                .push_back(deadFeature);
+        } else {
+            auto& ob = deadFeature->last_obs_[1];
+            if (ob) {
+                vvGrid44[int(ob->px.x() / STEPX) + 4 * int(ob->px.y() / STEPY)]
+                    .push_back(deadFeature);
+            }
+        }
     }
 #if OUTPUT_DEBUG_INFO
     printf("# 4*4 Dead Points:\n");
@@ -302,7 +317,7 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
     int nPointsTriangleFailed = 0;
     int nPointsMahalaFailed = 0;
 
-    // Todo: we need to grid the features on each camera
+    // Todo: Multi camera support
     int halfX = SensorConfig::Instance().GetCamModel(0)->width() / 2;
     int halfY = SensorConfig::Instance().GetCamModel(0)->height() / 2;
     // int nPointsSlamPerGrid = MAX_POINT_SIZE / 4;
@@ -311,13 +326,20 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
     static std::vector<std::vector<Landmark*>> m_slamPointGrid22(4);
     int nSlamPoint = 0;
 
+    // Step 1: Prepare the grid for slam points
     std::for_each(m_slamPointGrid22.begin(), m_slamPointGrid22.end(),
                   [](auto& a) { a.clear(); });
     for (auto& point : lTrackFeatures) {
         if (point->point_state_ && point->point_state_->flag_slam_point &&
-            !point->flag_dead) {
-            float x = point->last_obs_->px.x();
-            float y = point->last_obs_->px.y();
+            !point->flag_dead_all) {
+            float x, y;
+            if (point->last_obs_[0]) {
+                x = point->last_obs_[0]->px.x();
+                y = point->last_obs_[0]->px.y();
+            } else {
+                x = point->last_obs_[1]->px.x();
+                y = point->last_obs_[1]->px.y();
+            }
             if (x < halfX)
                 if (y < halfY) {
                     vPointsSLAMNow[0]++;
@@ -419,13 +441,16 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
                         vPointsSLAMLeft[i]--;
                     } else {
                         g_square_root_solver->AddMsckfPoint(ft->point_state_);
-                        ft->flag_dead = true;
+                        ft->SetDeadFlag(true, -1);
                     }
                     vPointsLeft[i]--;
 
                     g_tracked_feature_to_update.push_back(ft);
-                } else
-                    ft->flag_dead = false;
+                } else {  // if triangulation failed
+                    //?? why here we need to set the flag_dead to false?
+                    // should keep unchanged?
+                    // ft->flag_dead = false;
+                }
                 grid.pop_back();
             }
         }
@@ -433,7 +458,7 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
     auto bufferPoints = [&]() {
         for (auto& grid : g_grid22) {
             for (auto& ft : grid) {
-                if (ft->flag_dead) {
+                if (ft->flag_dead_all) {
                     g_tracked_feature_next_update.push_back(ft);
                 }
             }

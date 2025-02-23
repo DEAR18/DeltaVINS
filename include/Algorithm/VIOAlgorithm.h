@@ -41,8 +41,10 @@ class VIOAlgorithm {
     void _PreProcess(const ImageData::Ptr imageData);
     void _PostProcess(ImageData::Ptr data, Pose::Ptr pose);
     void _UpdatePointsAndCamsToVisualizer();
-    void _DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage);
-    void _DrawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage);
+    void _DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage,
+                         int cam_id);
+    void _DrawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage,
+                           int cam_id);
     void _TrackFrame(const ImageData::Ptr imageData);
     void InitializeStates(const Matrix3f& Rwi);
 

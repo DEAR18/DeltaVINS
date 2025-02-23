@@ -166,5 +166,8 @@ extern int randLists[];
 #define _RED_SCALAR cv::Scalar(0, 0, 255, 1)
 #define _GREEN_SCALAR cv::Scalar(0, 255, 0, 1)
 #define _BLUE_SCALAR cv::Scalar(255, 0, 0, 1)
+#define _YELLOW_SCALAR cv::Scalar(0, 255, 255, 1)
+#define _ORANGE_SCALAR cv::Scalar(0, 165, 255, 1)
+#define _PURPLE_SCALAR cv::Scalar(255, 0, 255, 1)
 
 }  // namespace DeltaVins

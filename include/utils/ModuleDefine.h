@@ -16,4 +16,4 @@
 
 #define USE_HARRIS 0
 
-#define TEST_VISION_MODULE 0
+#define TEST_VISION_MODULE 1

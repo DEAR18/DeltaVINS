@@ -179,6 +179,9 @@ void Config::loadConfigFile(const std::string& configFile) {
             (*it)["SensorType"] >> topic_type;
             if (topic_type == "StereoCamera") {
                 topic.type = ROS2SensorType::StereoCamera;
+                if (!UseStereo) {
+                    topic.type = ROS2SensorType::MonoCamera;
+                }
             } else if (topic_type == "MonoCamera") {
                 topic.type = ROS2SensorType::MonoCamera;
             } else if (topic_type == "IMU") {

@@ -43,7 +43,9 @@ void PoseOutputTcp::PushViewMatrix(std::vector<FrameGL> &v_Rcw) {
 
 void PoseOutputTcp::PushImageTexture(unsigned char *imageTexture,
                                      const int width, const int height,
-                                     const int channels) {
+                                     const int channels,
+                                     const std::string &name) {
+    (void)name;
     if (!Config::UploadImage) return;
 
     static int counter = 0;

@@ -399,13 +399,14 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
         MatrixXf E;
         E.resize(CURRENT_DIM, 9);
         int iLeft = IMU_STATE_DIM;
+        int cam_idx =
+            state->host->last_obs_[0]
+                ? state->host->last_obs_[0]->link_frame->state->index_in_window
+                : state->host->last_obs_[1]->link_frame->state->index_in_window;
         E.leftCols<3>() = info_factor_matrix_after_mariginal_.block(
             0, state->index_in_window * 3 + iLeft, CURRENT_DIM, 3);
         E.rightCols<6>() = info_factor_matrix_after_mariginal_.block(
-            0,
-            state->host->last_obs_->link_frame->state->index_in_window *
-                    CAM_STATE_DIM +
-                iLeft + 3 * slam_point_.size(),
+            0, cam_idx * CAM_STATE_DIM + iLeft + 3 * slam_point_.size(),
             CURRENT_DIM, 6);
         Matrix9f F = E.transpose() * E;
         S = state->H.leftCols(9) * F.inverse() *
@@ -486,14 +487,14 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
     int index = 0;
 
     CamModel::Ptr cam_model = SensorConfig::Instance().GetCamModel(0);
-    static Vector3f Tci = cam_model->getTci();
+    // static Vector3f Tci = cam_model->getTci();
     int num_cams = cam_states_.size();
 
     const int CAM_STATE_IDX = 3;
 
     const int RESIDUAL_IDX = 3 + CAM_STATE_DIM * num_cams;
 
-    int num_obs = track->visual_obs.size();
+    int num_obs = track->visual_obs[0].size() + track->visual_obs[1].size();
 
     if (track->point_state_->flag_slam_point) {
         num_obs = 1;
@@ -505,15 +506,15 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
     auto& H = track->point_state_->H;
     H.setZero(num_obs * 2, 3 + (CAM_STATE_DIM * num_cams) + 1);
     auto calcObsJac = [&](VisualObservation::Ptr ob) {
-        int cam_id = ob->link_frame->state->index_in_window;
+        int cam_idx_in_window = ob->link_frame->state->index_in_window;
 
         Matrix3f Riw = ob->link_frame->state->Rwi.transpose();
         Vector3f Pi =
             Riw * (track->point_state_->Pw - ob->link_frame->state->Pwi);
         Vector3f Pi_FEJ =
             Riw * (track->point_state_->Pw_FEJ - ob->link_frame->state->Pw_FEJ);
-
-        Vector2f px = cam_model->imuToImage(Pi);
+        int cam_id = ob->cam_id;
+        Vector2f px = cam_model->imuToImage(Pi, cam_id);
         Vector2f r = ob->px - px;
         float reprojErr = r.norm();
 
@@ -527,11 +528,14 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
         H.block<2, 1>(2 * index, RESIDUAL_IDX) = r;
 
         Matrix23f J23;
-        cam_model->camToImage(Pi_FEJ + Tci, J23);
+        // cam_model->camToImage(Pi_FEJ + Tci, J23);
+        cam_model->imuToImage(Pi_FEJ, J23, cam_id);
 
-        H.block<2, 3>(2 * index, CAM_STATE_IDX + CAM_STATE_DIM * cam_id) =
+        H.block<2, 3>(2 * index,
+                      CAM_STATE_IDX + CAM_STATE_DIM * cam_idx_in_window) =
             J23 * crossMat(Pi_FEJ);
-        H.block<2, 3>(2 * index, CAM_STATE_IDX + CAM_STATE_DIM * cam_id + 3) =
+        H.block<2, 3>(2 * index,
+                      CAM_STATE_IDX + CAM_STATE_DIM * cam_idx_in_window + 3) =
             -J23 * Riw;
         H.block<2, 3>(2 * index, 0) = J23 * Riw;
 
@@ -539,16 +543,21 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
     };
 
     if (track->point_state_->flag_slam_point) {
-        if (calcObsJac(track->last_obs_)) {
-            index++;
+        for (int cam_id = 0; cam_id < num_cams; ++cam_id) {
+            if (track->flag_dead[cam_id]) continue;
+            if (calcObsJac(track->last_obs_[cam_id])) {
+                index++;
+            }
         }
         if (index != num_obs) {
             return 0;
         }
     } else {
-        for (auto& ob : track->visual_obs) {
-            if (calcObsJac(ob)) {
-                index++;
+        for (int cam_id = 0; cam_id < num_cams; ++cam_id) {
+            for (auto& ob : track->visual_obs[cam_id]) {
+                if (calcObsJac(ob)) {
+                    index++;
+                }
             }
         }
     }
@@ -819,11 +828,13 @@ void SquareRootEKFSolver::_UpdateByGivensRotations(int row, int col) {
                 if (fabs(beta) < FLT_EPSILON) {
                     continue;
                 } else if (fabs(beta) > fabs(alpha)) {
-                    s = 1 / sqrt(1 + pow(alpha / beta, 2));
-                    c = -alpha / beta * s;
+                    float ratio = alpha / beta;
+                    s = 1 / sqrt(1 + ratio * ratio);
+                    c = -ratio * s;
                 } else {
-                    c = 1 / sqrt(1 + pow(beta / alpha, 2));
-                    s = -beta / alpha * c;
+                    float ratio = beta / alpha;
+                    c = 1 / sqrt(1 + ratio * ratio);
+                    s = -ratio * c;
                 }
                 for (int k = j; k < col; ++k) {
                     if (k == col - 1) {
@@ -848,11 +859,13 @@ void SquareRootEKFSolver::_UpdateByGivensRotations(int row, int col) {
                 if (fabs(beta) < FLT_EPSILON) {
                     continue;
                 } else if (fabs(beta) > fabs(alpha)) {
-                    s = 1 / sqrt(1 + pow(alpha / beta, 2));
-                    c = -alpha / beta * s;
+                    float ratio = alpha / beta;
+                    s = 1 / sqrt(1 + ratio * ratio);
+                    c = -ratio * s;
                 } else {
-                    c = 1 / sqrt(1 + pow(beta / alpha, 2));
-                    s = -beta / alpha * c;
+                    float ratio = beta / alpha;
+                    c = 1 / sqrt(1 + ratio * ratio);
+                    s = -ratio * c;
                 }
                 int k;
                 for (k = j; k < col - 1; ++k) {
@@ -902,13 +915,14 @@ void SquareRootEKFSolver::_MarginByGivensRotation() {
                     std::swap(pJ[k], pI[k]);
                 }
                 continue;
-                ;
             } else if (fabs(beta) > fabs(alpha)) {
-                s = 1 / sqrt(1 + pow(alpha / beta, 2));
-                c = -alpha / beta * s;
+                float ratio = alpha / beta;
+                s = 1 / sqrt(1 + ratio * ratio);
+                c = -ratio * s;
             } else {
-                c = 1 / sqrt(1 + pow(beta / alpha, 2));
-                s = -beta / alpha * c;
+                float ratio = beta / alpha;
+                c = 1 / sqrt(1 + ratio * ratio);
+                s = -ratio * c;
             }
             for (int k = j; k < CURRENT_DIM; ++k) {
                 float x = pJ[k];
@@ -934,9 +948,11 @@ void SquareRootEKFSolver::MarginalizeGivens() {
 
     for (int i = 0, n = slam_point_.size(); i < n; ++i) {
         if (slam_point_[i]->flag_to_marginalize ||
-            slam_point_[i]->flag_to_next_marginalize)
-            slam_point_[i]->host->flag_dead = true;
-        if (slam_point_[i]->host->flag_dead) {
+            slam_point_[i]->flag_to_next_marginalize) {
+            slam_point_[i]->host->SetDeadFlag(true, -1);
+        }
+
+        if (slam_point_[i]->host->flag_dead_all) {
             for (int j = 0; j < 3; ++j) {
                 v_MarginDIM.push_back(iDim++);
             }

@@ -24,7 +24,7 @@ void DataSource_Euroc::_LoadIMU() {
     ifstream imuCsv;
     imuCsv.open(imu_dir_ + "/data.csv");
     CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
-    static Matrix3f Rci = camModel->getRci();
+    // static Matrix3f Rci = camModel->getRci();
     ImuData imuData;
     std::string s;
     getline(imuCsv, s);  // read first comment line
@@ -46,8 +46,8 @@ void DataSource_Euroc::_LoadIMU() {
 			imuData.acc[0] *= -1;
 			std::swap(imuData.acc[0], imuData.acc[1]);
 #endif
-        imuData.acc = Rci * imuData.acc;
-        imuData.gyro = Rci * imuData.gyro;
+        // imuData.acc = Rci * imuData.acc;
+        // imuData.gyro = Rci * imuData.gyro;
 
         imus_.push_back(imuData);
     }

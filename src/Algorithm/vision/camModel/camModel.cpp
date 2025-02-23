@@ -36,6 +36,9 @@ CamModel::Ptr CamModel::CreateFromConfig(const cv::FileStorage& config) {
 
     bool is_stereo;
     config["IsStereo"] >> is_stereo;
+    if (!Config::UseStereo) {
+        is_stereo = false;
+    }
 
     CamModel::Ptr cam_model;
     if (type == "Pinhole") {
@@ -68,7 +71,7 @@ CamModel::Ptr CamModel::CreateFromConfig(const cv::FileStorage& config) {
     //     Tic_eigen.topRightCorner<3, 1>();
     // cam_model_->Rci_ = Tci_eigen.block<3, 3>(0, 0);
     // cam_model_->tci_ = Tci_eigen.block<3, 1>(0, 3);
-    // cam_model_->Pic_ = Tic_eigen.block<3, 1>(0, 3);
+    // cam_model_->Pc_in_i_ = Tic_eigen.block<3, 1>(0, 3);
     // if (cam_model_->is_stereo_) {
     //     cv::Mat Tic_right;
     //     config["Tic_right"] >> Tic_right;
@@ -86,9 +89,9 @@ CamModel::Ptr CamModel::CreateFromConfig(const cv::FileStorage& config) {
     //         Tic_eigen_right.topRightCorner<3, 1>();
     //     cam_model_right_->Rci_ = Tci_eigen_right.block<3, 3>(0, 0);
     //     cam_model_right_->tci_ = Tci_eigen_right.block<3, 1>(0, 3);
-    //     cam_model_right_->Pic_ = Tic_eigen_right.block<3, 1>(0, 3);
+    //     cam_model_right_->Pc_in_i_ = Tic_eigen_right.block<3, 1>(0, 3);
     //     cam_model_->baseline_ =
-    //         (cam_model_->Pic_ - cam_model_right_->Pic_).norm();
+    //         (cam_model_->Pc_in_i_ - cam_model_right_->Pc_in_i_).norm();
     //     cam_model_right_->baseline_ = cam_model_->baseline_;
     // }
 
@@ -98,11 +101,12 @@ CamModel::Ptr CamModel::CreateFromConfig(const cv::FileStorage& config) {
     //     for (int j = 0; j < 3; ++j) {
     //         Rci(i, j) = Tci.at<double>(i, j);
     //     }
-    //     cam_model_->Pic_(i) = Tci.at<double>(i, 3);
+    //     cam_model_->Pc_in_i_(i) = Tci.at<double>(i, 3);
     // }
     // cam_model_->Rci_ = Rci;
-    // cam_model_->tci_ = cam_model_->Pic_;
-    // cam_model_->Pic_ = -(cam_model_->Rci_.transpose() * cam_model_->Pic_);
+    // cam_model_->tci_ = cam_model_->Pc_in_i_;
+    // cam_model_->Pc_in_i_ = -(cam_model_->Rci_.transpose() *
+    // cam_model_->Pc_in_i_);
 
     // if (cam_model_->is_stereo_) {
     //     cv::Mat Tci_right;
@@ -113,14 +117,15 @@ CamModel::Ptr CamModel::CreateFromConfig(const cv::FileStorage& config) {
     //         for (int j = 0; j < 3; ++j) {
     //             Rci_right(i, j) = Tci_right.at<double>(i, j);
     //         }
-    //         cam_model_right_->Pic_(i) = Tci_right.at<double>(i, 3);
+    //         cam_model_right_->Pc_in_i_(i) = Tci_right.at<double>(i, 3);
     //     }
     //     cam_model_right_->Rci_ = Rci_right;
-    //     cam_model_right_->tci_ = cam_model_right_->Pic_;
-    //     cam_model_right_->Pic_ =
-    //         -(cam_model_right_->Rci_.transpose() * cam_model_right_->Pic_);
-    //     cam_model_->baseline_ = (cam_model_->Pic_ -
-    //     cam_model_right_->Pic_).norm(); cam_model_right_->baseline_ =
+    //     cam_model_right_->tci_ = cam_model_right_->Pc_in_i_;
+    //     cam_model_right_->Pc_in_i_ =
+    //         -(cam_model_right_->Rci_.transpose() *
+    //         cam_model_right_->Pc_in_i_);
+    //     cam_model_->baseline_ = (cam_model_->Pc_in_i_ -
+    //     cam_model_right_->Pc_in_i_).norm(); cam_model_right_->baseline_ =
     //     cam_model_->baseline_;
     // }
 }

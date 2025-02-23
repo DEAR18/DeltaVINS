@@ -21,7 +21,7 @@ struct VisualObservation {
 
     Vector2f px_reprj;            // reprojected position only used for debug
     Vector2f px;                  // feature position
-    Vector3f ray_in_imu;          // camera ray
+    Vector3f ray_in_cam;          // camera ray
     Frame* link_frame = nullptr;  // pointer to linked frame
     Landmark* link_landmark = nullptr;  // pointer to linked landmark
     VisualObservation* stereo_obs =
@@ -50,9 +50,9 @@ struct Frame {
         nullptr;  // pointer to camera states including position,rotation,etc.
 
     std::unordered_set<VisualObservation::Ptr>
-        visual_obs;  // All visual observations in this frame.
-    std::unordered_set<VisualObservation::Ptr>
-        visual_obs_right;  // All visual observations in the right camera.
+        visual_obs[2];  // All visual observations in this frame.
+    // std::unordered_set<VisualObservation::Ptr>
+    //     visual_obs_right;  // All visual observations in the right camera.
     int valid_landmark_num;
     int64_t timestamp;
 
@@ -74,39 +74,41 @@ struct Landmark : public NonLinear_LM<3, double> {
 
     ~Landmark();
 
-    bool flag_dead;          // still be tracked
-    int flag_dead_frame_id;  // used for debug
-    int num_obs;             // the number of observations matched
+    int valid_obs_num;
+    bool flag_dead_all;         // still be tracked
+    bool flag_dead[2];          // still be tracked
+    int flag_dead_frame_id[2];  // used for debug
+    int num_obs_tracked;        // the number of observations matched
     float ray_angle;   // ray angle between current camera ray and the first ray
     float ray_angle0;  // last ray angle
     int landmark_id_;  // used for debug
-    Vector3f Pw_stereo_prior;
-    bool has_stereo_prior;
 
     std::set<VisualObservation::Ptr, VisualObservationComparator>
         // std::unordered_set<VisualObservation::Ptr>
-        visual_obs;                    // vector of all visual observations
-    VisualObservation::Ptr last_obs_;  // pointer to the last observation
+        visual_obs[2];                    // vector of all visual observations
+    VisualObservation::Ptr last_obs_[2];  // pointer to the last observation
     VisualObservation::Ptr
-        last_last_obs_;  // pointer to the second last observation
-    Vector2f
-        predicted_px;  // predicted pixel position using propagated camera pose
+        last_last_obs_[2];     // pointer to the second last observation
+    Vector2f predicted_px[2];  // predicted pixel position using propagated
+                               // camera pose
     PointState* point_state_;  // pointer to point state
     Frame* host_frame;
     bool flag_slam_point_candidate;
-    std::vector<Matrix3d> dRs;  // used in Triangulate
-    std::vector<Vector3d> dts;
+    std::vector<Matrix3d> dRs[2];  // used in Triangulate
+    std::vector<Vector3d> dts[2];
 
-    void AddVisualObservation(VisualObservation::Ptr obs);
-    void AddVisualObservation(const Vector2f& px, Frame* frame, float depth);
+    void SetDeadFlag(bool dead, int cam_id);  // -1: all, 0: left, 1: right
+
+    void AddVisualObservation(VisualObservation::Ptr obs, int cam_id);
     void RemoveVisualObservation(VisualObservation::Ptr obs);
-    void PopObservation();
+    void PopObservation(int cam_id);
 
     void RemoveLinksInCamStates();
-    void DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const;
-    float Reproject(bool verbose = true);
-    void DrawObservationsAndReprojection(int time = 0);
-    void PrintObservations();
+    void DrawFeatureTrack(cv::Mat& image, cv::Scalar color,
+                          int cam_id = 0) const;
+    float Reproject(bool verbose = true, int cam_id = 0);
+    void DrawObservationsAndReprojection(int time = 0, int cam_id = 0);
+    void PrintObservations(int cam_id = 0);
 
     void RemoveUselessObservationForSlamPoint();
 

@@ -85,7 +85,8 @@ void DataRecorder::DoWhatYouNeedToDo() {
                          cv::COLOR_GRAY2BGR);
         frame_adapter_->PushImageTexture(
             image_data_->image.data, image_data_->image.cols,
-            image_data_->image.rows, image_data_->image.channels());
+            image_data_->image.rows, image_data_->image.channels(),
+            "image_raw");
     }
     flag_have_image_ = false;
     fflush(cam_file_);

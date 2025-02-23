@@ -7,6 +7,7 @@
 #include "Algorithm/vision/camModel/camModel.h"
 #include "precompile.h"
 #include "utils/SensorConfig.h"
+#include "utils/tf.h"
 #include "utils/utils.h"
 
 namespace DeltaVins {
@@ -15,7 +16,7 @@ VisualObservation::VisualObservation(const Vector2f& px, Frame* frame,
                                      int cam_id)
     : px(px), link_frame(frame), cam_id(cam_id) {
     auto camModel = SensorConfig::Instance().GetCamModel(frame->sensor_id);
-    ray_in_imu = camModel->imageToImu(px, cam_id);
+    ray_in_cam = camModel->imageToCam(px);
 }
 
 Frame::Frame(int sensor_id) {
@@ -31,11 +32,7 @@ Frame::Frame(int sensor_id) {
 VisualObservation::Ptr Frame::AddVisualObservation(const Vector2f& px,
                                                    int cam_id) {
     auto obs = std::make_shared<VisualObservation>(px, this, cam_id);
-    if (cam_id == 0) {
-        visual_obs.insert(obs);
-    } else {
-        visual_obs_right.insert(obs);
-    }
+    visual_obs[cam_id].insert(obs);
     return obs;
 }
 
@@ -44,24 +41,29 @@ Frame::~Frame() {
 }
 
 void Frame::RemoveAllObservations() {
-    for (auto obs : visual_obs) {
-        Landmark* landmark = obs->link_landmark;
-        if (landmark) {
-            landmark->RemoveVisualObservation(obs);
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        for (auto obs : visual_obs[cam_id]) {
+            Landmark* landmark = obs->link_landmark;
+            if (landmark) {
+                landmark->RemoveVisualObservation(obs);
+            }
         }
+        visual_obs[cam_id].clear();
     }
-    visual_obs.clear();
     valid_landmark_num = 0;
 }
 
 void Landmark::RemoveVisualObservation(VisualObservation::Ptr obs) {
-    visual_obs.erase(obs);
+    int cam_id = obs->cam_id;
+    visual_obs[cam_id].erase(obs);
     obs->link_landmark = nullptr;
+    // Todo: stereo observation would be handled twice here
     obs->link_frame->valid_landmark_num--;
+    valid_obs_num--;
 }
 
 Landmark::~Landmark() {
-    if (!visual_obs.empty()) {
+    if (!visual_obs[0].empty() || !visual_obs[1].empty()) {
         RemoveLinksInCamStates();
     }
     if (point_state_) {
@@ -70,16 +72,31 @@ Landmark::~Landmark() {
     }
 }
 
+void Landmark::SetDeadFlag(bool dead, int cam_id) {
+    if (cam_id == -1) {
+        flag_dead_all = dead;
+        flag_dead[0] = dead;
+        flag_dead[1] = dead;
+    } else {
+        flag_dead[cam_id] = dead;
+    }
+}
+
 Landmark::Landmark() : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false) {
-    flag_dead = false;
-    num_obs = 0;
+    flag_dead[0] = true;
+    flag_dead[1] = true;
+    flag_dead_all = true;
+    num_obs_tracked = 0;
     ray_angle = 0;
+    ray_angle0 = 0;
     // last_moved_px = 0;
     point_state_ = nullptr;
     flag_slam_point_candidate = false;
+    valid_obs_num = 0;
     host_frame = nullptr;
 
-    flag_dead_frame_id = -1;
+    flag_dead_frame_id[0] = -1;
+    flag_dead_frame_id[1] = -1;
     static int counter = 0;
     landmark_id_ = counter++;
 }
@@ -91,34 +108,30 @@ bool Landmark::TriangulationAnchorDepth(float& anchor_depth) {
 
     // Todo: support multi-camera
     CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
-    static Vector3d Tci = camModel->getTci().cast<double>();
-
-    for (auto& visualOb : visual_obs) {
-        ray_in_c.push_back(visualOb->ray_in_imu.cast<double>());
-        Rwc.push_back(visualOb->link_frame->state->Rwi.cast<double>());
-        Pc_in_w.push_back(visualOb->link_frame->state->Pwi.cast<double>() -
-                          Tci);
+    // static Vector3d Tci = camModel->getTci().cast<double>();
+    static Matrix3d Rci[2] = {camModel->getRci(0).cast<double>(),
+                              camModel->getRci(1).cast<double>()};
+    static Vector3d Pc_in_i[2] = {camModel->getPic(0).cast<double>(),
+                                  camModel->getPic(1).cast<double>()};
+    int anchor_cam_id = visual_obs[0].size() > 0 ? 0 : 1;
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        for (auto& visualOb : visual_obs[cam_id]) {
+            ray_in_c.push_back(visualOb->ray_in_cam.cast<double>());
+            Rwc.push_back(visualOb->link_frame->state->Rwi.cast<double>() *
+                          Rci[cam_id].transpose());
+            Pc_in_w.push_back(visualOb->link_frame->state->Pwi.cast<double>() +
+                              visualOb->link_frame->state->Rwi.cast<double>() *
+                                  Pc_in_i[cam_id]);
+        }
     }
     Eigen::Vector3d Pw_triangulated;
     bool success = DeltaVins::TriangulationAnchorDepth(ray_in_c, Rwc, Pc_in_w,
                                                        Pw_triangulated);
     if (success) {
         Eigen::Vector3d Pw_triangulated_cam =
-            Rwc[0].transpose() * (Pw_triangulated - Pc_in_w[0]);
+            Rwc[anchor_cam_id].transpose() *
+            (Pw_triangulated - Pc_in_w[anchor_cam_id]);
         anchor_depth = Pw_triangulated_cam.z();
-        //         if (point_state_ == nullptr) {
-        //             point_state_ = new PointState();
-        //             point_state_->host = this;
-        //         }
-        //         point_state_->Pw = Pw_triangulated.cast<float>();
-        //         point_state_->Pw_FEJ = point_state_->Pw;
-        //         m_Result.cost = Reproject(false);
-        //         printf("TriangulationAnchorDepth cost: %f\n", m_Result.cost);
-        //         if (m_Result.cost < 2 && !flag_dead) {
-        //             flag_slam_point_candidate = true;
-        //             printf("slam candidate with obs num: %d\n",
-        //             visual_obs.size());
-        //         }
         return true;
     }
     return false;
@@ -133,31 +146,76 @@ bool Landmark::TriangulateLM(float depth_prior) {
     if (verbose_) LOGI("###PointID:%d", landmark_id_);
     // if (point_state_) return m_Result.bConverged;
     // TODO: multi-camera triangulation
-    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
-    static Vector3d Tci = camModel->getTci().cast<double>();
+    // CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
+    // static Vector3d Tci = camModel->getTci().cast<double>();
 
     clear();
 
-    auto& leftVisualOb = *visual_obs.begin();
+    // select the anchor observation
+    // he anchor observation is selected from the right camera only when the
+    // left - hand observation is empty.
+    VisualObservation::Ptr anchor_ob = nullptr;
+    anchor_ob = visual_obs[0].size() > 0 ? *visual_obs[0].begin()
+                                         : *visual_obs[1].begin();
+    if (anchor_ob == nullptr) {
+        return false;
+    }
+    int anchor_cam_id = anchor_ob->cam_id;
+
     // Vector3f pInImu = Rci.transpose() * (leftVisualOb.m_Ray_cam*2) + Pic;
-    z = leftVisualOb->ray_in_imu.cast<double>();
+    z = anchor_ob->ray_in_cam.cast<double>();
     z /= z[2];
     z[2] = 1 / depth_prior;
     /*z.z() = 1/pInImu.z();*/
 
-    const int nSize = visual_obs.size();
-    dRs.resize(nSize);
-    dts.resize(nSize);
-    Matrix3d leftR = leftVisualOb->link_frame->state->Rwi.cast<double>();
-    Vector3d leftP = leftVisualOb->link_frame->state->Pwi.cast<double>();
-    {
-        int i = 0;
-        for (auto& visualOb : visual_obs) {
-            Matrix3d R_i = visualOb->link_frame->state->Rwi.cast<double>();
-            Vector3d P_i = visualOb->link_frame->state->Pwi.cast<double>();
-            dRs[i] = R_i.transpose() * leftR;
-            dts[i] = R_i.transpose() * (leftP - P_i) + Tci - dRs[i] * Tci;
-            i++;
+    Matrix3f anchor_R = anchor_ob->link_frame->state->Rwi;
+    Vector3f anchor_P = anchor_ob->link_frame->state->Pwi;
+    Eigen::Isometry3f T_w_i_anchor = Eigen::Isometry3f::Identity();
+    T_w_i_anchor.linear() = anchor_R;
+    T_w_i_anchor.translation() = anchor_P;
+    Transform<float> T_w_i_anchor_tf =
+        Transform<float>(0, "world", "imu0", T_w_i_anchor);
+    Transform<float> T_i_c0_tf;
+    Tfs<float>::Instance().GetTransform("imu0", "camera0", T_i_c0_tf);
+    Transform<float> T_i_c1_tf;
+    if (!visual_obs[1].empty()) {
+        Tfs<float>::Instance().GetTransform("imu0", "camera1", T_i_c1_tf);
+    }
+    Transform<float> T_i_c_anchor_tf;
+    T_i_c_anchor_tf = anchor_cam_id == 0 ? T_i_c0_tf : T_i_c1_tf;
+    auto T_w_c_anchor_tf = T_w_i_anchor_tf * T_i_c_anchor_tf;
+    // To compute the relative pose between the anchor frame and the current
+    // frame
+
+    // get the relative pose between left and right
+    Transform<float> T_c0_c1_tf;
+    if (!visual_obs[0].empty() && !visual_obs[1].empty()) {
+        Tfs<float>::Instance().GetTransform("camera1", "camera0", T_c0_c1_tf);
+    }
+
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        const int nSize = visual_obs[cam_id].size();
+        dRs[cam_id].resize(nSize);
+        dts[cam_id].resize(nSize);
+        Transform<float> T_i_c_n_tf = cam_id == 0 ? T_i_c0_tf : T_i_c1_tf;
+        {
+            int i = 0;
+            for (auto& visualOb : visual_obs[cam_id]) {
+                Eigen::Isometry3f T_w_i_n;
+
+                T_w_i_n.linear() = visualOb->link_frame->state->Rwi;
+                T_w_i_n.translation() = visualOb->link_frame->state->Pwi;
+                Transform<float> T_w_i_n_tf =
+                    Transform<float>(0, "world", "imu0", T_w_i_n);
+
+                Transform<float> T_i_n_i_a_tf =
+                    T_w_i_n_tf.Inverse() * T_w_i_anchor_tf;
+                Transform<float> T_cn_ca_tf =
+                    T_i_c_n_tf.Inverse() * T_i_n_i_a_tf * T_i_c_anchor_tf;
+                dRs[cam_id][i] = T_cn_ca_tf.Rotation().cast<double>();
+                dts[cam_id][i] = T_cn_ca_tf.Translation().cast<double>();
+                i++;
+            }
         }
     }
 
@@ -169,7 +227,7 @@ bool Landmark::TriangulateLM(float depth_prior) {
     }
     Vector3d cpt = z / z[2];
     cpt[2] = 1.0 / z[2];
-    point_state_->Pw = (leftR * (cpt - Tci) + leftP).cast<float>();
+    point_state_->Pw = T_w_c_anchor_tf.TransformPoint(cpt.cast<float>());
     point_state_->Pw_FEJ = point_state_->Pw;
     float depthRatio = 0.01;
     if (m_Result.bConverged && !flag_dead && m_Result.cost < 2 &&
@@ -178,8 +236,11 @@ bool Landmark::TriangulateLM(float depth_prior) {
 
     // if (z[2] < 0.1) flag_slam_point_candidate = false;
 
-    dRs.clear();
-    dts.clear();
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        dRs[cam_id].clear();
+        dts[cam_id].clear();
+    }
+
     m_Result.cost = Reproject(false);
     if (m_Result.cost > 5) {
         delete point_state_;
@@ -210,36 +271,39 @@ double Landmark::EvaluateF(bool bNewZ, double huberThresh) {
     bTemp.setZero();
     J33 << position[2], 0, -position[0] * position[2], 0, position[2],
         -position[1] * position[2], 0, 0, -position[2] * position[2];
-    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
-    int i = 0;
-    for (auto& visualOb : visual_obs) {
-        Vector3f p_cam_f = (dRs[i] * position + dts[i]).cast<float>();
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(cam_id);
+        int i = 0;
+        for (auto& visualOb : visual_obs[cam_id]) {
+            Vector3f p_cam_f =
+                (dRs[cam_id][i] * position + dts[cam_id][i]).cast<float>();
 
-        Matrix23f J23f;
-        visualOb->px_reprj = camModel->camToImage(p_cam_f, J23f);
-        Matrix23d J23d = J23f.cast<double>();
+            Matrix23f J23f;
+            visualOb->px_reprj = camModel->camToImage(p_cam_f, J23f, cam_id);
+            Matrix23d J23d = J23f.cast<double>();
 
-        Vector2d r = (visualOb->px - visualOb->px_reprj).cast<double>();
+            Vector2d r = (visualOb->px - visualOb->px_reprj).cast<double>();
 #if HUBER || 1
-        double reprojErr = r.norm();
-        double hw = reprojErr > huberThresh ? huberThresh / reprojErr : 1;
-        // cost += reprojErr>huberThresh ?
-        // huberThresh*(2*reprojErr-huberThresh):reprojErr*reprojErr;
-        if (reprojErr > huberThresh) {
-            cost += huberThresh * (2 * reprojErr - huberThresh);
-        } else
-            cost += reprojErr * reprojErr;
+            double reprojErr = r.norm();
+            double hw = reprojErr > huberThresh ? huberThresh / reprojErr : 1;
+            // cost += reprojErr>huberThresh ?
+            // huberThresh*(2*reprojErr-huberThresh):reprojErr*reprojErr;
+            if (reprojErr > huberThresh) {
+                cost += huberThresh * (2 * reprojErr - huberThresh);
+            } else
+                cost += reprojErr * reprojErr;
 #else
-        float hw = 1.0f;
-        cost += r.squaredNorm();
+            float hw = 1.0f;
+            cost += r.squaredNorm();
 #endif
 
-        Matrix23d J = J23d * dRs[i] * J33;
+            Matrix23d J = J23d * dRs[cam_id][i] * J33;
 
-        HTemp.noalias() += J.transpose() * J * hw;
-        bTemp.noalias() += J.transpose() * r * hw;
+            HTemp.noalias() += J.transpose() * J * hw;
+            bTemp.noalias() += J.transpose() * r * hw;
 
-        i++;
+            i++;
+        }
     }
     // if(!bNewZ)
     //	H += Matrix3f::Identity()*FLT_EPSILON;
@@ -248,23 +312,18 @@ double Landmark::EvaluateF(bool bNewZ, double huberThresh) {
 
 bool Landmark::UserDefinedDecentFail() { return zNew[2] < 0; }
 
-void Landmark::AddVisualObservation(VisualObservation::Ptr obs) {
-    flag_dead = false;
+void Landmark::AddVisualObservation(VisualObservation::Ptr obs, int cam_id) {
+    flag_dead[cam_id] = false;
+    flag_dead_all = false;
 
-    // TODO: moved to tracker
-    // if (!visual_obs.empty()) {
-    //     last_moved_px = (visual_obs.back().px - px).squaredNorm();
-    // }
-    num_obs++;
-
-    // CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
-    // Vector3f ray0 = camModel->imageToImu(px);
+    num_obs_tracked++;
+    valid_obs_num++;
 
     obs->link_landmark = this;
     obs->link_frame->valid_landmark_num++;
-    visual_obs.insert(obs);
-    last_last_obs_ = last_obs_;
-    last_obs_ = obs;
+    visual_obs[cam_id].insert(obs);
+    last_last_obs_[cam_id] = last_obs_[cam_id];
+    last_obs_[cam_id] = obs;
 
     // Here we compute the ray angle between the former rays and the last ray
     // The ray angle is used to judge if the landmark is a good landmark
@@ -273,11 +332,11 @@ void Landmark::AddVisualObservation(VisualObservation::Ptr obs) {
     // the ray angle to judge the landmark?? because the ray angle is not a good
     // metric to describe the landmark
     ray_angle0 = ray_angle;
-    Vector3f ray1 = obs->link_frame->state->Rwi * obs->ray_in_imu;
+    Vector3f ray1 = obs->link_frame->state->Rwi * obs->ray_in_cam;
 
     float minDot = 2;
-    for (auto& visualOb : visual_obs) {
-        float dot = ((visualOb->link_frame->state->Rwi * visualOb->ray_in_imu)
+    for (auto& visualOb : visual_obs[cam_id]) {
+        float dot = ((visualOb->link_frame->state->Rwi * visualOb->ray_in_cam)
                          .normalized())
                         .dot(ray1.normalized());
         if (dot < minDot) minDot = dot;
@@ -287,12 +346,16 @@ void Landmark::AddVisualObservation(VisualObservation::Ptr obs) {
     }
 }
 
-void Landmark::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
+void Landmark::DrawFeatureTrack(cv::Mat& image, cv::Scalar color,
+                                int cam_id) const {
     std::set<VisualObservation::Ptr, VisualObservationComparator>
-        visual_obs_set(visual_obs.begin(), visual_obs.end());
+        visual_obs_set(visual_obs[cam_id].begin(), visual_obs[cam_id].end());
 
     VisualObservation::Ptr front_obs = nullptr;
     VisualObservation::Ptr curr_obs = nullptr;
+    if (!flag_dead[0] && !flag_dead[1] && valid_obs_num > 5) {
+        color = _PURPLE_SCALAR;
+    }
     for (auto& visualOb : visual_obs_set) {
         curr_obs = visualOb;
         if (front_obs == nullptr) {
@@ -310,20 +373,23 @@ void Landmark::DrawFeatureTrack(cv::Mat& image, cv::Scalar color) const {
                    color);
         front_obs = curr_obs;
     }
-    cv::circle(image, cv::Point(last_obs_->px.x(), last_obs_->px.y()), 8,
-               color);
+    cv::circle(image,
+               cv::Point(last_obs_[cam_id]->px.x(), last_obs_[cam_id]->px.y()),
+               8, color);
 }
-float Landmark::Reproject(bool verbose) {
+float Landmark::Reproject(bool verbose, int cam_id) {
     assert(point_state_);
     CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
     float reprojErr = 0;
-    for (auto& ob : visual_obs) {
+    for (auto& ob : visual_obs[cam_id]) {
         ob->px_reprj = camModel->imuToImage(
             ob->link_frame->state->Rwi.transpose() *
             (point_state_->Pw - ob->link_frame->state->Pwi));
         reprojErr += (ob->px_reprj - ob->px).norm();
     }
-    reprojErr = visual_obs.size() > 0 ? reprojErr / visual_obs.size() : 100;
+    reprojErr = visual_obs[cam_id].size() > 0
+                    ? reprojErr / visual_obs[cam_id].size()
+                    : 100;
     if (reprojErr > 3) {
         if (reprojErr > 5)
             // DrawObservationsAndReprojection();
@@ -334,12 +400,12 @@ float Landmark::Reproject(bool verbose) {
     return reprojErr;
 }
 
-void Landmark::DrawObservationsAndReprojection(int time) {
+void Landmark::DrawObservationsAndReprojection(int time, int cam_id) {
 #if ENABLE_VISUALIZER && !defined(PLATFORM_ARM)
     if (Config::NoGUI) return;
     cv::Mat display;
     bool first = 1;
-    for (auto& ob : visual_obs) {
+    for (auto& ob : visual_obs[cam_id]) {
         cv::cvtColor(ob->link_frame->image, display, cv::COLOR_GRAY2BGR);
         if (first) {
             cv::circle(display, cv::Point(ob->px.x(), ob->px.y()), 8,
@@ -358,11 +424,12 @@ void Landmark::DrawObservationsAndReprojection(int time) {
     }
 #else
     (void)time;
+    (void)cam_id;
 #endif
 }
 
-void Landmark::PrintObservations() {
-    for (auto& visualOb : visual_obs) {
+void Landmark::PrintObservations(int cam_id) {
+    for (auto& visualOb : visual_obs[cam_id]) {
         LOGI("Px: %f %f,Pos:%f %f %f", visualOb->px.x(), visualOb->px.y(),
              visualOb->link_frame->state->Pwi.x(),
              visualOb->link_frame->state->Pwi.y(),
@@ -373,14 +440,18 @@ void Landmark::RemoveUselessObservationForSlamPoint() {
     // return;
     // I think this function is not needed
     // assert(point_state_ && point_state_->flag_slam_point);
-    for (auto iter = visual_obs.begin(); iter != visual_obs.end();) {
-        auto visualOb = *iter;
-        if (!visualOb->link_frame->flag_keyframe) {
-            visualOb->link_landmark = nullptr;
-            visualOb->link_frame->valid_landmark_num--;
-            iter = visual_obs.erase(iter);
-        } else {
-            iter++;
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        for (auto iter = visual_obs[cam_id].begin();
+             iter != visual_obs[cam_id].end();) {
+            auto visualOb = *iter;
+            if (!visualOb->link_frame->flag_keyframe) {
+                visualOb->link_landmark = nullptr;
+                visualOb->link_frame->valid_landmark_num--;
+                iter = visual_obs[cam_id].erase(iter);
+                valid_obs_num--;
+            } else {
+                iter++;
+            }
         }
     }
 }
@@ -392,24 +463,26 @@ bool Landmark::UserDefinedConvergeCriteria() {
 
 void Landmark::PrintPositions() {}
 
-void Landmark::PopObservation() {
-    flag_dead = true;
-    visual_obs.erase(last_obs_);
-    last_obs_->link_landmark = nullptr;
-    last_obs_ = last_last_obs_;
-    last_last_obs_ = nullptr;
-    // visual_obs.back()->link_landmark = nullptr;
+void Landmark::PopObservation(int cam_id) {
+    flag_dead[cam_id] = true;
+    visual_obs[cam_id].erase(last_obs_[cam_id]);
+    last_obs_[cam_id]->link_landmark = nullptr;
+    last_obs_[cam_id] = last_last_obs_[cam_id];
+    last_last_obs_[cam_id] = nullptr;
     ray_angle = ray_angle0;
-    // visual_obs.pop_back();
-    num_obs--;
+    num_obs_tracked--;
+    valid_obs_num--;
 }
 
 void Landmark::RemoveLinksInCamStates() {
-    for (auto& ob : visual_obs) {
-        ob->link_landmark = nullptr;
-        ob->link_frame->valid_landmark_num--;
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        for (auto& ob : visual_obs[cam_id]) {
+            ob->link_landmark = nullptr;
+            ob->link_frame->valid_landmark_num--;
+        }
+        visual_obs[cam_id].clear();
     }
-    visual_obs.clear();
+    valid_obs_num = 0;
 }
 
 }  // namespace DeltaVins

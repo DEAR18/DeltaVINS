@@ -96,14 +96,14 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
 
     bool is_stereo = camModel->IsStereo();
     for (auto tf : vTrackedFeatures) {
-        if (!tf->flag_dead) {
-            auto xy = tf->last_obs_->px;
-            _SetMask(xy.x(), xy.y(), tf->last_obs_->cam_id);
-            if (is_stereo) {
-                if (tf->last_obs_->stereo_obs) {
-                    auto xy_right = tf->last_obs_->stereo_obs->px;
-                    _SetMask(xy_right.x(), xy_right.y(),
-                             tf->last_obs_->stereo_obs->cam_id);
+        if (!tf->flag_dead_all) {
+            for (int cam_id = 0; cam_id < 2; cam_id++) {
+                if (tf->flag_dead[cam_id]) {
+                    continue;
+                }
+                if (tf->last_obs_[cam_id]) {
+                    auto xy = tf->last_obs_[cam_id]->px;
+                    _SetMask(xy.x(), xy.y(), cam_id);
                 }
             }
         }
@@ -116,7 +116,7 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
     std::vector<cv::Point2f> corners;
     std::vector<cv::Point2f> corners_right;
 
-    // First we extract left image features
+    // Step 1: we extract left image features
 
 #if USE_HARRIS
     _ExtractHarris(corners, max_num, 0);
@@ -124,16 +124,16 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
     _ExtractFast(imgStride, halfMaskSize, corners, 0);
 #endif
 
-    // Then we find the right stereo features if stereo is enabled
+    // Step 2: we find the right stereo features if stereo is enabled
     std::vector<cv::Point2f> stereo_corners;
     std::vector<cv::Point2f> stereo_corners_back;
     std::vector<unsigned char> stereo_status, stereo_status_back, final_status;
     std::vector<float> err;
 
     if (is_stereo) {
-        cv::calcOpticalFlowPyrLK(image_pyramid_, right_image_pyramid_, corners,
+        cv::calcOpticalFlowPyrLK(image_pyramid_[0], image_pyramid_[1], corners,
                                  stereo_corners, stereo_status, err);
-        cv::calcOpticalFlowPyrLK(right_image_pyramid_, image_pyramid_,
+        cv::calcOpticalFlowPyrLK(image_pyramid_[1], image_pyramid_[0],
                                  stereo_corners, stereo_corners_back,
                                  stereo_status_back, err);
         for (size_t i = 0; i < stereo_corners.size(); i++) {
@@ -145,124 +145,152 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractMorePoints(
                 final_status.push_back(0);
             }
         }
-        // // show stereo match
-        // // merge two image
-        // cv::Mat img_show;
-        // cv::hconcat(image_, right_image_, img_show);
-        // cv::cvtColor(img_show, img_show, cv::COLOR_BGR2RGB);
-        // for (int i = 0; i < stereo_corners.size(); i++) {
-        //     if (final_status[i]) {
-        //         cv::circle(img_show, corners[i], 2, cv::Scalar(0, 255, 0),
-        //         2); cv::circle(img_show,cv::Point2f(stereo_corners[i].x +
-        //         imgStride, stereo_corners[i].y), 2, cv::Scalar(0, 255, 0),
-        //         2);
-        //         cv::line(img_show,corners[i],cv::Point2f(stereo_corners[i].x
-        //         + imgStride, stereo_corners[i].y),cv::Scalar(255, 0, 0),1);
-        //     }
-        // }
-        // cv::imshow("stereo match",img_show);
-        // cv::waitKey(0);
     }
 
+    // Step 3: we add left only features and left to right stereo features
     for (size_t corner_idx = 0,
                 track_candidates = max_num_to_track_ - num_features_tracked_;
          corner_idx < corners.size() && track_candidates > 0; ++corner_idx) {
         int x = corners[corner_idx].x;
         int y = corners[corner_idx].y;
         assert(x + y * imgStride < mask_buffer_size_);
-        if (mask_[x + y * imgStride]) {
-            _SetMask(x, y);
+        if (!_IsMasked(x, y, 0)) {
+            _SetMask(x, y, 0);
             track_candidates--;
             auto tf = std::make_shared<Landmark>();
             auto obs = cam_state_->AddVisualObservation(Vector2f(x, y), 0);
             if (is_stereo) {
-                // auto left_model = CamModel::getCamModel(0);
-                // auto right_model = CamModel::getCamModel(1);
                 if (final_status[corner_idx]) {
+                    // Add stereo observation
                     auto obs_right = cam_state_->AddVisualObservation(
                         Vector2f(stereo_corners[corner_idx].x,
                                  stereo_corners[corner_idx].y),
                         1);
+                    _SetMask(stereo_corners[corner_idx].x,
+                             stereo_corners[corner_idx].y, 1);
                     obs_right->stereo_obs = obs.get();
                     obs->stereo_obs = obs_right.get();
-
-                    // Vector2f px1 =
-                    //     left_model->camToImage(left_model->imageToCam(
-                    //         Vector2f(corners[i].x, corners[i].y)));
-                    // Vector2f px2 = right_model->camToImage(
-                    //     right_model->imageToCam(Vector2f(stereo_corners[i].x,
-                    //                                      stereo_corners[i].y)));
-                    // if (!left_model->inView(px1)) continue;
-                    // if (!right_model->inView(px2)) continue;
-                    // float depth_prior =
-                    //     CamModel::getCamModel()->depthFromStereo(
-                    //         px1,
-                    //         px2);
-                    // if(depth_prior<0){
-                    //     LOGE("invalid depth_error:%f",depth_prior);
-                    // }
-                    // tf->AddVisualObservation(Vector2f(x, y), cam_state_,
-                    //                          depth_prior);
+                    tf->AddVisualObservation(obs_right, 1);
+                    tf->AddVisualObservation(obs, 0);
                 } else {
-                    tf->AddVisualObservation(obs);
+                    tf->AddVisualObservation(obs, 0);
                 }
             } else {
-                tf->AddVisualObservation(obs);
+                tf->AddVisualObservation(obs, 0);
             }
             vTrackedFeatures.push_back(tf);
             ++num_features_;
+            ++num_features_tracked_;
         }
     }
+
+    // Step 4: we add right only features and right to left stereo features
+    if (is_stereo) {
+        corners_right.clear();
+        stereo_corners.clear();
+        stereo_corners_back.clear();
+        stereo_status.clear();
+        stereo_status_back.clear();
+#if USE_HARRIS
+        _ExtractHarris(corners_right, max_num, 1);
+#else
+        _ExtractFast(imgStride, halfMaskSize, corners_right, 1);
+#endif
+
+        // find right to left stereo features
+        cv::calcOpticalFlowPyrLK(image_pyramid_[1], image_pyramid_[0],
+                                 corners_right, stereo_corners, stereo_status,
+                                 err);
+        cv::calcOpticalFlowPyrLK(image_pyramid_[0], image_pyramid_[1],
+                                 stereo_corners, stereo_corners_back,
+                                 stereo_status_back, err);
+        for (size_t i = 0; i < stereo_corners.size(); i++) {
+            if (stereo_status[i] && stereo_status_back[i] &&
+                cv::normL2Sqr(&corners_right[i].x, &stereo_corners_back[i].x,
+                              2) < 1) {
+                final_status.push_back(1);
+            } else {
+                final_status.push_back(0);
+            }
+        }
+        for (size_t corner_idx = 0, track_candidates = max_num_to_track_ -
+                                                       num_features_tracked_;
+             corner_idx < corners_right.size() && track_candidates > 0;
+             ++corner_idx) {
+            int x = corners_right[corner_idx].x;
+            int y = corners_right[corner_idx].y;
+            assert(x + y * imgStride < mask_buffer_size_);
+            if (!_IsMasked(x, y, 1)) {
+                _SetMask(x, y, 1);
+                track_candidates--;
+                auto tf = std::make_shared<Landmark>();
+                auto obs = cam_state_->AddVisualObservation(Vector2f(x, y), 1);
+                if (final_status[corner_idx]) {
+                    // Add stereo observation
+                    auto obs_left = cam_state_->AddVisualObservation(
+                        Vector2f(stereo_corners[corner_idx].x,
+                                 stereo_corners[corner_idx].y),
+                        0);
+                    // no need to set mask here, because we won't use mask after
+                    // this _SetMask(stereo_corners[corner_idx].x,
+                    //  stereo_corners[corner_idx].y, 0);
+                    obs_left->stereo_obs = obs.get();
+                    obs->stereo_obs = obs_left.get();
+                    tf->AddVisualObservation(obs_left, 0);
+                } else {
+                    tf->AddVisualObservation(obs, 1);
+                }
+                vTrackedFeatures.push_back(tf);
+                ++num_features_;
+                ++num_features_tracked_;
+            }
+        }
+    }
+
     if (vTrackedFeatures.empty()) {
         LOGW("No more features detected");
     }
 }
 
-void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
-    std::list<LandmarkPtr>& vTrackedFeatures) {
-    if (last_image_ == nullptr) return;
-    Matrix3f dR = cam_state_->state->Rwi.transpose() * cam_state0_->state->Rwi;
+void FeatureTrackerOpticalFlow_Chen::_TrackFromLastFrame(
+    std::list<LandmarkPtr>& vTrackedFeatures, int cam_id) {
+    auto camModel = SensorConfig::Instance().GetCamModel(image_->sensor_id);
+
+    Matrix3f Rci = camModel->getRci(cam_id);
+    Matrix3f dR = Rci * cam_state_->state->Rwi.transpose() *
+                  cam_state0_->state->Rwi * Rci.transpose();
+
     std::vector<cv::Point2f> pre, now;
     std::vector<unsigned char> status;
     std::vector<Landmark*> goodTracks;
     goodTracks.reserve(vTrackedFeatures.size());
     pre.reserve(vTrackedFeatures.size());
     now.reserve(vTrackedFeatures.size());
-    last_frame_moved_pixels_sqr_.clear();
 
-    auto camModel = SensorConfig::Instance().GetCamModel(image_->sensor_id);
-    // float mean_moved_pixels = 0;
     for (auto tf : vTrackedFeatures) {
-        if (!tf->flag_dead) {
-            auto& lastVisualOb = tf->last_obs_;
+        if (!tf->flag_dead[cam_id]) {
+            auto& lastVisualOb = tf->last_obs_[cam_id];
+            if (!lastVisualOb) continue;
 
 #if USE_ROTATION_PREDICTION
-            Vector3f ray = dR * lastVisualOb->ray_in_imu;
+            Vector3f ray = dR * lastVisualOb->ray_in_cam;
 
             Vector2f px = camModel->camToImage(ray);
-            if (!camModel->inView(px)) {
-                tf->flag_dead = true;
+            if (!camModel->inView(px, cam_id)) {
+                tf->flag_dead[cam_id] = true;
                 continue;
             }
             now.emplace_back(px.x(), px.y());
             pre.emplace_back(lastVisualOb->px.x(), lastVisualOb->px.y());
             goodTracks.push_back(tf.get());
-            tf->predicted_px = px;
+            tf->predicted_px[cam_id] = px;
 #else
-#if 0
-                Vector3f ray = dR * lastVisualOb.ray_in_imu;
-
-                static Matrix3f Rci = camModel->getRci();
-                Vector2f px = camModel->camToImage(Rci * ray);
-                tf->predicted_px = px;
-#endif
             pre.emplace_back(lastVisualOb->px.x(), lastVisualOb->px.y());
             now.emplace_back(pre.back());
             goodTracks.push_back(tf.get());
 #endif
         }
     }
-    // int nPrePoints = pre.size();
     if (pre.empty()) {
         LOGW("No feature to track.");
         return;
@@ -273,8 +301,8 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
 #endif
     std::vector<float> err;
     cv::calcOpticalFlowPyrLK(
-        last_image_pyramid_, image_pyramid_, pre, now, status, err,
-        cv::Size(21, 21), 3,
+        last_image_pyramid_[cam_id], image_pyramid_[cam_id], pre, now, status,
+        err, cv::Size(21, 21), 3,
         cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30,
                          0.01),
         use_predict
@@ -285,9 +313,9 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     std::vector<cv::Point2f> back_track_pre;
     std::vector<unsigned char> back_track_status;
     if (use_back_tracking_) {
-        cv::calcOpticalFlowPyrLK(image_pyramid_, last_image_pyramid_, now,
-                                 back_track_pre, back_track_status, err,
-                                 cv::Size(21, 21), 3);
+        cv::calcOpticalFlowPyrLK(
+            image_pyramid_[cam_id], last_image_pyramid_[cam_id], now,
+            back_track_pre, back_track_status, err, cv::Size(21, 21), 3);
     }
 
     for (size_t i = 0; i < status.size(); ++i) {
@@ -296,23 +324,85 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
             if (use_back_tracking_) {
                 if (!back_track_status[i] ||
                     cv::normL2Sqr(&pre[i].x, &back_track_pre[i].x, 2) > 1) {
-                    goodTracks[i]->flag_dead = true;
+                    goodTracks[i]->flag_dead[cam_id] = true;
                     continue;
                 }
             }
             px.x() = now[i].x;
             px.y() = now[i].y;
-            if (camModel->inView(px, 5)) {
-                auto obs = cam_state_->AddVisualObservation(px);
+            if (camModel->inView(px, cam_id)) {
+                auto obs = cam_state_->AddVisualObservation(px, cam_id);
                 num_features_++;
                 num_features_tracked_++;
-                goodTracks[i]->AddVisualObservation(obs);
+                goodTracks[i]->AddVisualObservation(obs, cam_id);
                 last_frame_moved_pixels_sqr_.push_back(
                     cv::normL2Sqr(&now[i].x, &pre[i].x, 2));
                 continue;
             }
         }
-        goodTracks[i]->flag_dead = true;
+        goodTracks[i]->flag_dead[cam_id] = true;
+    }
+}
+
+void FeatureTrackerOpticalFlow_Chen::_TrackStereoFeatures(
+    std::list<LandmarkPtr>& vTrackedFeatures) {
+    // track left to right and right to left stereo features
+    // Step 1: we find all the stereo features
+    std::vector<LandmarkPtr> stereo_features;
+    std::vector<cv::Point2f> left, right;
+    std::vector<cv::Point2f> left2right, right2left;
+    std::vector<unsigned char> left2right_status, right2left_status;
+    std::vector<float> left2right_err, right2left_err;
+    for (auto tf : vTrackedFeatures) {
+        if (tf->flag_dead[0] || tf->flag_dead[1]) continue;
+        stereo_features.push_back(tf);
+        left.push_back(
+            cv::Point2f(tf->last_obs_[0]->px.x(), tf->last_obs_[0]->px.y()));
+        right.push_back(
+            cv::Point2f(tf->last_obs_[1]->px.x(), tf->last_obs_[1]->px.y()));
+    }
+
+    // Step 2: we track left to right and right to left stereo features
+    if (stereo_features.empty()) {
+        return;
+    }
+    cv::calcOpticalFlowPyrLK(image_pyramid_[0], image_pyramid_[1], left,
+                             left2right, left2right_status, left2right_err);
+    cv::calcOpticalFlowPyrLK(image_pyramid_[1], image_pyramid_[0], right,
+                             right2left, right2left_status, right2left_err);
+
+    // Step 3: we add left to right and right to left stereo features
+    for (size_t i = 0; i < left.size(); i++) {
+        if (left2right_status[i] && right2left_status[i] &&
+            cv::normL2Sqr(&left[i].x, &right2left[i].x, 2) < 1 &&
+            cv::normL2Sqr(&right[i].x, &left2right[i].x, 2) < 1) {
+            // add stereo observation
+            auto tf = stereo_features[i];
+            tf->last_obs_[0]->stereo_obs = tf->last_obs_[1].get();
+            tf->last_obs_[1]->stereo_obs = tf->last_obs_[0].get();
+        } else {
+            auto tf = stereo_features[i];
+            tf->flag_dead[0] = true;
+            tf->flag_dead[1] = true;
+            tf->PopObservation(0);
+            tf->PopObservation(1);
+        }
+    }
+}
+
+void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
+    std::list<LandmarkPtr>& vTrackedFeatures) {
+    if (last_image_ == nullptr) return;
+
+    // Step 1: we track left image features and right image features if stereo
+    // is enabled
+    for (int cam_id = 0; cam_id < 2; cam_id++) {
+        _TrackFromLastFrame(vTrackedFeatures, cam_id);
+    }
+
+    // Step 2: we track left to right and right to left stereo features
+    if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
+        _TrackStereoFeatures(vTrackedFeatures);
     }
 
     // int nRansac = DataAssociation::RemoveOutlierBy2PointRansac(
@@ -330,12 +420,12 @@ void FeatureTrackerOpticalFlow_Chen::_PreProcess(const ImageData::Ptr image,
                                                  Frame* camState) {
     num_features_ = 0;
     image_ = image;
-    image_pyramid_.clear();
-    cv::buildOpticalFlowPyramid(image_->image, image_pyramid_, cv::Size(21, 21),
-                                3);
+    image_pyramid_[0].clear();
+    cv::buildOpticalFlowPyramid(image_->image, image_pyramid_[0],
+                                cv::Size(21, 21), 3);
     if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
-        right_image_pyramid_.clear();
-        cv::buildOpticalFlowPyramid(image_->right_image, right_image_pyramid_,
+        image_pyramid_[1].clear();
+        cv::buildOpticalFlowPyramid(image_->right_image, image_pyramid_[1],
                                     cv::Size(21, 21), 3);
     }
     cam_state0_ = cam_state_;
@@ -343,6 +433,7 @@ void FeatureTrackerOpticalFlow_Chen::_PreProcess(const ImageData::Ptr image,
 
     // Set cnt for tracked points to zero
     num_features_tracked_ = 0;
+    last_frame_moved_pixels_sqr_.clear();
 
     // Init mask buffer
     if (mask_ == nullptr) {
@@ -360,11 +451,17 @@ void FeatureTrackerOpticalFlow_Chen::_PreProcess(const ImageData::Ptr image,
     }
 }
 
-void FeatureTrackerOpticalFlow_Chen::_PostProcess() {
+void FeatureTrackerOpticalFlow_Chen::_PostProcess(
+    std::list<LandmarkPtr>& vTrackedFeatures) {
     last_image_ = image_;
-    last_image_pyramid_ = image_pyramid_;
+    last_image_pyramid_[0] = image_pyramid_[0];
     if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
-        last_right_image_pyramid_ = right_image_pyramid_;
+        last_image_pyramid_[1] = image_pyramid_[1];
+    }
+    for (auto tf : vTrackedFeatures) {
+        if (tf->flag_dead[0] && tf->flag_dead[1]) {
+            tf->flag_dead_all = true;
+        }
     }
 }
 
@@ -387,7 +484,7 @@ void FeatureTrackerOpticalFlow_Chen::MatchNewFrame(
         TickTock::Stop("Fast");
     }
     // _ShowMask();
-    _PostProcess();
+    _PostProcess(vTrackedFeatures);
 }
 
 FeatureTrackerOpticalFlow_Chen::~FeatureTrackerOpticalFlow_Chen() {

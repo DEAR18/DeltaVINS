@@ -11,7 +11,7 @@ int main() {
     SlamVisualizer* visualizer = new SlamVisualizer(640, 480);
 
     visualizer->pushImageTexture(img2.data, img2.cols, img2.rows,
-                                 img2.channels());
+                                 img2.channels(), "image_raw");
 
     visualizer->Start();
     visualizer->Join();

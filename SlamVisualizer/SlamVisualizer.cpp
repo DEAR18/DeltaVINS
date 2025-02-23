@@ -56,7 +56,8 @@ void SlamVisualizer::PushViewMatrix(std::vector<FrameGL>& v_Frames) {
 
 void SlamVisualizer::PushImageTexture(unsigned char* imageTexture,
                                       const int width, const int height,
-                                      const int channels) {
+                                      const int channels,
+                                      const std::string& name) {
     std::lock_guard<std::mutex> lck(mtx_image_texture_);
     if (height_ * width_ * channels_ < width * height * channels) {
         height_ = height;

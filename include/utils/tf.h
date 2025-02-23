@@ -26,6 +26,17 @@ struct Transform {
           child_frame_id(child_frame_id),
           T_parent_child(T_parent_child) {}
 
+    static Transform<T> CreateFromRotationAndPosition(
+        long long timestamp, const std::string& frame_id,
+        const std::string& child_frame_id,
+        const Eigen::Matrix<T, 3, 3>& rotation,
+        const Eigen::Matrix<T, 3, 1>& position) {
+        Eigen::Isometry3f T_parent_child;
+        T_parent_child.linear() = rotation;
+        T_parent_child.translation() = -rotation.transpose() * position;
+        return Transform<T>(timestamp, frame_id, child_frame_id,
+                            T_parent_child);
+    }
     Eigen::Matrix<T, 3, 1> Translation() const {
         return T_parent_child.translation();
     }
@@ -34,10 +45,14 @@ struct Transform {
         return T_parent_child.rotation().matrix();
     }
 
+    Eigen::Matrix<T, 3, 3> Position() const {
+        return -T_parent_child.rotation().matrix() *
+               T_parent_child.translation();
+    }
+
     Eigen::Matrix<T, 3, 1> TransformPoint(
         const Eigen::Matrix<T, 3, 1>& point) const {
-        return T_parent_child.block<3, 3>(0, 0) * point +
-               T_parent_child.block<3, 1>(0, 3);
+        return T_parent_child.linear() * point + T_parent_child.translation();
     }
 
     Transform<T> Inverse() const {

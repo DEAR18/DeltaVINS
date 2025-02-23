@@ -125,9 +125,9 @@ DataSource_ROS2::DataSource_ROS2(bool is_bag)
 }
 
 DataSource_ROS2::~DataSource_ROS2() {
-    if (is_bag_) {
-        reader_->close();
-    }
+    // if (is_bag_) {
+    //     reader_->close();
+    // }
 }
 
 void DataSource_ROS2::NavSatFixCallback(
@@ -192,7 +192,7 @@ void DataSource_ROS2::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr msg,
                                   int sensor_id) {
     (void)sensor_id;
     auto camModel = SensorConfig::Instance().GetCamModel(0);
-    Matrix3f Rci = camModel->getRci();
+    // Matrix3f Rci = camModel->getRci();
     // Publish IMU data
     ImuData imu_data;
     imu_data.timestamp =
@@ -204,8 +204,10 @@ void DataSource_ROS2::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr msg,
     imu_data.sensor_id = sensor_id;
 
     // Rotate the acceleration and angular velocity to the camera frame
-    imu_data.acc = Rci * acc;
-    imu_data.gyro = Rci * gyro;
+    // imu_data.acc = Rci * acc;
+    // imu_data.gyro = Rci * gyro;
+    imu_data.acc = acc;
+    imu_data.gyro = gyro;
 
     {
         std::lock_guard<std::mutex> lck(mtx_imu_observer_);

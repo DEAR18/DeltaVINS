@@ -5,8 +5,6 @@
 namespace DeltaVins {
 
 DataOutputROS::DataOutputROS() : Node("data_output_ros") {
-    image_publisher_ =
-        this->create_publisher<sensor_msgs::msg::Image>("debug_image", 10);
     path_publisher_ =
         this->create_publisher<nav_msgs::msg::Path>("camera_path", 10);
     point_cloud_publisher_ =
@@ -19,16 +17,24 @@ DataOutputROS::DataOutputROS() : Node("data_output_ros") {
 
 DataOutputROS::~DataOutputROS() {}
 
+void DataOutputROS::CreateImagePublisher(const std::string& name) {
+    image_publishers_[name] =
+        this->create_publisher<sensor_msgs::msg::Image>(name, 10);
+}
+
 void DataOutputROS::PushImageTexture(unsigned char* data, int width, int height,
-                                     int channels) {
+                                     int channels, const std::string& name) {
     (void)channels;
     cv::Mat image(height, width, CV_8UC3, data);
     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 
+    if (image_publishers_.count(name) == 0) {
+        CreateImagePublisher(name);
+    }
     // use cv_bridge to convert the image to a ROS message
     sensor_msgs::msg::Image::SharedPtr msg =
         cv_bridge::CvImage(std_msgs::msg::Header(), "rgb8", image).toImageMsg();
-    image_publisher_->publish(*msg);
+    image_publishers_[name]->publish(*msg);
 }
 
 void DataOutputROS::PushViewMatrix(std::vector<FrameGL>& v_Rcw) {

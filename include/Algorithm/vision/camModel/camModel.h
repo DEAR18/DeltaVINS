@@ -21,19 +21,31 @@ class CamModel {
     virtual Vector2f camToImage(const Vector3f& pCam, int cam_id = 0) = 0;
 
     Vector3f imageToImu(const Vector2f& px, int cam_id = 0) {
-        return imageToCam(px, cam_id);
+        return cam_id ? Rci_right_.transpose() * imageToCam(px, cam_id)
+                      : Rci_.transpose() * imageToCam(px, cam_id);
     }
 
     Vector2f imuToImage(const Vector3f& pImu, int cam_id = 0) {
-        return cam_id ? camToImage(pImu + tci_right_, cam_id)
-                      : camToImage(pImu + tci_, cam_id);
+        return cam_id ? camToImage(Rci_right_ * pImu + tci_right_, cam_id)
+                      : camToImage(Rci_ * pImu + tci_, cam_id);
     }
 
-    Vector3f camToImu(const Vector3f& pCam) { return pCam - tci_; }
+    Vector3f camToImu(const Vector3f& pCam, int cam_id = 0) {
+        return cam_id ? Rci_right_.transpose() * pCam + Pc_in_i_right_
+                      : Rci_.transpose() * pCam + Pc_in_i_;
+    }
 
     Vector2f imuToImage(const Vector3f& pImu, Matrix23f& J23, int cam_id = 0) {
-        return cam_id ? camToImage(pImu + tci_right_, J23, cam_id)
-                      : camToImage(pImu + tci_, J23, cam_id);
+        if (cam_id == 0) {
+            Vector2f px = camToImage(Rci_ * pImu + tci_, J23, cam_id);
+            J23 = J23 * Rci_;
+            return px;
+        } else {
+            Vector2f px =
+                camToImage(Rci_right_ * pImu + tci_right_, J23, cam_id);
+            J23 = J23 * Rci_right_;
+            return px;
+        }
     }
 
     Vector3f getTci(int cam_id = 0) { return cam_id ? tci_right_ : tci_; }
@@ -57,7 +69,9 @@ class CamModel {
         return cam_id ? Rci_right_ : Rci_;
     }
 
-    Vector3f& getPic(int cam_id = 0) { return cam_id ? Pic_right_ : Pic_; }
+    Vector3f& getPic(int cam_id = 0) {
+        return cam_id ? Pc_in_i_right_ : Pc_in_i_;
+    }
 
     virtual int area(int cam_id = 0) {
         (void)cam_id;
@@ -79,11 +93,11 @@ class CamModel {
         if (cam_id == 0) {
             Rci_ = Rvi;
             tci_ = tvi;
-            Pic_ = -Rci_.transpose() * tci_;
+            Pc_in_i_ = -Rci_.transpose() * tci_;
         } else {
             Rci_right_ = Rvi;
             tci_right_ = tvi;
-            Pic_right_ = -Rci_right_.transpose() * tci_right_;
+            Pc_in_i_right_ = -Rci_right_.transpose() * tci_right_;
         }
     }
 
@@ -93,7 +107,7 @@ class CamModel {
     size_t width_, height_;
     int sensor_id;
     Matrix3f Rci_, Rci_right_;
-    Vector3f Pic_, Pic_right_;
+    Vector3f Pc_in_i_, Pc_in_i_right_;
     Vector3f tci_, tci_right_;
     float image_noise_;
 
