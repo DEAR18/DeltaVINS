@@ -132,7 +132,7 @@ int RemoveOutlierBy2PointRansac(Matrix3f& dR,
     int nGoodPoints = 0;
 
     for (const auto& tracked_feature : vTrackedFeatures) {
-        if (tracked_feature->flag_dead) continue;
+        if (tracked_feature->flag_dead[cam_id]) continue;
         // int nObs = tracked_feature->visual_obs.size();
         auto& lastOb = tracked_feature->last_obs_[cam_id];
         ray1.push_back(lastOb->ray_in_cam);
@@ -358,8 +358,10 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
             nSlamPoint++;
         }
     }
-    if (nSlamPoint < 16) {
-        for (int i = nSlamPoint; i < 16; i++) {
+    int max_slam_point = 16;
+    int nSlamPointsPerGrid = max_slam_point / 4;
+    if (nSlamPoint < max_slam_point) {
+        for (int i = nSlamPoint; i < max_slam_point; i++) {
             int k = 0;
             for (int j = 0; j < 3; j++) {
                 k = vPointsSLAMNow[k] <= vPointsSLAMNow[j + 1] ? k : j + 1;
@@ -369,7 +371,7 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
         }
     } else {
         for (int i = 0; i < 4; ++i) {
-            if (vPointsSLAMNow[i] > 4) {
+            if (vPointsSLAMNow[i] > nSlamPointsPerGrid) {
                 m_slamPointGrid22[i][2]
                     ->point_state_->flag_to_next_marginalize = true;
                 vPointsSLAMLeft[i]++;
@@ -379,9 +381,11 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
 
     LOGD("SlamCnt:%d %d %d %d %d", nSlamPoint, vPointsSLAMLeft[0],
          vPointsSLAMLeft[1], vPointsSLAMLeft[2], vPointsSLAMLeft[3]);
-    nPointsLeft = (MAX_OBS_SIZE - MAX_ADDITIONAL_POINT * MAX_WINDOW_SIZE * 2 -
-                   nSlamPoint * 5) /
-                  (MAX_WINDOW_SIZE * 2);
+    nPointsLeft =
+        (MAX_OBS_SIZE - MAX_ADDITIONAL_MSCKF_POINT * MAX_WINDOW_SIZE * 2 -
+         nSlamPoint * 5) /
+        (MAX_WINDOW_SIZE * 2);
+    // nPointsLeft = MAX_ALL_POINT_SIZE - nSlamPoint;
     nPointsPerGrid = nPointsLeft / 4;
 
     std::vector<int> vPointsLeft = {nPointsPerGrid, nPointsPerGrid,
@@ -433,7 +437,7 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
 #if OUTPUT_DEBUG_INFO
                     ++nPointsAllAdded;
 #endif
-                    if (!ft->flag_dead && ft->flag_slam_point_candidate &&
+                    if (!ft->flag_dead_all && ft->flag_slam_point_candidate &&
                         vPointsSLAMLeft[i]) {  // If it is a slam
                                                // point
 
@@ -491,112 +495,6 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
     bufferPoints();
 }
 
-#endif
-
-#if 0
-        void _tryAddMsckfPoseConstraint()
-        {
-            int nPointsPerGrid = MAX_MSCKF_FEATURE_UPDATE_PER_FRAME / 4;
-            int nPointsLeft = MAX_MSCKF_FEATURE_UPDATE_PER_FRAME;
-            int nPointsAllAdded = 0;
-            int nPointsTriangleFailed = 0;
-            int nPointsMahalaFailed = 0;
-
-            auto triangleAndVerify = [&](LandmarkPtr& track)
-            {
-                if (track->TriangulateLM())
-                {
-#if OUTPUT_DEBUG_INFO
-                    printf("#### Triangulation Success\n");
-#endif
-                    if (g_square_root_solver->ComputeJacobians(track)) {
-
-                        if (g_square_root_solver->MahalanobisTest(track->m_pState)) {
-                            nPointsAllAdded++;
-                        	return true;
-                        }
-                        nPointsMahalaFailed++;
-                        return false;
-                    }
-                    return false;
-                }
-                nPointsTriangleFailed++;
-#if OUTPUT_DEBUG_INFO
-                printf("#### Triangulation Fail\n");
-#endif
-                return false;
-            };
-            auto selectPoints = [&]()
-            {
-#if OUTPUT_DEBUG_INFO
-                int ii = 0;
-				int jInGrid = 0;
-
-#endif
-                for (auto& grid : g_grid22)
-                {
-#if OUTPUT_DEBUG_INFO
-
-                    printf("## Grid %d in 2*2:\n", ii);
-					ii++;
-#endif
-                    int nPointsAdded = 0;
-                    while (nPointsAdded < nPointsPerGrid && !grid.empty())
-                    {
-#if OUTPUT_DEBUG_INFO
-                        printf("### %d point in Grid %d\n", jInGrid++, ii);
-#endif
-                        auto& ft = grid.back();
-                        if (triangleAndVerify(ft))
-                        {
-                            ++nPointsAdded;
-                            --nPointsLeft;
-#if OUTPUT_DEBUG_INFO
-                            ++nPointsAllAdded;
-#endif
-                            g_square_root_solver->AddMsckfPoint(ft->m_pState);
-
-                            g_tracked_feature_to_update.push_back(ft);
-
-                            ft->flag_dead = true;
-
-                        }
-                        else
-                            ft->flag_dead = false;
-                        grid.pop_back();
-                    }
-
-
-                }
-
-            };
-            auto bufferPoints = [&]()
-            {
-                for (auto& grid : g_grid22)
-                {
-                    for (auto& ft : grid)
-                    {
-                        if (ft->flag_dead)
-                        {
-                            g_tracked_feature_next_update.push_back(ft);
-                        }
-                    }
-                    grid.clear();
-                }
-            };
-
-            selectPoints();
-            nPointsPerGrid = nPointsLeft / 4;
-
-            if (nPointsPerGrid) {
-                selectPoints();
-            }
-#if OUTPUT_DEBUG_INFO
-            printf("### %d Points to Update\n", nPointsAllAdded);
-            printf("### nPointsAdded:%d nPointsTriangleFailed:%d nPointsMahalaFailed:%d\n", nPointsAllAdded, nPointsTriangleFailed, nPointsMahalaFailed);
-#endif
-            bufferPoints();
-        }
 #endif
 
 void DoDataAssociation(std::list<LandmarkPtr>& vTrackedFeatures, bool static_) {

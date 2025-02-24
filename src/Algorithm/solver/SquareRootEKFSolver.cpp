@@ -14,7 +14,7 @@
 namespace DeltaVins {
 SquareRootEKFSolver::SquareRootEKFSolver() {}
 
-void SquareRootEKFSolver::Init(CamState* state, Vector3f* vel, bool* static_) {
+void SquareRootEKFSolver::Init(CamState* state, Vector3f* vel, bool* _static) {
     VectorXf p(NEW_STATE_DIM);
 
     switch (Config::DataSourceType) {
@@ -31,7 +31,7 @@ void SquareRootEKFSolver::Init(CamState* state, Vector3f* vel, bool* static_) {
     CURRENT_DIM = NEW_STATE_DIM;
 
     vel_ = vel;
-    static_ = static_;
+    static_ = _static;
     info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
         p.cwiseSqrt().cwiseInverse().asDiagonal();
 
@@ -490,14 +490,14 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
     // static Vector3f Tci = cam_model->getTci();
     int num_cams = cam_states_.size();
 
-    const int CAM_STATE_IDX = 3;
+    const int CAM_START_IDX = 3;
 
     const int RESIDUAL_IDX = 3 + CAM_STATE_DIM * num_cams;
 
     int num_obs = track->visual_obs[0].size() + track->visual_obs[1].size();
 
     if (track->point_state_->flag_slam_point) {
-        num_obs = 1;
+        num_obs = !track->flag_dead[0] + !track->flag_dead[1];
     }
     // float huberThresh = 500.f;
     float cutOffThresh = 10.f;
@@ -532,10 +532,10 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
         cam_model->imuToImage(Pi_FEJ, J23, cam_id);
 
         H.block<2, 3>(2 * index,
-                      CAM_STATE_IDX + CAM_STATE_DIM * cam_idx_in_window) =
+                      CAM_START_IDX + CAM_STATE_DIM * cam_idx_in_window) =
             J23 * crossMat(Pi_FEJ);
         H.block<2, 3>(2 * index,
-                      CAM_STATE_IDX + CAM_STATE_DIM * cam_idx_in_window + 3) =
+                      CAM_START_IDX + CAM_STATE_DIM * cam_idx_in_window + 3) =
             -J23 * Riw;
         H.block<2, 3>(2 * index, 0) = J23 * Riw;
 
@@ -543,7 +543,7 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
     };
 
     if (track->point_state_->flag_slam_point) {
-        for (int cam_id = 0; cam_id < num_cams; ++cam_id) {
+        for (int cam_id = 0; cam_id < 2; ++cam_id) {
             if (track->flag_dead[cam_id]) continue;
             if (calcObsJac(track->last_obs_[cam_id])) {
                 index++;
@@ -553,7 +553,7 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
             return 0;
         }
     } else {
-        for (int cam_id = 0; cam_id < num_cams; ++cam_id) {
+        for (int cam_id = 0; cam_id < 2; ++cam_id) {
             for (auto& ob : track->visual_obs[cam_id]) {
                 if (calcObsJac(ob)) {
                     index++;
@@ -571,77 +571,99 @@ int SquareRootEKFSolver::ComputeJacobians(Landmark* track) {
     return 2 * num_obs;
 }
 
-int SquareRootEKFSolver::_AddNewSlamPointConstraint() {
-    int num_obs = 0;
+void SquareRootEKFSolver::_ClearStackedMatrix() {
+    stacked_matrix_.setZero();
+    obs_residual_.setZero();
+    stacked_rows_ = 0;
+}
 
+int SquareRootEKFSolver::_AddSlamPointConstraint() {
+    // Step 1: Compute old slam point Jacobian and Mahalanobis test
     for (auto point : slam_point_) {
         int obs = ComputeJacobians(point->host);
 
-        if (obs && MahalanobisTest(point))
-            num_obs += obs;
-        else
-            point->flag_to_marginalize = true;
+        if (!obs || !MahalanobisTest(point)) point->flag_to_marginalize = true;
     }
 
+    // Step 2: Add new slam point states to matrix
     if (new_slam_point_.empty()) {
         info_factor_matrix_.topLeftCorner(CURRENT_DIM, CURRENT_DIM) =
             info_factor_matrix_after_mariginal_.topLeftCorner(CURRENT_DIM,
                                                               CURRENT_DIM);
-        return num_obs;
+    } else {
+        // rearrange information factor matrix for new slam point states
+        int nNewSlamPointStates = new_slam_point_.size() * 3;
+
+        int nOldSlamPointStates = slam_point_.size() * 3;
+        int num_cams = cam_states_.size();
+
+        int nLeft = nOldSlamPointStates + IMU_STATE_DIM;
+
+        int nRight = num_cams * CAM_STATE_DIM;
+
+        int nNewCam = nLeft + nNewSlamPointStates;
+
+        info_factor_matrix_.topLeftCorner(nLeft, nLeft) =
+            info_factor_matrix_after_mariginal_.topLeftCorner(nLeft, nLeft);
+        info_factor_matrix_.block(0, nNewCam, nLeft, nRight) =
+            info_factor_matrix_after_mariginal_.block(0, nLeft, nLeft, nRight);
+        info_factor_matrix_.block(nNewCam, 0, nRight, nLeft) =
+            info_factor_matrix_after_mariginal_.block(nLeft, 0, nRight, nLeft);
+        info_factor_matrix_.block(nNewCam, nNewCam, nRight, nRight) =
+            info_factor_matrix_after_mariginal_.block(nLeft, nLeft, nRight,
+                                                      nRight);
+
+        info_factor_matrix_
+            .block(0, nLeft, CURRENT_DIM + nNewSlamPointStates,
+                   nNewSlamPointStates)
+            .setZero();
+        info_factor_matrix_
+            .block(nLeft, 0, nNewSlamPointStates,
+                   CURRENT_DIM + nNewSlamPointStates)
+            .setZero();
+
+        CURRENT_DIM += nNewSlamPointStates;
+
+        slam_point_.insert(slam_point_.end(), new_slam_point_.begin(),
+                           new_slam_point_.end());
+        new_slam_point_.clear();
+
+        // reindex slam point states
+        for (int i = 0, n = slam_point_.size(); i < n; ++i) {
+            slam_point_[i]->index_in_window = i;
+        }
     }
 
-    int nNewSlamPointStates = new_slam_point_.size() * 3;
+    // Step 2: stack slam point matrix and batch update
+    int nTotalObs = 0;
 
-    int nOldSlamPointStates = slam_point_.size() * 3;
-    int num_cams = cam_states_.size();
+    float invSigma =
+        1.0 / SensorConfig::Instance().GetCameraParams(0).image_noise;
+    // Step 1: process old slam point states
+    int nCamStartIdx = IMU_STATE_DIM + slam_point_.size() * 3;
+    int nCamStates = cam_states_.size() * CAM_STATE_DIM;
+    int nSlamPointStartIdx = IMU_STATE_DIM;
+    for (auto point : slam_point_) {
+        if (point->flag_to_marginalize) continue;
+        int obs = point->H.rows();
+        // if stack is full, batch update
+        if (obs + stacked_rows_ > MAX_OBS_SIZE) {
+            _UpdateByGivensRotations(stacked_rows_, CURRENT_DIM);
+            _ClearStackedMatrix();
+        }
+        point->H *= invSigma;
+        int slam_idx = point->index_in_window;
 
-    int nLeft = nOldSlamPointStates + IMU_STATE_DIM;
-
-    int nRight = num_cams * CAM_STATE_DIM;
-
-    int nNewCam = nLeft + nNewSlamPointStates;
-
-    info_factor_matrix_.topLeftCorner(nLeft, nLeft) =
-        info_factor_matrix_after_mariginal_.topLeftCorner(nLeft, nLeft);
-    info_factor_matrix_.block(0, nNewCam, nLeft, nRight) =
-        info_factor_matrix_after_mariginal_.block(0, nLeft, nLeft, nRight);
-    info_factor_matrix_.block(nNewCam, 0, nRight, nLeft) =
-        info_factor_matrix_after_mariginal_.block(nLeft, 0, nRight, nLeft);
-    info_factor_matrix_.block(nNewCam, nNewCam, nRight, nRight) =
-        info_factor_matrix_after_mariginal_.block(nLeft, nLeft, nRight, nRight);
-
-    info_factor_matrix_
-        .block(0, nLeft, CURRENT_DIM + nNewSlamPointStates, nNewSlamPointStates)
-        .setZero();
-    info_factor_matrix_
-        .block(nLeft, 0, nNewSlamPointStates, CURRENT_DIM + nNewSlamPointStates)
-        .setZero();
-
-    CURRENT_DIM += nNewSlamPointStates;
-
-    for (auto state : new_slam_point_) {
-        state->host->RemoveUselessObservationForSlamPoint();
+        stacked_matrix_.block(stacked_rows_, nCamStartIdx, obs, nCamStates) =
+            point->H.middleCols(3, nCamStates);
+        stacked_matrix_.block(stacked_rows_, nSlamPointStartIdx + slam_idx * 3,
+                              obs, 3) = point->H.leftCols<3>();
+        obs_residual_.segment(stacked_rows_, obs) = point->H.rightCols<1>();
+        stacked_rows_ += obs;
+        nTotalObs += obs;
     }
 
-    for (auto& state : new_slam_point_) {
-        num_obs += state->H.rows();
-    }
-
-    slam_point_.insert(slam_point_.end(), new_slam_point_.begin(),
-                       new_slam_point_.end());
-
-    for (int i = 0, n = slam_point_.size(); i < n; ++i) {
-        slam_point_[i]->index_in_window = i;
-    }
-
-    new_slam_point_.clear();
-
-    return num_obs;
-}
-
-int SquareRootEKFSolver::AddSlamPointConstraint() {
-    int num_obs = 0;
-    return num_obs;
+    return nTotalObs;
 }
 
 void SquareRootEKFSolver::AddMsckfPoint(PointState* state) {
@@ -664,7 +686,7 @@ void SquareRootEKFSolver::AddSlamPoint(PointState* state) {
     state->flag_slam_point = true;
 }
 
-void SquareRootEKFSolver::AddVelocityConstraint(int nRows) {
+void SquareRootEKFSolver::AddVelocityConstraint() {
     static float invSigma = 1.0 / 1e-2;
 
     static float invRotSigma = 1.0 / 1e-5;
@@ -672,7 +694,7 @@ void SquareRootEKFSolver::AddVelocityConstraint(int nRows) {
 
     int velIdx = 3;
 
-    stacked_matrix_.middleRows(nRows, 9).setZero();
+    stacked_matrix_.middleRows(stacked_rows_, 9).setZero();
     Matrix3f dR = new_state_->Rwi.transpose() * last_state_->Rwi;
     Vector3f dP = new_state_->Pwi - last_state_->Pwi;
 
@@ -692,84 +714,66 @@ void SquareRootEKFSolver::AddVelocityConstraint(int nRows) {
                  crossSo3 * crossSo3;
         Jl = Jr.transpose();
     }
-    stacked_matrix_.block<3, 3>(nRows, CURRENT_DIM - 2 * CAM_STATE_DIM) =
-        Jr * invRotSigma;
-    stacked_matrix_.block<3, 3>(nRows, CURRENT_DIM - CAM_STATE_DIM) =
+    stacked_matrix_.block<3, 3>(
+        stacked_rows_, CURRENT_DIM - 2 * CAM_STATE_DIM) = Jr * invRotSigma;
+    stacked_matrix_.block<3, 3>(stacked_rows_, CURRENT_DIM - CAM_STATE_DIM) =
         -Jl * invRotSigma;
-    obs_residual_.segment(nRows, 3) = -so3 * invRotSigma;
-    stacked_matrix_.block<3, 3>(nRows + 3,
+    obs_residual_.segment(stacked_rows_, 3) = -so3 * invRotSigma;
+    stacked_matrix_.block<3, 3>(stacked_rows_ + 3,
                                 CURRENT_DIM - 2 * CAM_STATE_DIM + 3) =
         -Matrix3f::Identity() * invPosSigma;
-    stacked_matrix_.block<3, 3>(nRows + 3, CURRENT_DIM - CAM_STATE_DIM + 3) =
+    stacked_matrix_.block<3, 3>(stacked_rows_ + 3,
+                                CURRENT_DIM - CAM_STATE_DIM + 3) =
         Matrix3f::Identity() * invPosSigma;
-    obs_residual_.segment(nRows + 3, 3) = -dP * invPosSigma;
-    stacked_matrix_.block<3, 3>(nRows + 6, velIdx) =
+    obs_residual_.segment(stacked_rows_ + 3, 3) = -dP * invPosSigma;
+    stacked_matrix_.block<3, 3>(stacked_rows_ + 6, velIdx) =
         Matrix3f::Identity() * invSigma;
-    obs_residual_.segment(nRows + 6, 3) = -*vel_ * invSigma;
+    obs_residual_.segment(stacked_rows_ + 6, 3) = -*vel_ * invSigma;
     stacked_rows_ += 9;
 }
 
-int SquareRootEKFSolver::StackInformationFactorMatrix() {
+int SquareRootEKFSolver::_AddMsckfPointConstraint() {
     int nTotalObs = 0;
-    int nCamStartIdx = IMU_STATE_DIM;
-    int nVisualObs = 0;
-    int rffIdx = 0;
-
-    nVisualObs += _AddNewSlamPointConstraint();
-    nCamStartIdx += slam_point_.size() * 3;
-
-    int nOldStates = CURRENT_DIM;
-    int nCamStates = cam_states_.size() * CAM_STATE_DIM;
-
-    using namespace std;
-    for (auto& track : msckf_points_) {
-        nVisualObs += track->H.rows();
-    }
-
-    nTotalObs += nVisualObs;
-
-    stacked_matrix_.topLeftCorner(nTotalObs, nOldStates).setZero();
-    obs_residual_.segment(0, nTotalObs).setZero();
-
-    if (!nVisualObs) {
-        stacked_rows_ = 0;
-        return 0;
-    }
-
     float invSigma =
-        1 / SensorConfig::Instance().GetCameraParams(0).image_noise;
-    MatrixXf H_j;
-
+        1.0 / SensorConfig::Instance().GetCameraParams(0).image_noise;
+    int nCamStartIdx = IMU_STATE_DIM + slam_point_.size() * 3;
+    int nCamStates = cam_states_.size() * CAM_STATE_DIM;
     for (auto& track : msckf_points_) {
         int num_obs = track->H.rows();
         track->H *= invSigma;
 
-        stacked_matrix_.block(rffIdx, nCamStartIdx, num_obs, nCamStates) =
-            track->H.leftCols(nCamStates);
+        // if stack is full, batch update
+        if (stacked_rows_ + num_obs > MAX_OBS_SIZE) {
+            _UpdateByGivensRotations(stacked_rows_, CURRENT_DIM);
+            _ClearStackedMatrix();
+        }
+
+        stacked_matrix_.block(stacked_rows_, nCamStartIdx, num_obs,
+                              nCamStates) = track->H.leftCols(nCamStates);
         //.triangularView<Eigen::Upper>();
 
-        obs_residual_.segment(rffIdx, num_obs) = track->H.rightCols<1>();
-        rffIdx += num_obs;
+        obs_residual_.segment(stacked_rows_, num_obs) = track->H.rightCols<1>();
+        stacked_rows_ += num_obs;
+        nTotalObs += num_obs;
     }
 
-    int slamPointIdx = IMU_STATE_DIM;
-
-    for (auto& track : slam_point_) {
-        if (track->flag_to_marginalize) continue;
-        int num_obs = track->H.rows();
-        track->H *= invSigma;
-        int slamId = track->index_in_window;
-
-        stacked_matrix_.block(rffIdx, nCamStartIdx, num_obs, nCamStates) =
-            track->H.middleCols(3, nCamStates);
-        stacked_matrix_.block(rffIdx, slamPointIdx + slamId * 3, num_obs, 3) =
-            track->H.leftCols<3>();
-        obs_residual_.segment(rffIdx, num_obs) = track->H.rightCols<1>();
-        rffIdx += num_obs;
-    }
-
-    stacked_rows_ = nTotalObs;
     return nTotalObs;
+}
+
+int SquareRootEKFSolver::StackInformationFactorMatrix() {
+    _ClearStackedMatrix();
+
+    int nVisualObs = 0;
+    nVisualObs += _AddSlamPointConstraint();
+    nVisualObs += _AddMsckfPointConstraint();
+
+    if (!nVisualObs) {
+        if (*static_) {
+            AddVelocityConstraint();
+        }
+    }
+
+    return nVisualObs;
 }
 
 void SquareRootEKFSolver::SolveAndUpdateStates() {

@@ -179,7 +179,7 @@ bool Landmark::TriangulateLM(float depth_prior) {
     Tfs<float>::Instance().GetTransform("imu0", "camera0", T_i_c0_tf);
     Transform<float> T_i_c1_tf;
     if (!visual_obs[1].empty()) {
-        Tfs<float>::Instance().GetTransform("imu0", "camera1", T_i_c1_tf);
+        Tfs<float>::Instance().GetTransform("imu0", "camera0_right", T_i_c1_tf);
     }
     Transform<float> T_i_c_anchor_tf;
     T_i_c_anchor_tf = anchor_cam_id == 0 ? T_i_c0_tf : T_i_c1_tf;
@@ -190,7 +190,8 @@ bool Landmark::TriangulateLM(float depth_prior) {
     // get the relative pose between left and right
     Transform<float> T_c0_c1_tf;
     if (!visual_obs[0].empty() && !visual_obs[1].empty()) {
-        Tfs<float>::Instance().GetTransform("camera1", "camera0", T_c0_c1_tf);
+        Tfs<float>::Instance().GetTransform("camera0_right", "camera0",
+                                            T_c0_c1_tf);
     }
 
     for (int cam_id = 0; cam_id < 2; cam_id++) {
@@ -230,7 +231,7 @@ bool Landmark::TriangulateLM(float depth_prior) {
     point_state_->Pw = T_w_c_anchor_tf.TransformPoint(cpt.cast<float>());
     point_state_->Pw_FEJ = point_state_->Pw;
     float depthRatio = 0.01;
-    if (m_Result.bConverged && !flag_dead && m_Result.cost < 2 &&
+    if (m_Result.bConverged && !flag_dead_all && m_Result.cost < 2 &&
         H(2, 2) > depthRatio * H(0, 0) && H(2, 2) > depthRatio * H(1, 1))
         flag_slam_point_candidate = true;
 
@@ -271,8 +272,9 @@ double Landmark::EvaluateF(bool bNewZ, double huberThresh) {
     bTemp.setZero();
     J33 << position[2], 0, -position[0] * position[2], 0, position[2],
         -position[1] * position[2], 0, 0, -position[2] * position[2];
+    // Todo: Multi Camera Support
+    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
     for (int cam_id = 0; cam_id < 2; cam_id++) {
-        CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(cam_id);
         int i = 0;
         for (auto& visualOb : visual_obs[cam_id]) {
             Vector3f p_cam_f =

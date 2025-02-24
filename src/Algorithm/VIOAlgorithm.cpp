@@ -312,7 +312,7 @@ void VIOAlgorithm::_DrawPredictImage(ImageData::Ptr dataPtr,
         cvtColor(dataPtr->right_image, predictImage, cv::COLOR_GRAY2BGR);
 
     for (auto lTrack : states_.tfs_) {
-        if (!lTrack->flag_dead) {
+        if (!lTrack->flag_dead_all) {
             if (lTrack->visual_obs[cam_id].size() >= 2) {
                 // int nSize = lTrack->visual_obs.size();
                 cv::line(predictImage,
@@ -508,12 +508,7 @@ void VIOAlgorithm::_MarginFrames() {
 }
 
 void VIOAlgorithm::_StackInformationFactorMatrix() {
-    int nDIM = solver_->StackInformationFactorMatrix();
-    if (!nDIM) {
-        if (states_.static_) {
-            solver_->AddVelocityConstraint(nDIM);
-        }
-    }
+    solver_->StackInformationFactorMatrix();
 }
 
 // TODO: moved to tracker

@@ -41,16 +41,16 @@ class SquareRootEKFSolver {
 
     void AddSlamPoint(PointState *state);
 
-    void AddVelocityConstraint(int nRows);
+    void AddVelocityConstraint();
 
     int _AddPlaneContraint();
     int StackInformationFactorMatrix();
 
     void SolveAndUpdateStates();
 
-    int _AddNewSlamPointConstraint();
+    int _AddSlamPointConstraint();
 
-    int AddSlamPointConstraint();
+    int _AddMsckfPointConstraint();
 
    private:
     void _UpdateByGivensRotations(int row, int col);
@@ -62,6 +62,8 @@ class SquareRootEKFSolver {
 
 #endif
     void _MarginByGivensRotation();
+
+    void _ClearStackedMatrix();
 
     // MatrixMf m_infoFactorInverseMatrix;
 
