@@ -397,6 +397,8 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
         Matrix2f S;
         Matrix2f R = MatrixXf::Identity(2, 2) * ImageNoise2 * 2;
         MatrixXf E;
+        MatrixXf H;
+        H.resize(num_obs, 9);
         E.resize(CURRENT_DIM, 9);
         int iLeft = IMU_STATE_DIM;
         int cam_idx =
@@ -409,8 +411,9 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
             0, cam_idx * CAM_STATE_DIM + iLeft + 3 * slam_point_.size(),
             CURRENT_DIM, 6);
         Matrix9f F = E.transpose() * E;
-        S = state->H.leftCols(9) * F.inverse() *
-            state->H.leftCols(9).transpose();
+        H.leftCols<3>() = state->H.leftCols<3>();
+        H.rightCols<6>() = state->H.middleCols<6>(3 + cam_idx * CAM_STATE_DIM);
+        S = H * F.inverse() * H.transpose();
         S.noalias() += R;
 
         phi = z.transpose() * S.inverse() * z;
