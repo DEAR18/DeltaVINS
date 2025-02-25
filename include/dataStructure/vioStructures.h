@@ -82,6 +82,7 @@ struct Landmark : public NonLinear_LM<3, double> {
     float ray_angle;   // ray angle between current camera ray and the first ray
     float ray_angle0;  // last ray angle
     int landmark_id_;  // used for debug
+    float stereo_parallax;
 
     std::set<VisualObservation::Ptr, VisualObservationComparator>
         // std::unordered_set<VisualObservation::Ptr>
@@ -100,6 +101,7 @@ struct Landmark : public NonLinear_LM<3, double> {
     void SetDeadFlag(bool dead, int cam_id);  // -1: all, 0: left, 1: right
 
     void AddVisualObservation(VisualObservation::Ptr obs, int cam_id);
+    void BindStereoObservation();
     void RemoveVisualObservation(VisualObservation::Ptr obs);
     void PopObservation(int cam_id);
 

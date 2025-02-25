@@ -222,14 +222,30 @@ void DataSource_ROS2::StereoCallback(
     int sensor_id) {
     std::lock_guard<std::mutex> lck(mutex_stereo_);
     if (stereo_type == StereoType::LEFT) {
+        if (!cv_ptr_left_.empty()) {
+            auto timestamp_last = cv_ptr_left_.back()->header.stamp.sec * 1e9 +
+                                  cv_ptr_left_.back()->header.stamp.nanosec;
+            if (msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec <
+                timestamp_last) {
+                return;
+            }
+        }
         cv_ptr_left_.push_back(msg);
     } else {
+        if (!cv_ptr_right_.empty()) {
+            auto timestamp_last = cv_ptr_right_.back()->header.stamp.sec * 1e9 +
+                                  cv_ptr_right_.back()->header.stamp.nanosec;
+            if (msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec <
+                timestamp_last) {
+                return;
+            }
+        }
         cv_ptr_right_.push_back(msg);
     }
     if (cv_ptr_left_.empty() || cv_ptr_right_.empty()) return;
 
-    auto left = cv_ptr_left_.front();
     do {
+        auto left = cv_ptr_left_.front();
         auto right = cv_ptr_right_.front();
         // Need to make sure the left and right image have the same timestamp
         if (left->header.stamp == right->header.stamp) {
@@ -279,10 +295,10 @@ void DataSource_ROS2::StereoCallback(
                 }
             }
         } else {
-            auto left_stamp = left->header.stamp.sec * 1000000000 +
-                              left->header.stamp.nanosec;
-            auto right_stamp = right->header.stamp.sec * 1000000000 +
-                               right->header.stamp.nanosec;
+            int64_t left_stamp = left->header.stamp.sec * 1000000000ll +
+                                 left->header.stamp.nanosec;
+            int64_t right_stamp = right->header.stamp.sec * 1000000000ll +
+                                  right->header.stamp.nanosec;
             if (left_stamp > right_stamp) {
                 cv_ptr_right_.pop_front();
             } else if (left_stamp < right_stamp) {

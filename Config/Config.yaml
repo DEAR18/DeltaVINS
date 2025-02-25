@@ -19,7 +19,6 @@ UseStereo: 1
 DataSourceConfigFilePath: ""
 CalibrationPath: ""
 
-
 #FeatureTracker Parameters
 MaxNumToTrack: 350
 MaskSize: 41 #Must be Odd

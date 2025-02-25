@@ -5,6 +5,7 @@
 #include "Algorithm/DataAssociation/TwoPointRansac.h"
 #include "Algorithm/solver/SquareRootEKFSolver.h"
 #include "Algorithm/vision/camModel/camModel.h"
+#include "dataStructure/Grid.h"
 #include "dataStructure/vioStructures.h"
 #include "precompile.h"
 #include "utils/SensorConfig.h"
@@ -309,13 +310,13 @@ void _pushPoints2Grid(
 #endif
 }
 
-#if 1
-void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
+bool _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
     int nPointsPerGrid = MAX_MSCKF_FEATURE_UPDATE_PER_FRAME / 4;
     int nPointsLeft = MAX_MSCKF_FEATURE_UPDATE_PER_FRAME;
     int nPointsAllAdded = 0;
     int nPointsTriangleFailed = 0;
     int nPointsMahalaFailed = 0;
+    int valid_points = 0;
 
     // Todo: Multi camera support
     int halfX = SensorConfig::Instance().GetCamModel(0)->width() / 2;
@@ -324,6 +325,7 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
     std::vector<int> vPointsSLAMLeft{0, 0, 0, 0};
     std::vector<int> vPointsSLAMNow{0, 0, 0, 0};
     static std::vector<std::vector<Landmark*>> m_slamPointGrid22(4);
+    // static Grid<Landmark*, 2, 2> m_slamPointGrid22(halfX, halfY);
     int nSlamPoint = 0;
 
     // Step 1: Prepare the grid for slam points
@@ -379,6 +381,8 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
         }
     }
 
+    valid_points += nSlamPoint;
+
     LOGD("SlamCnt:%d %d %d %d %d", nSlamPoint, vPointsSLAMLeft[0],
          vPointsSLAMLeft[1], vPointsSLAMLeft[2], vPointsSLAMLeft[3]);
     nPointsLeft =
@@ -433,6 +437,7 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
 #endif
                 auto& ft = grid.back();
                 if (triangleAndVerify(ft)) {
+                    valid_points++;
                     --nPointsLeft;
 #if OUTPUT_DEBUG_INFO
                     ++nPointsAllAdded;
@@ -493,9 +498,82 @@ void _tryAddMsckfPoseConstraint(const std::list<LandmarkPtr>& lTrackFeatures) {
         nPointsAllAdded, nPointsTriangleFailed, nPointsMahalaFailed);
 #endif
     bufferPoints();
+    return valid_points;
 }
 
-#endif
+int _tryAddStereoPoint(const std::list<LandmarkPtr>& lTrackFeatures) {
+    bool use_stereo = SensorConfig::Instance().GetCamModel(0)->IsStereo();
+    if (!use_stereo) return 0;
+
+    int points_added_total = 0;
+
+    int x_grid_size = SensorConfig::Instance().GetCamModel(0)->width() / 4;
+    int y_grid_size = SensorConfig::Instance().GetCamModel(0)->height() / 4;
+    Grid<Landmark*, 4, 4> slam_point_grid44(x_grid_size, y_grid_size);
+    int min_obs_tracked = 4;
+    int num_points_candidate = 0;
+    for (auto& point : lTrackFeatures) {
+        if (point->flag_dead[0] || point->flag_dead[1]) continue;
+        if (point->point_state_) continue;
+        if (point->num_obs_tracked < min_obs_tracked) continue;
+        float x = point->last_obs_[0]->px.x();
+        float y = point->last_obs_[0]->px.y();
+        slam_point_grid44.Add(point.get(), x, y);
+        num_points_candidate++;
+    }
+
+    if (!num_points_candidate) {  // no candidate points
+        return 0;
+    }
+
+    // sort the grid by the number of points
+    std::vector<std::pair<int, int>> grid_points_nums;
+    for (int i = 0; i < 16; ++i) {
+        grid_points_nums.push_back({i, slam_point_grid44.Get(i).size()});
+    }
+    std::stable_sort(
+        grid_points_nums.begin(), grid_points_nums.end(),
+        [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+            return a.second < b.second;
+        });
+
+    int all_points_left = MAX_POINT_SIZE;
+    int grid_num_left = 16;
+    for (auto& grid_points_num : grid_points_nums) {
+        auto& grid = slam_point_grid44.Get(grid_points_num.first);
+        std::stable_sort(grid.begin(), grid.end(),
+                         [](const Landmark* a, const Landmark* b) {
+                             return a->stereo_parallax > b->stereo_parallax;
+                         });
+        int points_added = 0;
+        int points_per_grid = all_points_left / grid_num_left;
+        for (auto& point : grid) {
+            if (points_added >= points_per_grid) {
+                break;
+            }
+            if (point->Triangulate()) {
+                if (g_square_root_solver->ComputeJacobians(point)) {
+                    if (g_square_root_solver->MahalanobisTest(
+                            point->point_state_)) {
+                        points_added++;
+                        if (point->flag_slam_point_candidate) {
+                            g_square_root_solver->AddSlamPoint(
+                                point->point_state_);
+                        } else {
+                            g_square_root_solver->AddMsckfPoint(
+                                point->point_state_);
+                            point->SetDeadFlag(true, -1);
+                        }
+                        points_added_total++;
+                        all_points_left--;
+                    }
+                }
+            }
+        }
+        grid_num_left--;
+    }
+    return points_added_total;
+}
 
 void DoDataAssociation(std::list<LandmarkPtr>& vTrackedFeatures, bool static_) {
     g_tracked_feature_to_update.clear();
@@ -517,7 +595,10 @@ void DoDataAssociation(std::list<LandmarkPtr>& vTrackedFeatures, bool static_) {
 
     vDeadFeature.clear();
 
-    _tryAddMsckfPoseConstraint(vTrackedFeatures);
+    int valid_points = _tryAddMsckfPoseConstraint(vTrackedFeatures);
+    if (!valid_points) {
+        _tryAddStereoPoint(vTrackedFeatures);
+    }
 }
 
 }  // namespace DataAssociation

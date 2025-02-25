@@ -72,6 +72,16 @@ Landmark::~Landmark() {
     }
 }
 
+void Landmark::BindStereoObservation() {
+    if (flag_dead[0] || flag_dead[1]) {
+        return;
+    }
+    last_obs_[0]->stereo_obs = last_obs_[1].get();
+    last_obs_[1]->stereo_obs = last_obs_[0].get();
+    stereo_parallax =
+        std::max((last_obs_[0]->px - last_obs_[1]->px).norm(), stereo_parallax);
+}
+
 void Landmark::SetDeadFlag(bool dead, int cam_id) {
     if (cam_id == -1) {
         flag_dead_all = dead;
@@ -99,6 +109,7 @@ Landmark::Landmark() : NonLinear_LM(1e-2, 0.005, 1e-3, 15, false) {
     flag_dead_frame_id[1] = -1;
     static int counter = 0;
     landmark_id_ = counter++;
+    stereo_parallax = 0;
 }
 
 bool Landmark::TriangulationAnchorDepth(float& anchor_depth) {
@@ -136,6 +147,7 @@ bool Landmark::TriangulationAnchorDepth(float& anchor_depth) {
     }
     return false;
 }
+
 bool Landmark::Triangulate() {
     float anchor_depth = 0;
     if (!TriangulationAnchorDepth(anchor_depth)) return false;
@@ -467,7 +479,7 @@ void Landmark::PrintPositions() {}
 
 void Landmark::PopObservation(int cam_id) {
     flag_dead[cam_id] = true;
-    visual_obs[cam_id].erase(last_obs_[cam_id]);
+    RemoveVisualObservation(last_obs_[cam_id]);
     last_obs_[cam_id]->link_landmark = nullptr;
     last_obs_[cam_id] = last_last_obs_[cam_id];
     last_last_obs_[cam_id] = nullptr;
