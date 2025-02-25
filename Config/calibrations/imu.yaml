@@ -1,0 +1,21 @@
+%YAML:1.0
+
+SensorType: IMU
+SensorId: 0
+
+# IMU parameters
+GyroNoise: 2e-4  # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+AccNoise: 2e-3   # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+GyroBiasNoise: 2e-5 # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+AccBiasNoise: 3e-3 # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+ImuSampleFps: 200
+
+# IMU to Body
+Tbs: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [1, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 1, 0,
+         0, 0, 0, 1]

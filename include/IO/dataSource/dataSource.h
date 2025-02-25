@@ -16,6 +16,11 @@ class DataSource : public AbstractModule {
         virtual void OnImageReceived(const ImageData::Ptr imageData) = 0;
     };
 
+    struct NavSatFixObserver {
+        virtual void OnNavSatFixReceived(
+            const NavSatFixData& navSatFixData) = 0;
+    };
+
     using Ptr = std::shared_ptr<DataSource>;
 
     struct _ImageData {
@@ -35,24 +40,37 @@ class DataSource : public AbstractModule {
         std::lock_guard<std::mutex> lck(mtx_image_observer_);
         image_observers_.push_back(observer);
     }
+    void AddNavSatFixObserver(NavSatFixObserver* observer) {
+        std::lock_guard<std::mutex> lck(mtx_nav_sat_fix_observer_);
+        nav_sat_fix_observers_.push_back(observer);
+    }
     void DeleteImuObserver(ImuObserver* observer) {
         std::lock_guard<std::mutex> lck(mtx_imu_observer_);
-        auto it = std::find(imu_observers_.begin(), imu_observers_.end(),
-                            observer);
+        auto it =
+            std::find(imu_observers_.begin(), imu_observers_.end(), observer);
         if (it != imu_observers_.end()) imu_observers_.erase(it);
     }
     void DeleteImageObserver(ImageObserver* observer) {
         std::lock_guard<std::mutex> lck(mtx_image_observer_);
-        auto it = std::find(image_observers_.begin(),
-                            image_observers_.end(), observer);
+        auto it = std::find(image_observers_.begin(), image_observers_.end(),
+                            observer);
         if (it != image_observers_.end()) image_observers_.erase(it);
+    }
+    void DeleteNavSatFixObserver(NavSatFixObserver* observer) {
+        std::lock_guard<std::mutex> lck(mtx_nav_sat_fix_observer_);
+        auto it = std::find(nav_sat_fix_observers_.begin(),
+                            nav_sat_fix_observers_.end(), observer);
+        if (it != nav_sat_fix_observers_.end())
+            nav_sat_fix_observers_.erase(it);
     }
 
    protected:
     std::vector<ImuObserver*> imu_observers_;
     std::vector<ImageObserver*> image_observers_;
+    std::vector<NavSatFixObserver*> nav_sat_fix_observers_;
     std::mutex mtx_imu_observer_;
     std::mutex mtx_image_observer_;
+    std::mutex mtx_nav_sat_fix_observer_;
 };
 
 }  // namespace DeltaVins

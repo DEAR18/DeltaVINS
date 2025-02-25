@@ -3,20 +3,21 @@
 #include <vector>
 
 namespace DeltaVins {
-enum DataSrcType { DataSrcEuroc, DataSrcSynthetic,DataSrcROS2,DataSrcROS2_bag };
-enum class ROS2SensorType{
-    MonoCamera,
-    StereoCamera,
-    IMU,
+enum DataSrcType {
+    DataSrcEuroc,
+    DataSrcSynthetic,
+    DataSrcROS2,
+    DataSrcROS2_bag
 };
-struct ROS2SensorTopic{
+enum class ROS2SensorType { MonoCamera, StereoCamera, IMU, GNSS };
+struct ROS2SensorTopic {
     ROS2SensorType type;
     std::vector<std::string> topics;
     int sensor_id;
     int queue_size;
 };
 
-enum class ResultOutputFormat{
+enum class ResultOutputFormat {
     TUM,
     KITTI,
     EUROC,
@@ -28,16 +29,8 @@ struct Config {
     static int DataSourceType;
     static std::string DataSourcePath;
     static int ImageStartIdx;
-    static std::string CameraCalibFile;
-    static float GyroBiasNoise2;
-    static float AccBiasNoise2;
-    static float GyroNoise2;
-    static float AccNoise2;
-    static float ImageNoise2;
+    static std::string CalibrationPath;
     static int SerialRun;
-    static int nImuSample;
-    static int nImageSample;
-    static int nImuPerImage;
     static int NoGUI;
     static int NoDebugOutput;
     static int NoResultOutput;
@@ -61,7 +54,9 @@ struct Config {
     static std::string VisualizerServerIP;
     static int UploadImage;
 
-
     static std::vector<ROS2SensorTopic> ROS2SensorTopics;
+    static bool UseGnss;
+    static bool UseStereo;
+    static bool UseBackTracking;
 };
 }  // namespace DeltaVins

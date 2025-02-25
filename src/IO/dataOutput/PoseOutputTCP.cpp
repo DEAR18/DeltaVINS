@@ -37,12 +37,15 @@ void PoseOutputTcp::PushViewMatrix(std::vector<FrameGL> &v_Rcw) {
 
     LOGI("Send ViweMatrix Data:%d", size);
 
-    tcp_client_view_matrix_.SendData(reinterpret_cast<char *>(&buffer[0]), lenght);
+    tcp_client_view_matrix_.SendData(reinterpret_cast<char *>(&buffer[0]),
+                                     lenght);
 }
 
 void PoseOutputTcp::PushImageTexture(unsigned char *imageTexture,
                                      const int width, const int height,
-                                     const int channels) {
+                                     const int channels,
+                                     const std::string &name) {
+    (void)name;
     if (!Config::UploadImage) return;
 
     static int counter = 0;
@@ -86,7 +89,8 @@ void PoseOutputTcp::PushWorldPoint(const std::vector<WorldPointGL> &v_Point3f) {
         p += step;
     }
 
-    tcp_client_world_point_.SendData(reinterpret_cast<char *>(&buffer[0]), lenght);
+    tcp_client_world_point_.SendData(reinterpret_cast<char *>(&buffer[0]),
+                                     lenght);
 }
 
 PoseOutputTcp::PoseOutputTcp() {
@@ -129,11 +133,11 @@ void PoseOutputTcp::SendImage() {
         memcpy(&header[6], &jpgLength, sizeof(int32_t));
 
         tcp_client_image_texture_.SendData(reinterpret_cast<char *>(&header[0]),
-                                        header.size());
+                                           header.size());
         tcp_client_image_texture_.SendData(
             reinterpret_cast<char *>(&encoderImage[0]), encoderImage.size());
         tcp_client_image_texture_.SendData(reinterpret_cast<char *>(&end[0]),
-                                        end.size());
+                                           end.size());
     }
 }
 

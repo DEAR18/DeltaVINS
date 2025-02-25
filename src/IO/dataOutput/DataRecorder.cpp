@@ -7,6 +7,7 @@
 #include <IO/dataOuput/DataRecorder.h>
 #include <IO/dataOuput/PoseOutputTCP.h>
 #include <utils/utils.h>
+#include <utils/SensorConfig.h>
 
 #include "precompile.h"
 
@@ -49,18 +50,20 @@ void DataRecorder::DoWhatYouNeedToDo() {
     // static ImageBuffer &imageBuffer = ImageBuffer::Instance();
 
     char fileName[100];
-
+    static int imu_fps = SensorConfig::Instance().GetIMUParams(0).fps;
+    static int image_fps = SensorConfig::Instance().GetCameraParams(0).fps;
+    static int nImuPerImage = imu_fps / image_fps;
     static int imuTail = -1;
     if (Config::RecordIMU) {
         if (imuTail == -1) imuTail = imuBuffer.tail_;
-        for (int i = 0; i < Config::nImuPerImage + 10; ++i) {
+        for (int i = 0; i < nImuPerImage + 10; ++i) {
             if (imuTail == imuBuffer.head_) {
                 break;
             }
             ImuData &data = imuBuffer.buf_[imuTail];
-            fprintf(imu_file_, "%lld,%d,%d,%f,%f,%f,%f,%f,%f\n", data.timestamp,
-                    data.idx, data.syncFlag, data.gyro(0), data.gyro(1),
-                    data.gyro(2), data.acc(0), data.acc(1), data.acc(2));
+            fprintf(imu_file_, "%ld,%f,%f,%f,%f,%f,%f\n", data.timestamp,
+                    data.gyro(0), data.gyro(1), data.gyro(2), data.acc(0),
+                    data.acc(1), data.acc(2));
             imuTail = imuBuffer.getDeltaIndex(imuTail, 1);
         }
         fflush(imu_file_);
@@ -71,17 +74,19 @@ void DataRecorder::DoWhatYouNeedToDo() {
     if (Config::RecordImage) {
         {
             std::lock_guard<std::mutex> lck(image_mutex_);
-            sprintf(fileName, "cam0/%lld.png", image_data_->timestamp);
-            fprintf(cam_file_, "%lld,%s\n", image_data_->timestamp, fileName);
+            sprintf(fileName, "cam0/%ld.png", image_data_->timestamp);
+            fprintf(cam_file_, "%ld,%s\n", image_data_->timestamp, fileName);
             cv::imwrite(dat_dir_ + "/" + fileName, image_data_->image);
         }
     }
     if (!Config::NoGUI && frame_adapter_) {
         if (image_data_->image.channels() == 1)
-            cv::cvtColor(image_data_->image, image_data_->image, cv::COLOR_GRAY2BGR);
+            cv::cvtColor(image_data_->image, image_data_->image,
+                         cv::COLOR_GRAY2BGR);
         frame_adapter_->PushImageTexture(
-            image_data_->image.data, image_data_->image.cols, image_data_->image.rows,
-            image_data_->image.channels());
+            image_data_->image.data, image_data_->image.cols,
+            image_data_->image.rows, image_data_->image.channels(),
+            "image_raw");
     }
     flag_have_image_ = false;
     fflush(cam_file_);
@@ -94,4 +99,5 @@ bool DataRecorder::HaveThingsTodo() {
     else
         return !buffer.empty();
 }
+
 }  // namespace DeltaVins

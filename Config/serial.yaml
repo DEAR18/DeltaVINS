@@ -11,6 +11,9 @@ RunVIO: 1
 ResultOutputPath: ""
 ResultOutputName: ""
 ResultOutputFormat: "TUM" # TUM/KITTI/EUROC
+# sensor switch
+UseGnss: 1
+UseStereo: 1
 
 # Sensor calibration path
 DataSourceConfigFilePath: ""
@@ -19,3 +22,4 @@ CameraCalibrationPath: ""
 #FeatureTracker Parameters
 MaxNumToTrack: 350
 MaskSize: 41 #Must be Odd
+UseBackTracking: 1

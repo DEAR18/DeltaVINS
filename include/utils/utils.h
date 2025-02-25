@@ -58,12 +58,12 @@ inline Quaternionf expAndTheta(const Vector3f& omega) {
                        imag_factor * omega.y(), imag_factor * omega.z());
 }
 
-inline Matrix3f crossMat(const Vector3f& x) {
-    Matrix3f X;
+template <typename T>
+inline Matrix3<T> crossMat(const Vector3<T>& x) {
+    Matrix3<T> X;
     X << 0, -x(2), x(1), x(2), 0, -x(0), -x(1), x(0), 0;
     return X;
 }
-
 
 // calculate a rotation matrix which aligns vec to vec_ref
 inline Matrix3f GetRotByAlignVector(const Vector3f& vec,
@@ -166,5 +166,8 @@ extern int randLists[];
 #define _RED_SCALAR cv::Scalar(0, 0, 255, 1)
 #define _GREEN_SCALAR cv::Scalar(0, 255, 0, 1)
 #define _BLUE_SCALAR cv::Scalar(255, 0, 0, 1)
+#define _YELLOW_SCALAR cv::Scalar(0, 255, 255, 1)
+#define _ORANGE_SCALAR cv::Scalar(0, 165, 255, 1)
+#define _PURPLE_SCALAR cv::Scalar(255, 0, 255, 1)
 
 }  // namespace DeltaVins

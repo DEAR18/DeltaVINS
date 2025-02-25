@@ -21,11 +21,17 @@ class VIOAlgorithm {
     void SetFrameAdapter(FrameAdapter* adapter);
 
    private:
-    enum class InitState { NeedFirstFrame, NotInitialized, Initialized, Failed };
+    enum class InitState {
+        NeedFirstFrame,
+        NotInitialized,
+        FirstFrame,
+        Initialized,
+        Failed
+    };
     struct SystemStates {
         Vector3f vel;
         std::vector<Frame::Ptr> frames_;
-        std::list<TrackedFeature::Ptr> tfs_;
+        std::list<Landmark::Ptr> tfs_;
         bool static_;
         InitState init_state_;
     };
@@ -35,8 +41,10 @@ class VIOAlgorithm {
     void _PreProcess(const ImageData::Ptr imageData);
     void _PostProcess(ImageData::Ptr data, Pose::Ptr pose);
     void _UpdatePointsAndCamsToVisualizer();
-    void _DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage);
-    void _DrawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage);
+    void _DrawTrackImage(ImageData::Ptr dataPtr, cv::Mat& trackImage,
+                         int cam_id);
+    void _DrawPredictImage(ImageData::Ptr dataPtr, cv::Mat& predictImage,
+                           int cam_id);
     void _TrackFrame(const ImageData::Ptr imageData);
     void InitializeStates(const Matrix3f& Rwi);
 
@@ -60,10 +68,8 @@ class VIOAlgorithm {
 
     bool initialized_;
 
-#if USE_KEYFRAME
     Frame::Ptr last_keyframe_ = nullptr;
     void _SelectKeyframe();
-#endif
 
     /************* Output **********************/
 

@@ -16,7 +16,7 @@ class SquareRootEKFSolver {
 
     SquareRootEKFSolver();
 
-    void Init(CamState *pCamState, Vector3f *vel, bool *static_);
+    void Init(CamState *state, Vector3f *vel, bool *static_);
     void AddCamState(CamState *state);
 
     void Propagate(const ImuPreintergration *pImuTerm);
@@ -35,37 +35,35 @@ class SquareRootEKFSolver {
 
     bool MahalanobisTest(PointState *state);
 
-    int ComputeJacobians(TrackedFeature *track);
+    int ComputeJacobians(Landmark *track);
 
     void AddMsckfPoint(PointState *state);
 
     void AddSlamPoint(PointState *state);
 
-    void AddVelocityConstraint(int nRows);
+    void AddVelocityConstraint();
 
     int _AddPlaneContraint();
     int StackInformationFactorMatrix();
 
     void SolveAndUpdateStates();
 
-    int _AddNewSlamPointConstraint();
+    int _AddSlamPointConstraint();
 
-    int AddSlamPointConstraint();
+    int _AddMsckfPointConstraint();
 
    private:
     void _UpdateByGivensRotations(int row, int col);
 
     int _AddPositionContraint(int nRows);
 
-#if USE_KEYFRAME
-
-#endif
-
 #ifdef PLATFORM_ARM
     void _updateByGivensRotationsNeon();
 
 #endif
     void _MarginByGivensRotation();
+
+    void _ClearStackedMatrix();
 
     // MatrixMf m_infoFactorInverseMatrix;
 
@@ -78,18 +76,14 @@ class SquareRootEKFSolver {
 
     MatrixMf info_factor_matrix_;  // Upper Triangle Matrix
 
-#if USE_KEYFRAME
     MatrixMf info_factor_matrix_after_mariginal_;
-#endif
     VectorMf residual_;
 
     int CURRENT_DIM = 0;
     std::vector<CamState *> cam_states_;
     std::vector<PointState *> msckf_points_;
-#if USE_KEYFRAME
     std::vector<PointState *> slam_point_;
     std::vector<PointState *> new_slam_point_;
-#endif
     Vector3f *vel_;
     bool *static_;
     CamState *new_state_ = nullptr;

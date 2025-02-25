@@ -3,7 +3,7 @@
 #include "Algorithm/vision/camModel/camModel.h"
 #include "precompile.h"
 #include "utils/utils.h"
-
+#include "utils/SensorConfig.h"
 using namespace std;
 
 namespace DeltaVins {
@@ -23,7 +23,8 @@ DataSource_Synthetic::~DataSource_Synthetic() {}
 void DataSource_Synthetic::_LoadIMU() {
     ifstream imuCsv;
     imuCsv.open(imu_dir_ + "/data.csv");
-    static Matrix3f Rci = CamModel::getCamModel()->getRci();
+    CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);
+    static Matrix3f Rci = camModel->getRci();
     ImuData imuData;
     std::string s;
     while (!imuCsv.eof()) {

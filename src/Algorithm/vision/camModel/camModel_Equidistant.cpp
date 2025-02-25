@@ -4,49 +4,52 @@
 
 namespace DeltaVins {
 
-void EquiDistantModel::calibrate(cv::FileStorage& config) {
-    cv::Mat K;
-    cv::Mat D;
-    std::vector<cv::Mat> rvecs, tvecs;
-    std::vector<std::vector<cv::Point3f>> objPoints;
-    std::vector<std::vector<cv::Point2f>> imagePoints;
-    for (size_t i = 0; i < m_imagePoints.size(); ++i) {
-        objPoints.emplace_back();
-        for (size_t j = 0; j < m_objectPoints.size(); ++j) {
-            auto& opv = objPoints.back();
+// void EquiDistantModel::calibrate(cv::FileStorage& config) {
+//     cv::Mat K;
+//     cv::Mat D;
+//     std::vector<cv::Mat> rvecs, tvecs;
+//     std::vector<std::vector<cv::Point3f>> objPoints;
+//     std::vector<std::vector<cv::Point2f>> imagePoints;
+//     for (size_t i = 0; i < m_imagePoints.size(); ++i) {
+//         objPoints.emplace_back();
+//         for (size_t j = 0; j < m_objectPoints.size(); ++j) {
+//             auto& opv = objPoints.back();
 
-            opv.emplace_back(m_objectPoints[j].x(), m_objectPoints[j].y(),
-                             m_objectPoints[j].z());
-        }
-    }
-    for (size_t i = 0; i < m_imagePoints.size(); ++i) {
-        imagePoints.emplace_back();
-        for (size_t j = 0; j < m_imagePoints[i].size(); ++j) {
-            auto& ipv = imagePoints.back();
-            ipv.emplace_back(m_imagePoints[i][j].x(), m_imagePoints[i][j].y());
-        }
-    }
-    cv::fisheye::calibrate(
-        objPoints, imagePoints, cv::Size(640, 480), K, D, rvecs, tvecs,
-        cv::fisheye::CALIB_CHECK_COND | cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC,
-        cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100,
-                         DBL_EPSILON));
+//             opv.emplace_back(m_objectPoints[j].x(), m_objectPoints[j].y(),
+//                              m_objectPoints[j].z());
+//         }
+//     }
+//     for (size_t i = 0; i < m_imagePoints.size(); ++i) {
+//         imagePoints.emplace_back();
+//         for (size_t j = 0; j < m_imagePoints[i].size(); ++j) {
+//             auto& ipv = imagePoints.back();
+//             ipv.emplace_back(m_imagePoints[i][j].x(),
+//             m_imagePoints[i][j].y());
+//         }
+//     }
+//     cv::fisheye::calibrate(
+//         objPoints, imagePoints, cv::Size(640, 480), K, D, rvecs, tvecs,
+//         cv::fisheye::CALIB_CHECK_COND |
+//         cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC,
+//         cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+//         100,
+//                          DBL_EPSILON));
 
-    printf("k1:%lf,k2:%lf,k3:%lf,k4:%lf\n", D.at<double>(0), D.at<double>(1),
-           D.at<double>(2), D.at<double>(3));
-    printf("fx:%lf, fy:%lf, cx:%lf, cy:%lf,", K.at<double>(0, 0),
-           K.at<double>(1, 1), K.at<double>(0, 2), K.at<double>(1, 2));
-    cv::Mat K_(1, 6, CV_64F);
-    K_.at<double>(0) = 640;
-    K_.at<double>(1) = 480;
-    K_.at<double>(2) = K.at<double>(0, 0);
-    K_.at<double>(3) = K.at<double>(1, 1);
-    K_.at<double>(4) = K.at<double>(0, 2);
-    K_.at<double>(5) = K.at<double>(1, 2);
-    config.write("CamType", "Equidistant");
-    config.write("Intrinsic", K_);
-    config.write("Distortion", D);
-}
+//     printf("k1:%lf,k2:%lf,k3:%lf,k4:%lf\n", D.at<double>(0), D.at<double>(1),
+//            D.at<double>(2), D.at<double>(3));
+//     printf("fx:%lf, fy:%lf, cx:%lf, cy:%lf,", K.at<double>(0, 0),
+//            K.at<double>(1, 1), K.at<double>(0, 2), K.at<double>(1, 2));
+//     cv::Mat K_(1, 6, CV_64F);
+//     K_.at<double>(0) = 640;
+//     K_.at<double>(1) = 480;
+//     K_.at<double>(2) = K.at<double>(0, 0);
+//     K_.at<double>(3) = K.at<double>(1, 1);
+//     K_.at<double>(4) = K.at<double>(0, 2);
+//     K_.at<double>(5) = K.at<double>(1, 2);
+//     config.write("CamType", "Equidistant");
+//     config.write("Intrinsic", K_);
+//     config.write("Distortion", D);
+// }
 
 Eigen::VectorXd polyfit(Eigen::VectorXd& xVec, Eigen::VectorXd& yVec) {
     int polyDegree = 5;
@@ -92,12 +95,14 @@ Eigen::VectorXd polyfit(Eigen::VectorXd& xVec, Eigen::VectorXd& yVec) {
     return x;
 }
 
-void EquiDistantModel::computeInvPoly() {
+void EquiDistantModel::computeInvPoly(bool is_right) {
     std::vector<float> r;
     std::vector<float> td;
+    float* k_ = is_right ? k_right : k;
+    float* invK_ = is_right ? invK_right : invK;
     for (float rad = 0.01; rad < M_PI_2; rad += 0.01) {
-        float theta_d = rad * (1 + k[0] * powf(rad, 2) + k[1] * powf(rad, 4) +
-                               k[2] * powf(rad, 6) + k[3] * powf(rad, 8));
+        float theta_d = rad * (1 + k_[0] * powf(rad, 2) + k_[1] * powf(rad, 4) +
+                               k_[2] * powf(rad, 6) + k_[3] * powf(rad, 8));
         td.push_back(theta_d);
         r.push_back(tanf(rad));
     }
@@ -110,11 +115,11 @@ void EquiDistantModel::computeInvPoly() {
     }
 
     VectorXd x = polyfit(tdM, rM);
-    invK[0] = x(0);
-    invK[1] = x(1);
-    invK[2] = x(2);
-    invK[3] = x(3);
-    invK[4] = x(4);
+    invK_[0] = x(0);
+    invK_[1] = x(1);
+    invK_[2] = x(2);
+    invK_[3] = x(3);
+    invK_[4] = x(4);
 
     printf("Inv Poly %f %f %f %f\n", x(0), x(1), x(2), x(3));
 
@@ -136,31 +141,35 @@ void EquiDistantModel::computeInvPoly() {
     fflush(stdout);
 }
 
-Vector3f EquiDistantModel::imageToCam(const Vector2f& px) {
+Vector3f EquiDistantModel::imageToCam(const Vector2f& px, int cam_id) {
+    cv::Mat K_ = cam_id == 0 ? K : K_right;
+    cv::Mat D_ = cam_id == 0 ? D : D_right;
     Vector3f xyz;
     cv::Point2f uv(px.x(), px.y()), px2;
     const cv::Mat src_pt(1, 1, CV_32FC2, &uv.x);
     cv::Mat dst_pt(1, 1, CV_32FC2, &px2.x);
-    undistortPoints(src_pt, dst_pt, K, D);
+    undistortPoints(src_pt, dst_pt, K_, D_);
     xyz[0] = px2.x;
     xyz[1] = px2.y;
     xyz[2] = 1.0;
     return xyz;
 }
 
-Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, Matrix23f& J23) {
+Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, Matrix23f& J23,
+                                      int cam_id) {
     float r = pCam.head<2>().norm();
     float theta = atan2(r, pCam.z());
     float x = pCam.x();
     float y = pCam.y();
     float z = pCam.z();
+    float* k_ = cam_id == 0 ? k : k_right;
     std::vector<float> theta_exp(10);
     theta_exp[0] = theta;
     for (size_t i = 0; i < 9; ++i) theta_exp[i + 1] = theta * theta_exp[i];
-    float dtd = 1 + 3 * k[0] * theta_exp[2] + 5 * k[1] * theta_exp[4] +
-                7 * k[2] * theta_exp[6] + 9 * k[3] * theta_exp[8];
-    float td = theta + k[0] * theta_exp[3] + k[1] * theta_exp[5] +
-               k[2] * theta_exp[7] + k[3] * theta_exp[9];
+    float dtd = 1 + 3 * k_[0] * theta_exp[2] + 5 * k_[1] * theta_exp[4] +
+                7 * k_[2] * theta_exp[6] + 9 * k_[3] * theta_exp[8];
+    float td = theta + k_[0] * theta_exp[3] + k_[1] * theta_exp[5] +
+               k_[2] * theta_exp[7] + k_[3] * theta_exp[9];
     float D = dtd / pCam.squaredNorm();
 
     float u = td * x / r;
@@ -179,32 +188,43 @@ Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, Matrix23f& J23) {
     float dvdy = td / r + y * y * C;
     float dvdz = -y * D;
 
+    float fx_ = cam_id == 0 ? fx : fx_right;
+    float fy_ = cam_id == 0 ? fy : fy_right;
+    float cx_ = cam_id == 0 ? cx : cx_right;
+    float cy_ = cam_id == 0 ? cy : cy_right;
     J23 << dudx, dudy, dudz, dvdx, dvdy, dvdz;
     Matrix2f F;
-    F << fx, 0, 0, fy;
+    F << fx_, 0, 0, fy_;
     J23 = F * J23;
 
-    return Vector2f(fx * u + cx, fy * v + cy);
+    return Vector2f(fx_ * u + cx_, fy_ * v + cy_);
 }
 
-Vector2f EquiDistantModel::camToImage(const Vector3f& pCam) {
+Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, int cam_id) {
     float norm = pCam.head<2>().norm();
     float theta = atan2(norm, pCam.z());
 
+    float* k_ = cam_id == 0 ? k : k_right;
     std::vector<float> theta_exp(5);
     theta_exp[0] = theta;
     float theta2 = theta * theta;
     float thetad = theta;
     for (int i = 0; i < 4; ++i) {
         theta_exp[i + 1] = theta2 * theta_exp[i];
-        thetad += k[i] * theta_exp[i + 1];
+        thetad += k_[i] * theta_exp[i + 1];
     }
 
     float x = thetad * pCam.x() / norm;
     float y = thetad * pCam.y() / norm;
 
-    return Vector2f(fx * x + cx, fy * y + cy);
+    float fx_ = cam_id == 0 ? fx : fx_right;
+    float fy_ = cam_id == 0 ? fy : fy_right;
+    float cx_ = cam_id == 0 ? cx : cx_right;
+    float cy_ = cam_id == 0 ? cy : cy_right;
+    return Vector2f(fx_ * x + cx_, fy_ * y + cy_);
 }
 
-float EquiDistantModel::focal() { return fx; }
+float EquiDistantModel::focal(int cam_id) {
+    return cam_id == 0 ? fx : fx_right;
+}
 }  // namespace DeltaVins

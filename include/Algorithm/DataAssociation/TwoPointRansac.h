@@ -34,10 +34,11 @@ struct TwoPointRansac {
                     const std::vector<Eigen::Vector3f>& ray0,
                     const std::vector<Eigen::Vector2f>& px1,
                     const std::vector<Eigen::Vector3f>& ray1,
-                    const Eigen::Matrix3f& dR, std::vector<bool>& inliers);
+                    const Eigen::Matrix3f& dR, std::vector<bool>& inliers,
+                    int sensor_id);
 
     void ComputeEssentialMatrix();
-    int SelectInliers(std::vector<bool>& inliers);
+    int SelectInliers(std::vector<bool>& inliers, int sensor_id);
     bool NextSample();
     bool IsGoodSample();
     int UpdateIterNum(int nInliers);

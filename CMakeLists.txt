@@ -181,12 +181,12 @@ else()
 endif()
 
 
-add_executable(DeltaVINSTest
-    ${source_root}/test/DeltaVINSTest.cpp
+add_executable(RunDeltaVINS
+    ${source_root}/examples/RunDeltaVINS.cpp
 )
 
 target_link_libraries(
-    DeltaVINSTest
+    RunDeltaVINS
     ${LINK_LIBS}
 )
 
@@ -202,7 +202,7 @@ if(USE_ROS)
     ament_export_libraries(${CMAKE_PROJECT_NAME})
 
     set(INSTALL_TARGETS
-        ${CMAKE_PROJECT_NAME} DeltaVINSTest
+        ${CMAKE_PROJECT_NAME} RunDeltaVINS
     )
 
     if(BUILD_TESTING)
@@ -215,6 +215,7 @@ if(USE_ROS)
         # a copyright and license is added to all source files
         set(ament_cmake_cpplint_FOUND TRUE)
         ament_lint_auto_find_test_dependencies()
+        add_subdirectory(test)
     endif()
 
     set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -224,7 +225,7 @@ if(USE_ROS)
         DESTINATION share/${PROJECT_NAME}/
     )
     install(
-        TARGETS DeltaVINSTest ${CMAKE_PROJECT_NAME}
+        TARGETS RunDeltaVINS ${CMAKE_PROJECT_NAME}
         DESTINATION lib/${PROJECT_NAME})
     ament_package()
 

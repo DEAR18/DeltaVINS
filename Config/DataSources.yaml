@@ -2,7 +2,7 @@
 ---
 
 DataSourceType: "ROS2_bag" # support: ROS2/Euroc/ROS2_bag
-DataSourcePath: "/data/euroc/V1_01_easy" # used for  non-ROS2 data source
+DataSourcePath: "/data/euroc/V2_01_easy" # used for  non-ROS2 data source
 ImageStartIdx: 5 # skip the first n images in the dataset
 
 ROSTopics:
@@ -10,7 +10,7 @@ ROSTopics:
       TopicName: "/cam0/image_raw"
       TopicQueueSize: 10
       SensorID: 0 # Index of each sensor
-      SensorType: "MonoCamera"
+      SensorType: "StereoCamera"
       RightTopicName: "/cam1/image_raw"
     - 
       TopicName: "/imu0"

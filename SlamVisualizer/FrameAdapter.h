@@ -20,6 +20,7 @@ struct FrameAdapter {
     virtual ~FrameAdapter() = default;
     virtual void PushViewMatrix(std::vector<FrameGL>& v_Rcw) = 0;
     virtual void PushImageTexture(unsigned char* imageTexture, const int width,
-                                  const int height, const int channels) = 0;
+                                  const int height, const int channels,
+                                  const std::string& name) = 0;
     virtual void FinishFrame() = 0;
 };

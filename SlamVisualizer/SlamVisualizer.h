@@ -17,7 +17,8 @@ class SlamVisualizer : public FrameAdapter, public WorldPointAdapter {
     void PushViewMatrix(std::vector<FrameGL>& v_Rwc) override;
 
     void PushImageTexture(unsigned char* imageTexture, const int width,
-                          const int height, const int channels) override;
+                          const int height, const int channels,
+                          const std::string& name) override;
 
     void PushWorldPoint(const std::vector<WorldPointGL>& v_Point3f) override;
 

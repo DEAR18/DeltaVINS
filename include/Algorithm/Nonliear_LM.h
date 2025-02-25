@@ -1,4 +1,6 @@
 #pragma once
+#include <limits>
+#include <Eigen/Dense>
 
 struct LM_Result {
     bool bConverged;
@@ -32,7 +34,7 @@ class NonLinear_LM {
           };
     ~NonLinear_LM() {}
     void clear();
-    virtual float EvaluateF(bool bNewZ, float huberThresh) = 0;
+    virtual Type EvaluateF(bool bNewZ, Type huberThresh) = 0;
     virtual bool UserDefinedDecentFail() = 0;
     virtual bool UserDefinedConvergeCriteria() = 0;
     void solve();
@@ -75,7 +77,8 @@ void NonLinear_LM<nDim, Type>::solve() {
         m_Result.bConverged = true;
     }
 
-    for (num_iter_ = 1; !m_Result.bConverged && num_iter_ < max_iters_; ++num_iter_) {
+    for (num_iter_ = 1; !m_Result.bConverged && num_iter_ < max_iters_;
+         ++num_iter_) {
         Eigen::Matrix<Type, nDim, nDim> H_ =
             H + Eigen::Matrix<Type, nDim, nDim>::Identity(3, 3) * mu;
 
