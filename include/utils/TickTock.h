@@ -10,7 +10,7 @@ class TickTock {
     static void Start(std::string name);
     static void restart(std::string name);
     static void Stop(std::string name);
-    static void outputResult();
+    static void outputResult(const std::string& output_file);
     static void outputResultConsole();
 
    private:

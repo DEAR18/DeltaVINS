@@ -159,14 +159,14 @@ void Config::loadConfigFile(const std::string& configFile) {
     if (RecordImage || RecordIMU) RecordData = 1;
 
     if (ResultOutputPath.empty()) {
-        ResultOutputPath = "./";
+        ResultOutputPath = "./TestResults/";
     }
 
-    existOrMkdir(ResultOutputPath + "/TestResults");
+    existOrMkdir(ResultOutputPath);
     if (outputFileName.empty()) {
         outputFileName = "outputPose";
     }
-    outputFileName = ResultOutputPath + "/TestResults/" + outputFileName;
+    outputFileName = ResultOutputPath + outputFileName;
 
     if (DataSourceType == DataSrcROS2 || DataSourceType == DataSrcROS2_bag) {
         FileNode node = data_source_config_file_cv["ROSTopics"];
