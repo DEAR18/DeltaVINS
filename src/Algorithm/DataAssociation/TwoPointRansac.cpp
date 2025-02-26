@@ -125,7 +125,8 @@ int TwoPointRansac::FindInliers(const std::vector<Eigen::Vector2f>& px0,
 
 int TwoPointRansac::UpdateIterNum(int nInliers) {
     return log(1 - confidence_) /
-           log(1 - pow(1 - double(num_points_ - nInliers) / num_points_, 2));
+           log(1 - (1 - double(num_points_ - nInliers) / num_points_) *
+                       (1 - double(num_points_ - nInliers) / num_points_));
 }
 
 bool TwoPointRansac::NextSample() {

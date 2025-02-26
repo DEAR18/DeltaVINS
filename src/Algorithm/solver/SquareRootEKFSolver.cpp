@@ -468,10 +468,10 @@ void rowMajorMatrixQRByGivensInMsckf(MatrixHfR& H, int row, int col) {
                 }
                 continue;
             } else if (fabs(beta) > fabs(alpha)) {
-                s = 1 / sqrt(1 + pow(alpha / beta, 2));
+                s = 1 / sqrt(1 + (alpha / beta) * (alpha / beta));
                 c = -alpha / beta * s;
             } else {
-                c = 1 / sqrt(1 + pow(beta / alpha, 2));
+                c = 1 / sqrt(1 + (beta / alpha) * (beta / alpha));
                 s = -beta / alpha * c;
             }
             for (int k = j; k < nCols; ++k) {
@@ -712,7 +712,7 @@ void SquareRootEKFSolver::AddVelocityConstraint() {
         Jl.setIdentity();
     } else {
         Jr = Eigen::Matrix3f::Identity() + 0.5 * crossSo3 +
-             (pow(1.f / absAngle, 2) -
+             ((1.f / (absAngle * absAngle)) -
               (1 + cos(absAngle) / (2 * absAngle * sin(absAngle)))) *
                  crossSo3 * crossSo3;
         Jl = Jr.transpose();
