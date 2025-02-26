@@ -402,9 +402,9 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
         E.resize(CURRENT_DIM, 9);
         int iLeft = IMU_STATE_DIM;
         int cam_idx =
-            state->host->last_obs_[0]
-                ? state->host->last_obs_[0]->link_frame->state->index_in_window
-                : state->host->last_obs_[1]->link_frame->state->index_in_window;
+            state->host->flag_dead[0]
+                ? state->host->last_obs_[1]->link_frame->state->index_in_window
+                : state->host->last_obs_[0]->link_frame->state->index_in_window;
         E.leftCols<3>() = info_factor_matrix_after_mariginal_.block(
             0, state->index_in_window * 3 + iLeft, CURRENT_DIM, 3);
         E.rightCols<6>() = info_factor_matrix_after_mariginal_.block(
