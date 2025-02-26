@@ -158,7 +158,7 @@ void StopSystem() {
     rclcpp::shutdown();
 #endif
     if (Config::CameraCalibration) return;
-    TickTock::outputResult();
+    TickTock::outputResult(Config::ResultOutputPath + "/Time.txt");
     dataSourcePtr->Stop();
     if (Config::RunVIO) vioModulePtr->Stop();
     finishLogging();

@@ -67,6 +67,6 @@ ros2 bag play path_to_data.db3
 ## Convert ROS1 data bag to ROS2
 ```
 pip3 install rosbags>=0.9.11
-rosbags-convert V1_01_easy.bag --dst <ros2_bag_folder>
+rosbags-convert --src V1_01_easy.bag --dst <ros2_bag_folder>
 ```
 See [this page](https://docs.openvins.com/dev-ros1-to-ros2.html) for more details.
