@@ -30,4 +30,5 @@ int main(int argc, char** argv) {
     InitSlamSystem(configFile.c_str());
     StartAndJoin();
     StopSystem();
+    return 0;
 }
