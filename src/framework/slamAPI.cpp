@@ -41,15 +41,21 @@ PoseOutputTcp::Ptr tcpPtr = nullptr;
 DataOutputROS::Ptr rosPtr = nullptr;
 #endif
 
-void InitSlamSystem(const char* configFile) {
+bool InitSlamSystem(const char* configFile) {
     // Init Log
     logInit();
 
     // load config file
-    Config::loadConfigFile(configFile);
-    SensorConfig::Instance().LoadConfig(Config::CalibrationPath);
+    if (!Config::loadConfigFile(configFile)) {
+        return false;
+    }
+    if (!SensorConfig::Instance().LoadConfig(Config::CalibrationPath)) {
+        return false;
+    }
     // CamModel::loadCalibrations();
-    if (Config::CameraCalibration) return;
+    if (Config::CameraCalibration) {
+        return true;
+    }
 
     // Init DataSource
 #ifndef USE_ROS2
@@ -117,6 +123,8 @@ void InitSlamSystem(const char* configFile) {
     if (Config::UseGnss) {
         dataSourcePtr->AddNavSatFixObserver(&GnssBuffer::Instance());
     }
+
+    return true;
 }
 
 void StartAndJoin() {

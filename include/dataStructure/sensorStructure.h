@@ -3,33 +3,31 @@
 //
 
 #pragma once
-#include <utils/basicTypes.h>
+#include "utils/basicTypes.h"
 
 namespace DeltaVins {
 
 struct ImuData {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    Vector3f gyro;
-    Vector3f acc;
-    int64_t timestamp;
-    int sensor_id;
+    Vector3f gyro{Eigen::Vector3f::Zero()};
+    Vector3f acc{Eigen::Vector3f::Zero()};
+    int64_t timestamp{0};
+    int sensor_id{0};
 
-    bool operator<(long long t) { return timestamp < t; }
+    bool operator<(int64_t t) { return timestamp < t; }
 
-    bool operator>(long long t) { return timestamp > t; }
+    bool operator>(int64_t t) { return timestamp > t; }
 
-    bool operator==(long long t) { return timestamp == t; }
+    bool operator==(int64_t t) { return timestamp == t; }
 
-    bool operator<=(long long t) { return timestamp <= t; }
+    bool operator<=(int64_t t) { return timestamp <= t; }
 };
 
 struct ImageData {
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    int64_t timestamp;
+    int64_t timestamp{0};
 
     cv::Mat image;
-    int sensor_id;
+    int sensor_id{0};
     cv::Mat right_image;  // for stereo camera
     using Ptr = std::shared_ptr<ImageData>;
 };
@@ -42,25 +40,25 @@ enum class NavSatFixStatus {
 };
 
 struct NavSatFixData {
-    int64_t timestamp;
-    int sensor_id;
-    NavSatFixStatus status;
-    double latitude;
-    double longitude;
-    double altitude;
-    double covariance[9];
+    int64_t timestamp{0};
+    int sensor_id{0};
+    NavSatFixStatus status{NavSatFixStatus::NO_FIX};
+    double latitude{0.0};
+    double longitude{0.0};
+    double altitude{0.0};
+    double covariance[9]{0.0};
 };
 
 struct OdometerData {
-    int64_t timestamp;
+    int64_t timestamp{0};
 
-    int encoderL;
-    int encoderR;
-    float dEncoderL;
-    float dEncoderR;
+    int encoderL{0};
+    int encoderR{0};
+    float dEncoderL{0.f};
+    float dEncoderR{0.f};
 
-    float velocity;
-    float angularVelocity;
+    float velocity{0.f};
+    float angularVelocity{0.f};
 };
 
 }  // namespace DeltaVins

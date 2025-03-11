@@ -1,13 +1,13 @@
 #pragma once
+#include <opencv2/opencv.hpp>
 
 #include "camModel.h"
-#include "opencv2/opencv.hpp"
 
 namespace DeltaVins {
 
 class PinholeModel : public CamModel {
     PinholeModel(int width, int height, float fx, float fy, float cx, float cy)
-        : CamModel(width, height),
+        : CamModel(width, height, CamModelType::PINHOLE),
           fx(fx),
           fy(fy),
           cx(cx),
@@ -16,7 +16,7 @@ class PinholeModel : public CamModel {
           tfovy(height / (2 * fy)) {};
     PinholeModel(int width, int height, float fx, float fy, float cx, float cy,
                  float fx_right, float fy_right, float cx_right, float cy_right)
-        : CamModel(width, height),
+        : CamModel(width, height, CamModelType::PINHOLE),
           fx(fx),
           fy(fy),
           cx(cx),

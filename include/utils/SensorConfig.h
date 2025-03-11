@@ -11,6 +11,8 @@ namespace DeltaVins {
 struct IMUParams {
     int sensor_id;
     int fps;
+    int acc_fps;   // for separate acc and gyro message
+    int gyro_fps;  // for separate acc and gyro message
     double gyro_noise;
     double acc_noise;
     double gyro_bias_noise;
@@ -38,7 +40,7 @@ class SensorConfig {
         return camera_params_[sensor_id];
     }
 
-    void LoadConfig(const std::string& config_path);
+    bool LoadConfig(const std::string& config_path);
 
    private:
     SensorConfig() {}

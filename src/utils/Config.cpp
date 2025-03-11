@@ -60,7 +60,7 @@ bool Config::UseStereo;
 bool Config::UseBackTracking;
 std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
 
-void Config::loadConfigFile(const std::string& configFile) {
+bool Config::loadConfigFile(const std::string& configFile) {
     _clear();
 
     FileStorage config_file_cv, data_source_config_file_cv,
@@ -76,12 +76,9 @@ void Config::loadConfigFile(const std::string& configFile) {
     }
 
     config_file_cv["DataSourceConfigFilePath"] >> DataSourceConfigFilePath;
-
     if (DataSourceConfigFilePath.empty()) {
-        // get config file folder path
-        std::filesystem::path config_path;
-        config_path = std::filesystem::path(configFile).parent_path();
-        DataSourceConfigFilePath = config_path.string() + "/DataSources.yaml";
+        LOGE("DataSourceConfigFilePath in %s is empty !", configFile.c_str());
+        return false;
     }
 
     data_source_config_file_cv.open(DataSourceConfigFilePath,
@@ -94,18 +91,9 @@ void Config::loadConfigFile(const std::string& configFile) {
     }
     config_file_cv["CalibrationPath"] >> CalibrationPath;
     if (CalibrationPath.empty()) {
-        // get config file folder path
-        std::filesystem::path config_path;
-        config_path = std::filesystem::path(configFile).parent_path();
-        CalibrationPath = config_path.string() + "/calibrations";
+        LOGE("CalibrationPath in %s is empty !", configFile.c_str());
+        return false;
     }
-    // camera_calib_file_cv.open(CalibrationPath, FileStorage::READ);
-    // if (!camera_calib_file_cv.isOpened()) {
-    //     throw std::runtime_error("fail to open camera calibration file at " +
-    //                              CalibrationPath);
-    // } else {
-    //     LOGI("Load camera calibration :%s", CalibrationPath.c_str());
-    // }
     config_file_cv["PlaneConstraint"] >> PlaneConstraint;
 
     string temp;
@@ -186,6 +174,10 @@ void Config::loadConfigFile(const std::string& configFile) {
                 topic.type = ROS2SensorType::MonoCamera;
             } else if (topic_type == "IMU") {
                 topic.type = ROS2SensorType::IMU;
+            } else if (topic_type == "ACC") {
+                topic.type = ROS2SensorType::ACC;
+            } else if (topic_type == "GYRO") {
+                topic.type = ROS2SensorType::GYRO;
             } else if (topic_type == "GNSS") {
                 topic.type = ROS2SensorType::GNSS;
             } else {
@@ -220,6 +212,8 @@ void Config::loadConfigFile(const std::string& configFile) {
     if (DataSourceType == DataSrcROS2_bag) {
         SerialRun = 1;  // run in serial mode if data source is ROS2_bag
     }
+
+    return true;
 }
 
 void Config::_clear() {

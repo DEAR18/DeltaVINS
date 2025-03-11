@@ -7,10 +7,10 @@
 
 namespace DeltaVins {
 
-void SensorConfig::LoadConfig(const std::string& config_path) {
-    if (!std::filesystem::exists(config_path)) {
+bool SensorConfig::LoadConfig(const std::string& config_path) {
+    if (config_path.empty() || !std::filesystem::exists(config_path)) {
         LOGW("Config file not found: %s", config_path.c_str());
-        return;
+        return false;
     }
     // list all yaml files in the config_path
     std::vector<std::string> yaml_files;
@@ -30,6 +30,8 @@ void SensorConfig::LoadConfig(const std::string& config_path) {
         if (sensor_type == "IMU") {
             IMUParams imu_params;
             fs["ImuSampleFps"] >> imu_params.fps;
+            fs["AccSampleFps"] >> imu_params.acc_fps;
+            fs["GyroSampleFps"] >> imu_params.gyro_fps;
             fs["GyroNoise"] >> imu_params.gyro_noise;
             fs["AccNoise"] >> imu_params.acc_noise;
             fs["GyroBiasNoise"] >> imu_params.gyro_bias_noise;
@@ -128,5 +130,7 @@ void SensorConfig::LoadConfig(const std::string& config_path) {
             }
         }
     }
+
+    return true;
 }
 }  // namespace DeltaVins

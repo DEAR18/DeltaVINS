@@ -8,7 +8,7 @@ namespace DeltaVins {
 class RadTanModel : public CamModel {
     RadTanModel(int width, int height, float fx, float fy, float cx, float cy,
                 float d0, float d1, float d2, float d3, float d4)
-        : CamModel(width, height),
+        : CamModel(width, height, CamModelType::RADTAN),
           fx(fx),
           fy(fy),
           cx(cx),
@@ -27,7 +27,7 @@ class RadTanModel : public CamModel {
                 float fx_right, float fy_right, float cx_right, float cy_right,
                 float d0_right, float d1_right, float d2_right, float d3_right,
                 float d4_right)
-        : CamModel(width, height),
+        : CamModel(width, height, CamModelType::RADTAN),
           fx(fx),
           fy(fy),
           cx(cx),

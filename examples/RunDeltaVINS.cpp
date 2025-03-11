@@ -27,7 +27,10 @@ int main(int argc, char** argv) {
     std::string configFile = non_ros_args[1];
 #endif
 
-    InitSlamSystem(configFile.c_str());
+    if (!InitSlamSystem(configFile.c_str())) {
+        LOGE("Initialize system failed !");
+        exit(1);
+    }
     StartAndJoin();
     StopSystem();
     return 0;

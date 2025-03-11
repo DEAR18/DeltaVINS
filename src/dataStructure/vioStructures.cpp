@@ -164,7 +164,7 @@ bool Landmark::TriangulateLM(float depth_prior) {
     clear();
 
     // select the anchor observation
-    // he anchor observation is selected from the right camera only when the
+    // the anchor observation is selected from the right camera only when the
     // left - hand observation is empty.
     VisualObservation::Ptr anchor_ob = nullptr;
     anchor_ob = visual_obs[0].size() > 0 ? *visual_obs[0].begin()
@@ -370,13 +370,12 @@ void Landmark::DrawFeatureTrack(cv::Mat& image, cv::Scalar color,
     if (!flag_dead[0] && !flag_dead[1] && valid_obs_num > 5) {
         color = _PURPLE_SCALAR;
     }
-    for (auto& visualOb : visual_obs_set) {
+    int cnt = 0;
+    for (auto riter = visual_obs_set.rbegin(); riter != visual_obs_set.rend();
+         ++riter) {
+        const auto& visualOb = *riter;
         curr_obs = visualOb;
         if (front_obs == nullptr) {
-            front_obs = curr_obs;
-            continue;
-        }
-        if ((curr_obs->px - front_obs->px).squaredNorm() > 900) {
             front_obs = curr_obs;
             continue;
         }
@@ -386,11 +385,15 @@ void Landmark::DrawFeatureTrack(cv::Mat& image, cv::Scalar color,
         cv::circle(image, cv::Point(curr_obs->px.x(), curr_obs->px.y()), 2,
                    color);
         front_obs = curr_obs;
+
+        ++cnt;
+        if (cnt >= 5) break;
     }
     cv::circle(image,
                cv::Point(last_obs_[cam_id]->px.x(), last_obs_[cam_id]->px.y()),
                8, color);
 }
+
 float Landmark::Reproject(bool verbose, int cam_id) {
     assert(point_state_);
     CamModel::Ptr camModel = SensorConfig::Instance().GetCamModel(0);

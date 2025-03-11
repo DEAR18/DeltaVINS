@@ -1,5 +1,5 @@
-#include <Algorithm/vision/camModel/camModel_fisheye.h>
-#include <precompile.h>
+#include "Algorithm/vision/camModel/camModel_fisheye.h"
+#include "precompile.h"
 
 namespace DeltaVins {
 OcamModel::OcamModel(float c_, float d_, float e_, float cx_, float cy_,
@@ -62,7 +62,7 @@ Eigen::VectorXd polyfit(Eigen::VectorXd& xVec, Eigen::VectorXd& yVec,
 FisheyeModel::FisheyeModel(int width, int height, float cx, float cy, float c,
                            float d, float e, float a0, float a2, float a3,
                            float a4, bool alignment)
-    : CamModel(width, height),
+    : CamModel(width, height, CamModelType::OMNIDIRECTIONAL),
       ocamModel(c, d, e, cx, cy, a0, a2, a3, a4),
       alignment_(alignment) {
     computeInvPoly();
@@ -73,7 +73,7 @@ FisheyeModel::FisheyeModel(int width, int height, float cx, float cy, float c,
                            float d, float e, float a0, float a2, float a3,
                            float a4, float ia0, float ia1, float ia2, float ia3,
                            float ia4, bool alignment)
-    : CamModel(width, height),
+    : CamModel(width, height, CamModelType::OMNIDIRECTIONAL),
       ocamModel(c, d, e, cx, cy, a0, a2, a3, a4, ia0, ia1, ia2, ia3, ia4),
       alignment_(alignment) {
     fx_ = computeErrorMultiplier();
@@ -85,7 +85,7 @@ FisheyeModel::FisheyeModel(int width, int height, float cx, float cy, float c,
                            float c_right, float d_right, float e_right,
                            float a0_right, float a2_right, float a3_right,
                            float a4_right, bool alignment)
-    : CamModel(width, height),
+    : CamModel(width, height, CamModelType::OMNIDIRECTIONAL),
       ocamModel(c, d, e, cx, cy, a0, a2, a3, a4),
       ocamModel_right(new OcamModel(c_right, d_right, e_right, cx_right,
                                     cy_right, a0_right, a2_right, a3_right,
@@ -106,7 +106,7 @@ FisheyeModel::FisheyeModel(int width, int height, float cx, float cy, float c,
                            float a4_right, float ia0_right, float ia1_right,
                            float ia2_right, float ia3_right, float ia4_right,
                            bool alignment)
-    : CamModel(width, height),
+    : CamModel(width, height, CamModelType::OMNIDIRECTIONAL),
       ocamModel(c, d, e, cx, cy, a0, a2, a3, a4, ia0, ia1, ia2, ia3, ia4),
       ocamModel_right(new OcamModel(c_right, d_right, e_right, cx_right,
                                     cy_right, a0_right, a2_right, a3_right,

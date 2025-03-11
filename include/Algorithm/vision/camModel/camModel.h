@@ -9,6 +9,17 @@ class CamModel {
    public:
     using Ptr = std::shared_ptr<CamModel>;
 
+    enum class CamModelType {
+        PINHOLE = 0,
+        RADTAN = 1,
+        EQUIDISTANT = 2,
+        OMNIDIRECTIONAL = 3,
+        UNKNOW = 4
+    };
+
+    CamModel(int width, int height, CamModelType type)
+        : model_type_(type), width_(width), height_(height) {};
+
     static Ptr CreateFromConfig(const std::string& config_path);
     static Ptr CreateFromConfig(const cv::FileStorage& config);
 
@@ -101,9 +112,10 @@ class CamModel {
         }
     }
 
-    CamModel(int width, int height) : width_(width), height_(height) {};
+    CamModelType GetModelType() { return model_type_; }
 
    protected:
+    CamModelType model_type_{CamModelType::UNKNOW};
     size_t width_, height_;
     int sensor_id;
     Matrix3f Rci_, Rci_right_;
