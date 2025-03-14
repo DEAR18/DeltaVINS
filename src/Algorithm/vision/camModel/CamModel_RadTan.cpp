@@ -1,5 +1,5 @@
-#include <Algorithm/vision/camModel/camModel_RadTan.h>
-#include <precompile.h>
+#include "Algorithm/vision/camModel/camModel_RadTan.h"
+#include "precompile.h"
 
 namespace DeltaVins {
 
@@ -45,7 +45,7 @@ Vector3f RadTanModel::imageToCam(const Vector2f& px, int cam_id) {
     cv::Point2f uv(px.x(), px.y()), px2;
     const cv::Mat src_pt(1, 1, CV_32FC2, &uv.x);
     cv::Mat dst_pt(1, 1, CV_32FC2, &px2.x);
-    undistortPoints(src_pt, dst_pt, K, D);
+    cv::undistortPoints(src_pt, dst_pt, K, D);
     xyz[0] = px2.x;
     xyz[1] = px2.y;
     xyz[2] = 1.0;

@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-void InitSlamSystem(const char* configFile);
+bool InitSlamSystem(const char* configFile);
 void StartAndJoin();
 void StopSystem();
 

@@ -65,6 +65,40 @@ DataSource_ROS2::DataSource_ROS2(bool is_bag)
                         }));
                 topic_map_[topic_name] = topic.sensor_id;
                 LOGI("Create imu subscriber: %s", topic_name.c_str());
+            } else if (topic.type == ROS2SensorType::ACC) {
+                std::string topic_name = topic.topics[0];
+                // Create acc subscriber
+                imu_sub_.push_back(
+                    this->create_subscription<sensor_msgs::msg::Imu>(
+                        topic_name, rclcpp::SensorDataQoS(),
+                        [this,
+                         topic](const sensor_msgs::msg::Imu::SharedPtr msg) {
+                            AccGyroCallback(msg, true, topic.sensor_id);
+                        }));
+                topic_map_[topic_name] = topic.sensor_id;
+                IMUParams imu_params =
+                    SensorConfig::Instance().GetIMUParams(topic.sensor_id);
+                imu_gyro_interval_ =
+                    std::min(imu_gyro_interval_,
+                             1.2f * 1 / (imu_params.acc_fps + 1e-8f));
+                LOGI("Create acc subscriber: %s", topic_name.c_str());
+            } else if (topic.type == ROS2SensorType::GYRO) {
+                std::string topic_name = topic.topics[0];
+                // Create gyro subscriber
+                imu_sub_.push_back(
+                    this->create_subscription<sensor_msgs::msg::Imu>(
+                        topic_name, rclcpp::SensorDataQoS(),
+                        [this,
+                         topic](const sensor_msgs::msg::Imu::SharedPtr msg) {
+                            AccGyroCallback(msg, false, topic.sensor_id);
+                        }));
+                topic_map_[topic_name] = topic.sensor_id;
+                IMUParams imu_params =
+                    SensorConfig::Instance().GetIMUParams(topic.sensor_id);
+                imu_gyro_interval_ =
+                    std::min(imu_gyro_interval_,
+                             1.2f * 1 / (imu_params.gyro_fps + 1e-8f));
+                LOGI("Create gyro subscriber: %s", topic_name.c_str());
             } else if (topic.type == ROS2SensorType::StereoCamera) {
                 std::string topic_name = topic.topics[0];
 
@@ -99,7 +133,6 @@ DataSource_ROS2::DataSource_ROS2(bool is_bag)
         //     topic_name, 10,
         //     std::bind(&DataSource_ROS2::ImageCallback, this,
         //               std::placeholders::_1));
-        // image_count_ = 0;
         // // Create camera info subscriber
         // // cameraInfoSubscriber =
         // //
@@ -169,7 +202,6 @@ void DataSource_ROS2::ImageCallback(
 
     image_data->sensor_id = sensor_id;
 
-    image_count_++;
     cv::cvtColor(cv_ptr->image, image_data->image, cv::COLOR_BGR2GRAY);
 
     if (is_bag_) {
@@ -210,6 +242,75 @@ void DataSource_ROS2::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr msg,
     imu_data.gyro = gyro;
 
     {
+        std::lock_guard<std::mutex> lck(mtx_imu_observer_);
+        for (auto& observer : imu_observers_) {
+            observer->OnImuReceived(imu_data);
+        }
+    }
+}
+
+void DataSource_ROS2::AccGyroCallback(
+    const sensor_msgs::msg::Imu::SharedPtr msg, const bool is_acc,
+    int sensor_id) {
+    static const uint gyro_buff_size = 5;
+    static const uint acc_buff_size = 5;
+    static std::deque<std::pair<int64_t, Eigen::Vector3f>> acc_buff;
+    static std::deque<std::pair<int64_t, Eigen::Vector3f>> gyro_buff;
+    static std::mutex mtx_buff;
+
+    std::unique_lock<std::mutex> buff_lck(mtx_buff);
+    int64_t timestamp = msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+    Eigen::Vector3f acc(msg->linear_acceleration.x, msg->linear_acceleration.y,
+                        msg->linear_acceleration.z);
+    Eigen::Vector3f gyro(msg->angular_velocity.x, msg->angular_velocity.y,
+                         msg->angular_velocity.z);
+    ImuData imu_data;
+    if (is_acc) {
+        if (gyro_buff.empty()) {
+            acc_buff.emplace_back(std::make_pair(timestamp, acc));
+        } else {
+            const auto& last_gyro = gyro_buff.back();
+            float delta_t = (timestamp - last_gyro.first) * 1e-9f;
+            if (delta_t > imu_gyro_interval_) {
+                acc_buff.emplace_back(std::make_pair(timestamp, acc));
+                gyro_buff.clear();
+            } else if (std::fabs(delta_t) <= imu_gyro_interval_) {
+                // construct an imu data
+                imu_data.timestamp = timestamp;
+                imu_data.sensor_id = sensor_id;
+                imu_data.acc = acc;
+                imu_data.gyro = last_gyro.second;
+                gyro_buff.clear();
+            }
+        }
+    } else {
+        if (acc_buff.empty()) {
+            gyro_buff.emplace_back(std::make_pair(timestamp, gyro));
+        } else {
+            const auto& last_acc = acc_buff.back();
+            float delta_t = (timestamp - last_acc.first) * 1e-9f;
+            if (delta_t > imu_gyro_interval_) {
+                gyro_buff.emplace_back(std::make_pair(timestamp, gyro));
+                acc_buff.clear();
+            } else if (std::fabs(delta_t) <= imu_gyro_interval_) {
+                // construct an imu data
+                imu_data.timestamp = timestamp;
+                imu_data.sensor_id = sensor_id;
+                imu_data.acc = last_acc.second;
+                imu_data.gyro = gyro;
+                acc_buff.clear();
+            }
+        }
+    }
+    if (acc_buff.size() > acc_buff_size) {
+        acc_buff.pop_front();
+    }
+    if (gyro_buff.size() > gyro_buff_size) {
+        gyro_buff.pop_front();
+    }
+    buff_lck.unlock();
+
+    if (imu_data.timestamp > 0) {
         std::lock_guard<std::mutex> lck(mtx_imu_observer_);
         for (auto& observer : imu_observers_) {
             observer->OnImuReceived(imu_data);

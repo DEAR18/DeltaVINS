@@ -1,6 +1,8 @@
 #include "Algorithm/vision/camModel/camModel_Equidistant.h"
 
 #include "precompile.h"
+#include "utils/constantDefine.h"
+#include "utils/Config.h"
 
 namespace DeltaVins {
 
@@ -51,12 +53,12 @@ namespace DeltaVins {
 //     config.write("Distortion", D);
 // }
 
-Eigen::VectorXd polyfit(Eigen::VectorXd& xVec, Eigen::VectorXd& yVec) {
+VectorXd polyfit(VectorXd& xVec, VectorXd& yVec) {
     int polyDegree = 5;
     assert(xVec.size() == yVec.size());
 
-    Eigen::MatrixXd A(xVec.size(), polyDegree);
-    Eigen::VectorXd B(xVec.size());
+    MatrixXd A(xVec.size(), polyDegree);
+    VectorXd B(xVec.size());
 
     for (int i = 0; i < xVec.size(); ++i) {
         const double x = xVec(i);
@@ -69,9 +71,9 @@ Eigen::VectorXd polyfit(Eigen::VectorXd& xVec, Eigen::VectorXd& yVec) {
         B(i) = y;
     }
 
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(
-        A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    Eigen::VectorXd x = svd.solve(B);
+    Eigen::JacobiSVD<MatrixXd> svd(A,
+                                   Eigen::ComputeThinU | Eigen::ComputeThinV);
+    VectorXd x = svd.solve(B);
 
     std::cout << A << std::endl;
     std::cout << B << std::endl;
@@ -98,11 +100,11 @@ Eigen::VectorXd polyfit(Eigen::VectorXd& xVec, Eigen::VectorXd& yVec) {
 void EquiDistantModel::computeInvPoly(bool is_right) {
     std::vector<float> r;
     std::vector<float> td;
-    float* k_ = is_right ? k_right : k;
-    float* invK_ = is_right ? invK_right : invK;
-    for (float rad = 0.01; rad < M_PI_2; rad += 0.01) {
-        float theta_d = rad * (1 + k_[0] * powf(rad, 2) + k_[1] * powf(rad, 4) +
-                               k_[2] * powf(rad, 6) + k_[3] * powf(rad, 8));
+    float* k = is_right ? k_right_ : k_;
+    float* invK = is_right ? invK_right_ : invK_;
+    for (float rad = 0.01; rad < PI_2; rad += 0.01) {
+        float theta_d = rad * (1 + k[0] * powf(rad, 2) + k[1] * powf(rad, 4) +
+                               k[2] * powf(rad, 6) + k[3] * powf(rad, 8));
         td.push_back(theta_d);
         r.push_back(tanf(rad));
     }
@@ -115,11 +117,11 @@ void EquiDistantModel::computeInvPoly(bool is_right) {
     }
 
     VectorXd x = polyfit(tdM, rM);
-    invK_[0] = x(0);
-    invK_[1] = x(1);
-    invK_[2] = x(2);
-    invK_[3] = x(3);
-    invK_[4] = x(4);
+    invK[0] = x(0);
+    invK[1] = x(1);
+    invK[2] = x(2);
+    invK[3] = x(3);
+    invK[4] = x(4);
 
     printf("Inv Poly %f %f %f %f\n", x(0), x(1), x(2), x(3));
 
@@ -128,8 +130,8 @@ void EquiDistantModel::computeInvPoly(bool is_right) {
     for (size_t i = 0; i < height_; ++i) {
         for (size_t j = 0; j < width_; ++j) {
             Vector2f px0(j, i);
-            Vector3f ray = imageToCam(px0);
-            Vector2f px = camToImage(ray);
+            Vector3f ray = imageToCam(px0, is_right);
+            Vector2f px = camToImage(ray, is_right);
             float pxErr = (px0 - px).norm();
             err.push_back(pxErr);
             sum_err += pxErr;
@@ -141,17 +143,77 @@ void EquiDistantModel::computeInvPoly(bool is_right) {
     fflush(stdout);
 }
 
+float EquiDistantModel::testModelPrecision(bool is_right) {
+    if (width_ == 0 || height_ == 0) {
+        LOGE("Invalid camera model, width %d height %d", width_, height_);
+        return 1e8f;
+    }
+    cv::Mat mask(
+        cv::Size2f(width_, height_), CV_8UC1,
+        cv::Scalar(
+            255));  // set to black for pixels with large reprojection error
+    float reprojection_precision = 1e-3f;
+    int cnt = 0;
+    float sum_err = 0.f;
+    for (size_t i = 0; i < height_; ++i) {
+        for (size_t j = 0; j < width_; ++j) {
+            Vector2f px0(j, i);
+            Vector3f ray = imageToCam(px0, is_right);
+            Vector2f px = camToImage(ray, is_right);
+            float pxErr = (px0 - px).norm();
+            sum_err += pxErr;
+            ++cnt;
+            if (std::isnan(pxErr) || pxErr > reprojection_precision) {
+                mask.at<uchar>(i, j) = 0;
+            }
+        }
+    }
+    float mean_err = sum_err / cnt;
+    if (is_right) {
+        LOGI("Right camera model type: EQUIDISTANT, mean pix->cam->pix err:%f",
+             mean_err);
+    } else {
+        LOGI("Left camera model type: EQUIDISTANT, mean pix->cam->pix err:%f",
+             sum_err / cnt);
+    }
+    std::string mask_name = is_right ? "/reprojection_err_mask_right.png"
+                                     : "/reprojection_err_mask.png";
+    cv::imwrite(Config::ResultOutputPath + mask_name, mask);
+
+    return mean_err;
+}
+
 Vector3f EquiDistantModel::imageToCam(const Vector2f& px, int cam_id) {
-    cv::Mat K_ = cam_id == 0 ? K : K_right;
-    cv::Mat D_ = cam_id == 0 ? D : D_right;
-    Vector3f xyz;
-    cv::Point2f uv(px.x(), px.y()), px2;
-    const cv::Mat src_pt(1, 1, CV_32FC2, &uv.x);
-    cv::Mat dst_pt(1, 1, CV_32FC2, &px2.x);
-    undistortPoints(src_pt, dst_pt, K_, D_);
-    xyz[0] = px2.x;
-    xyz[1] = px2.y;
-    xyz[2] = 1.0;
+    float* k = cam_id == 0 ? k_ : k_right_;
+    float fx = cam_id == 0 ? fx_ : fx_right_;
+    float fy = cam_id == 0 ? fy_ : fy_right_;
+    float cx = cam_id == 0 ? cx_ : cx_right_;
+    float cy = cam_id == 0 ? cy_ : cy_right_;
+    cv::Point2f pn((px(0) - cx) / fx, (px(1) - cy) / fy);
+    float scale = 1.f;
+    float theta_d = sqrtf(pn.x * pn.x + pn.y * pn.y);
+    theta_d = std::min(theta_d, PI_2);
+    if (theta_d > 1e-8f) {
+        // Compensate distortion iteratively
+        float theta = theta_d;
+        float precision = 1e-6f;
+        for (int i = 0; i < 10; i++) {
+            float theta2 = theta * theta, theta4 = theta2 * theta2,
+                  theta6 = theta4 * theta2, theta8 = theta4 * theta4;
+            float k0_theta2 = k[0] * theta2, k1_theta4 = k[1] * theta4,
+                  k2_theta6 = k[2] * theta6, k3_theta8 = k[3] * theta8;
+            float theta_fix =
+                (theta * (1 + k0_theta2 + k1_theta4 + k2_theta6 + k3_theta8) -
+                 theta_d) /
+                (1 + 3 * k0_theta2 + 5 * k1_theta4 + 7 * k2_theta6 +
+                 9 * k3_theta8);
+            theta = theta - theta_fix;
+            if (std::fabsf(theta_fix) < precision) break;
+        }
+        scale = std::tan(theta) / theta_d;
+    }
+
+    Vector3f xyz(pn.x * scale, pn.y * scale, 1.f);
     return xyz;
 }
 
@@ -162,14 +224,14 @@ Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, Matrix23f& J23,
     float x = pCam.x();
     float y = pCam.y();
     float z = pCam.z();
-    float* k_ = cam_id == 0 ? k : k_right;
+    float* k = cam_id == 0 ? k_ : k_right_;
     std::vector<float> theta_exp(10);
     theta_exp[0] = theta;
     for (size_t i = 0; i < 9; ++i) theta_exp[i + 1] = theta * theta_exp[i];
-    float dtd = 1 + 3 * k_[0] * theta_exp[2] + 5 * k_[1] * theta_exp[4] +
-                7 * k_[2] * theta_exp[6] + 9 * k_[3] * theta_exp[8];
-    float td = theta + k_[0] * theta_exp[3] + k_[1] * theta_exp[5] +
-               k_[2] * theta_exp[7] + k_[3] * theta_exp[9];
+    float dtd = 1 + 3 * k[0] * theta_exp[2] + 5 * k[1] * theta_exp[4] +
+                7 * k[2] * theta_exp[6] + 9 * k[3] * theta_exp[8];
+    float td = theta + k[0] * theta_exp[3] + k[1] * theta_exp[5] +
+               k[2] * theta_exp[7] + k[3] * theta_exp[9];
     float D = dtd / pCam.squaredNorm();
 
     float u = td * x / r;
@@ -188,43 +250,43 @@ Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, Matrix23f& J23,
     float dvdy = td / r + y * y * C;
     float dvdz = -y * D;
 
-    float fx_ = cam_id == 0 ? fx : fx_right;
-    float fy_ = cam_id == 0 ? fy : fy_right;
-    float cx_ = cam_id == 0 ? cx : cx_right;
-    float cy_ = cam_id == 0 ? cy : cy_right;
+    float fx = cam_id == 0 ? fx_ : fx_right_;
+    float fy = cam_id == 0 ? fy_ : fy_right_;
+    float cx = cam_id == 0 ? cx_ : cx_right_;
+    float cy = cam_id == 0 ? cy_ : cy_right_;
     J23 << dudx, dudy, dudz, dvdx, dvdy, dvdz;
     Matrix2f F;
-    F << fx_, 0, 0, fy_;
+    F << fx, 0, 0, fy;
     J23 = F * J23;
 
-    return Vector2f(fx_ * u + cx_, fy_ * v + cy_);
+    return Vector2f(fx * u + cx, fy * v + cy);
 }
 
 Vector2f EquiDistantModel::camToImage(const Vector3f& pCam, int cam_id) {
     float norm = pCam.head<2>().norm();
     float theta = atan2(norm, pCam.z());
 
-    float* k_ = cam_id == 0 ? k : k_right;
+    float* k = cam_id == 0 ? k_ : k_right_;
     std::vector<float> theta_exp(5);
     theta_exp[0] = theta;
     float theta2 = theta * theta;
     float thetad = theta;
     for (int i = 0; i < 4; ++i) {
         theta_exp[i + 1] = theta2 * theta_exp[i];
-        thetad += k_[i] * theta_exp[i + 1];
+        thetad += k[i] * theta_exp[i + 1];
     }
 
     float x = thetad * pCam.x() / norm;
     float y = thetad * pCam.y() / norm;
 
-    float fx_ = cam_id == 0 ? fx : fx_right;
-    float fy_ = cam_id == 0 ? fy : fy_right;
-    float cx_ = cam_id == 0 ? cx : cx_right;
-    float cy_ = cam_id == 0 ? cy : cy_right;
-    return Vector2f(fx_ * x + cx_, fy_ * y + cy_);
+    float fx = cam_id == 0 ? fx_ : fx_right_;
+    float fy = cam_id == 0 ? fy_ : fy_right_;
+    float cx = cam_id == 0 ? cx_ : cx_right_;
+    float cy = cam_id == 0 ? cy_ : cy_right_;
+    return Vector2f(fx * x + cx, fy * y + cy);
 }
 
 float EquiDistantModel::focal(int cam_id) {
-    return cam_id == 0 ? fx : fx_right;
+    return cam_id == 0 ? fx_ : fx_right_;
 }
 }  // namespace DeltaVins

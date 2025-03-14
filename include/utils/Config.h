@@ -9,7 +9,9 @@ enum DataSrcType {
     DataSrcROS2,
     DataSrcROS2_bag
 };
-enum class ROS2SensorType { MonoCamera, StereoCamera, IMU, GNSS };
+
+enum class ROS2SensorType { MonoCamera, StereoCamera, IMU, ACC, GYRO, GNSS };
+
 struct ROS2SensorTopic {
     ROS2SensorType type;
     std::vector<std::string> topics;
@@ -24,7 +26,7 @@ enum class ResultOutputFormat {
 };
 
 struct Config {
-    static void loadConfigFile(const std::string& configFile);
+    static bool loadConfigFile(const std::string& configFile);
 
     static int DataSourceType;
     static std::string DataSourcePath;

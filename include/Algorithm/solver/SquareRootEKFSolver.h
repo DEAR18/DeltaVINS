@@ -1,6 +1,5 @@
 #pragma once
-#include <Algorithm/VIO_Constexprs.h>
-
+#include "Algorithm/VIO_Constexprs.h"
 #include "dataStructure/filterStates.h"
 #include "dataStructure/vioStructures.h"
 
@@ -74,7 +73,8 @@ class SquareRootEKFSolver {
 
     int stacked_rows_ = 0;
 
-    MatrixMf info_factor_matrix_;  // Upper Triangle Matrix
+    MatrixMf info_factor_matrix_;  // Upper Triangle Matrix, parameter order:
+                                   // [bg, v, ba, slam pt, cam state]
 
     MatrixMf info_factor_matrix_after_mariginal_;
     VectorMf residual_;

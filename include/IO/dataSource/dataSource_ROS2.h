@@ -2,16 +2,14 @@
 
 #if USE_ROS2
 #include <unordered_map>
+#include <rosbag2_cpp/reader.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/serialization.hpp>
 
-#include "cv_bridge/cv_bridge.h"
 #include "dataSource.h"
-#include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
-
-#include "rosbag2_cpp/reader.hpp"
-#include "rclcpp/serialization.hpp"
 
 namespace DeltaVins {
 class DataSource_ROS2 : public DataSource, public rclcpp::Node {
@@ -30,6 +28,9 @@ class DataSource_ROS2 : public DataSource, public rclcpp::Node {
     void ImageCallback(const sensor_msgs::msg::Image::SharedPtr msg,
                        int sensor_id);
     void ImuCallback(const sensor_msgs::msg::Imu::SharedPtr msg, int sensor_id);
+    void AccGyroCallback(const sensor_msgs::msg::Imu::SharedPtr msg,
+                         const bool is_acc,
+                         int sensor_id);  // for separate acc and gyro message
     void StereoCallback(const sensor_msgs::msg::Image::SharedPtr msg,
                         StereoType type, int sensor_id);
     void NavSatFixCallback(const sensor_msgs::msg::NavSatFix::SharedPtr msg,
@@ -53,7 +54,9 @@ class DataSource_ROS2 : public DataSource, public rclcpp::Node {
     std::deque<sensor_msgs::msg::Image::SharedPtr> cv_ptr_right_;
     std::mutex mutex_stereo_;
 
-    int image_count_;
+    // for data synchronization
+    // only used when acc and gyro messages are separate
+    float imu_gyro_interval_{1.f};
 
     bool is_bag_;
     std::shared_ptr<rosbag2_cpp::Reader> reader_;
