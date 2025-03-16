@@ -158,9 +158,10 @@ DataSource_ROS2::DataSource_ROS2(bool is_bag)
 }
 
 DataSource_ROS2::~DataSource_ROS2() {
-    // if (is_bag_) {
-    //     reader_->close();
-    // }
+    if (is_bag_) {
+        LOGI("Close bag file");
+        reader_->close();
+    }
 }
 
 void DataSource_ROS2::NavSatFixCallback(
@@ -273,14 +274,14 @@ void DataSource_ROS2::AccGyroCallback(
             float delta_t = (timestamp - last_gyro.first) * 1e-9f;
             if (delta_t > imu_gyro_interval_) {
                 acc_buff.emplace_back(std::make_pair(timestamp, acc));
-                gyro_buff.clear();
+                // gyro_buff.clear();
             } else if (std::fabs(delta_t) <= imu_gyro_interval_) {
                 // construct an imu data
                 imu_data.timestamp = timestamp;
                 imu_data.sensor_id = sensor_id;
                 imu_data.acc = acc;
                 imu_data.gyro = last_gyro.second;
-                gyro_buff.clear();
+                // gyro_buff.clear();
             }
         }
     } else {
@@ -291,14 +292,14 @@ void DataSource_ROS2::AccGyroCallback(
             float delta_t = (timestamp - last_acc.first) * 1e-9f;
             if (delta_t > imu_gyro_interval_) {
                 gyro_buff.emplace_back(std::make_pair(timestamp, gyro));
-                acc_buff.clear();
+                // acc_buff.clear();
             } else if (std::fabs(delta_t) <= imu_gyro_interval_) {
                 // construct an imu data
                 imu_data.timestamp = timestamp;
                 imu_data.sensor_id = sensor_id;
                 imu_data.acc = last_acc.second;
                 imu_data.gyro = gyro;
-                acc_buff.clear();
+                // acc_buff.clear();
             }
         }
     }
@@ -357,10 +358,8 @@ void DataSource_ROS2::StereoCallback(
             cv_bridge::CvImageConstPtr cv_ptr_left;
             cv_bridge::CvImageConstPtr cv_ptr_right;
             try {
-                cv_ptr_left = cv_bridge::toCvShare(
-                    left, sensor_msgs::image_encodings::BGR8);
-                cv_ptr_right = cv_bridge::toCvShare(
-                    right, sensor_msgs::image_encodings::BGR8);
+                cv_ptr_left = cv_bridge::toCvShare(left, left->encoding);
+                cv_ptr_right = cv_bridge::toCvShare(right, right->encoding);
             } catch (cv_bridge::Exception& e) {
                 RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s",
                              e.what());
@@ -372,13 +371,21 @@ void DataSource_ROS2::StereoCallback(
             // }
             // Publish image
             ImageData::Ptr image_data = std::make_shared<ImageData>();
-            cv::cvtColor(cv_ptr_left->image, image_data->image,
-                         cv::COLOR_BGR2GRAY);
+            if (cv_ptr_left->encoding == sensor_msgs::image_encodings::BGR8) {
+                cv::cvtColor(cv_ptr_left->image, image_data->image,
+                             cv::COLOR_BGR2GRAY);
+            } else {
+                image_data->image = cv_ptr_left->image;
+            }
             image_data->timestamp =
                 left->header.stamp.sec * 1e9 + left->header.stamp.nanosec;
             image_data->sensor_id = sensor_id;
-            cv::cvtColor(cv_ptr_right->image, image_data->right_image,
-                         cv::COLOR_BGR2GRAY);
+            if (cv_ptr_right->encoding == sensor_msgs::image_encodings::BGR8) {
+                cv::cvtColor(cv_ptr_right->image, image_data->right_image,
+                             cv::COLOR_BGR2GRAY);
+            } else {
+                image_data->right_image = cv_ptr_right->image;
+            }
             if (is_bag_) {
                 if (image_data_cache_) {
                     std::lock_guard<std::mutex> lck(mtx_image_observer_);
@@ -466,6 +473,22 @@ void DataSource_ROS2::DoWhatYouNeedToDo() {
             nav_sat_fix_serializer_.deserialize_message(
                 &serialized_msg, sensor_msg_nav_sat_fix.get());
             NavSatFixCallback(sensor_msg_nav_sat_fix, sensor_id);
+        } else if (sensor_type == ROS2SensorType::ACC) {
+            sensor_msgs::msg::Imu::SharedPtr sensor_msg_imu =
+                std::make_shared<sensor_msgs::msg::Imu>();
+            rclcpp::SerializedMessage serialized_msg(
+                *bag_message->serialized_data);
+            imu_serializer_.deserialize_message(&serialized_msg,
+                                                sensor_msg_imu.get());
+            AccGyroCallback(sensor_msg_imu, true, sensor_id);
+        } else if (sensor_type == ROS2SensorType::GYRO) {
+            sensor_msgs::msg::Imu::SharedPtr sensor_msg_imu =
+                std::make_shared<sensor_msgs::msg::Imu>();
+            rclcpp::SerializedMessage serialized_msg(
+                *bag_message->serialized_data);
+            imu_serializer_.deserialize_message(&serialized_msg,
+                                                sensor_msg_imu.get());
+            AccGyroCallback(sensor_msg_imu, false, sensor_id);
         }
     } else {
         // sleep 100ms

@@ -394,11 +394,12 @@ bool SquareRootEKFSolver::MahalanobisTest(PointState* state) {
         SensorConfig::Instance().GetCameraParams(0).image_noise *
         SensorConfig::Instance().GetCameraParams(0).image_noise;
     if (state->flag_slam_point) {
-        Matrix2f S;
-        Matrix2f R = MatrixXf::Identity(2, 2) * ImageNoise2 * 2;
+        MatrixXf S;
+        MatrixXf R = MatrixXf::Identity(num_obs, num_obs) * ImageNoise2 * 2;
         MatrixXf E;
         MatrixXf H;
         H.resize(num_obs, 9);
+        S.resize(num_obs, num_obs);
         E.resize(CURRENT_DIM, 9);
         int iLeft = IMU_STATE_DIM;
         int cam_idx =

@@ -114,7 +114,7 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         Index1 = binarySearch<long long>(ImuTerm.t1, Left);
         try_times++;
-        if (try_times > 10) {
+        if (try_times > 20 || Config::SerialRun) {
             throw std::runtime_error(
                 "IMU is slower than Image, waiting for IMU data...");
         }

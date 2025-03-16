@@ -110,6 +110,9 @@ bool TriangulationAnchorDepth(const std::vector<Eigen::Vector3d>& ray_in_c,
         b += cross_ray_A_ray_anchor.transpose() * cross_ray_A * Pc_in_A;
     }
 
+    if (A < 1e-4) {
+        return false;
+    }
     double depth = b / A;
 
     if (std::isnan(depth) || depth < 0.0) {

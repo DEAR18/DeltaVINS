@@ -92,7 +92,7 @@ class EquiDistantModel : public CamModel {
 
     float focal(int cam_id = 0) override;
 
-    void testModelPrecision(bool is_right);
+    float testModelPrecision(bool is_right);
 
    private:
     void computeInvPoly(bool is_right = false);

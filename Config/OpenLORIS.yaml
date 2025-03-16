@@ -1,8 +1,8 @@
 %YAML:1.0
 ---
 
-DataSourceType: "ROS2" # support: ROS2/Euroc/ROS2_bag
-DataSourcePath: "" # used for non-ROS2 data source
+DataSourceType: "ROS2_bag" # support: ROS2/Euroc/ROS2_bag
+DataSourcePath: "/data/openloris/office1-6" # used for non-ROS2 data source
 ImageStartIdx: 10 # skip the first n images in the dataset
 
 ROSTopics:

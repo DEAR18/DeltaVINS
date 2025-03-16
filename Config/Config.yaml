@@ -6,7 +6,7 @@ RecordImage: 0
 RecordImu: 0
 NoGUI: 0
 NoDebugOutput : 1
-MaxRunFPS: 20
+MaxRunFPS: 0
 RunVIO: 1
 ResultOutputPath: ""
 ResultOutputName: ""
@@ -16,10 +16,11 @@ UseGnss: 1
 UseStereo: 1
 
 # Sensor calibration path
-DataSourceConfigFilePath: ""
-CalibrationPath: ""
+DataSourceConfigFilePath: "/home/kc/Codes/DeltaVINS_ws/src/delta_vins/Config/OpenLORIS.yaml"
+CalibrationPath: "/home/kc/Codes/DeltaVINS_ws/src/delta_vins/Config/calibrations/OpenLORIS"
 
 #FeatureTracker Parameters
 MaxNumToTrack: 350
 MaskSize: 41 #Must be Odd
 UseBackTracking: 1
+FastScoreThreshold: 15

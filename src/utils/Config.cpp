@@ -59,6 +59,7 @@ bool Config::UseGnss;
 bool Config::UseStereo;
 bool Config::UseBackTracking;
 std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
+int Config::FastScoreThreshold;
 
 bool Config::loadConfigFile(const std::string& configFile) {
     _clear();
@@ -143,6 +144,7 @@ bool Config::loadConfigFile(const std::string& configFile) {
     config_file_cv["UseGnss"] >> UseGnss;
     config_file_cv["UseStereo"] >> UseStereo;
     config_file_cv["UseBackTracking"] >> UseBackTracking;
+    config_file_cv["FastScoreThreshold"] >> FastScoreThreshold;
 
     if (RecordImage || RecordIMU) RecordData = 1;
 

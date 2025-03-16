@@ -52,6 +52,7 @@ struct Config {
     static void _clear();
     static int MaxNumToTrack;
     static int MaskSize;
+    static int FastScoreThreshold;
 
     static std::string VisualizerServerIP;
     static int UploadImage;

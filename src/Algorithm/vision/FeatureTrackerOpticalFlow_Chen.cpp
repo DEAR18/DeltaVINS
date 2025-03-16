@@ -518,9 +518,10 @@ void FeatureTrackerOpticalFlow_Chen::_ExtractFast(
     }
     fast::fast_corner_detect_10_mask(
         image_data, mask_data, image_->image.cols - mask_size_ + 1,
-        image_->image.rows - mask_size_ + 1, image_->image.step1(), 15, vXys);
-    fast::fast_corner_score_10(image_data, image_->image.step1(), vXys, 15,
-                               vScores);
+        image_->image.rows - mask_size_ + 1, image_->image.step1(),
+        Config::FastScoreThreshold, vXys);
+    fast::fast_corner_score_10(image_data, image_->image.step1(), vXys,
+                               Config::FastScoreThreshold, vScores);
     fast::fast_nonmax_3x3(vXys, vScores, vNms);
 
     vTemp.reserve(vXys.size());

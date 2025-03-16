@@ -145,7 +145,7 @@ void EquiDistantModel::computeInvPoly(bool is_right) {
 
 float EquiDistantModel::testModelPrecision(bool is_right) {
     if (width_ == 0 || height_ == 0) {
-        LOGE("Invalid camera model, width %d height %d", width_, height_);
+        LOGE("Invalid camera model, width %zu height %zu", width_, height_);
         return 1e8f;
     }
     cv::Mat mask(
@@ -208,7 +208,7 @@ Vector3f EquiDistantModel::imageToCam(const Vector2f& px, int cam_id) {
                 (1 + 3 * k0_theta2 + 5 * k1_theta4 + 7 * k2_theta6 +
                  9 * k3_theta8);
             theta = theta - theta_fix;
-            if (std::fabsf(theta_fix) < precision) break;
+            if (std::abs(theta_fix) < precision) break;
         }
         scale = std::tan(theta) / theta_d;
     }

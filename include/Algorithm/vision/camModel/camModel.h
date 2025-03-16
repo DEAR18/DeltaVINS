@@ -14,7 +14,7 @@ class CamModel {
         RADTAN = 1,
         EQUIDISTANT = 2,
         OMNIDIRECTIONAL = 3,
-        UNKNOW = 4
+        UNKNOWN = 4
     };
 
     CamModel(int width, int height, CamModelType type)
@@ -115,7 +115,7 @@ class CamModel {
     CamModelType GetModelType() { return model_type_; }
 
    protected:
-    CamModelType model_type_{CamModelType::UNKNOW};
+    CamModelType model_type_{CamModelType::UNKNOWN};
     size_t width_, height_;
     int sensor_id;
     Matrix3f Rci_, Rci_right_;
