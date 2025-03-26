@@ -60,17 +60,17 @@ void SquareRootEKFSolver::PropagateStatic(const ImuPreintergration* imu_term) {
 
     // Make state transition matrix F
     static Eigen::Matrix<float, NEW_STATE_DIM, NEW_STATE_DIM>
-        state_transition_matrix;
+        state_transition_matrix;  // q, p, bg, v, ba
     state_transition_matrix.setIdentity();
     state_transition_matrix.block<3, 3>(0, 0) = imu_term->dR.transpose();
     state_transition_matrix.block<3, 3>(0, 6) = imu_term->dRdg;
     state_transition_matrix.block<3, 3>(3, 0) = -R0 * crossMat(imu_term->dP);
     state_transition_matrix.block<3, 3>(3, 6) = R0 * imu_term->dPdg;
     state_transition_matrix.block<3, 3>(3, 9) = Matrix3f::Identity() * dt;
+    state_transition_matrix.block<3, 3>(3, 12) = R0 * imu_term->dPda;
     state_transition_matrix.block<3, 3>(9, 0) = -R0 * crossMat(imu_term->dV);
     state_transition_matrix.block<3, 3>(9, 6) = R0 * imu_term->dVdg;
     state_transition_matrix.block<3, 3>(9, 12) = R0 * imu_term->dVda;
-    state_transition_matrix.block<3, 3>(3, 12) = R0 * imu_term->dPda;
 
     // make noise transition matrix
     static Eigen::Matrix<float, NEW_STATE_DIM, 9> noise_transition_matrix;
