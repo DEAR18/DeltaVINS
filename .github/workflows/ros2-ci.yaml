@@ -1,4 +1,4 @@
-name: ROS2 CI with Docker
+name: ROS2 Humble build
 
 on:
   push:
