@@ -403,12 +403,15 @@ void FeatureTrackerOpticalFlow_Chen::_TrackPoints(
     if (vTrackedFeatures.empty()) return;
     // Step 1: we track left image features and right image features if stereo
     // is enabled
-    for (int cam_id = 0; cam_id < 2; cam_id++) {
+    bool is_stereo =
+        SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo();
+    int cam_num = is_stereo ? 2 : 1;
+    for (int cam_id = 0; cam_id < cam_num; cam_id++) {
         _TrackFromLastFrame(vTrackedFeatures, cam_id);
     }
 
     // Step 2: we track left to right and right to left stereo features
-    if (SensorConfig::Instance().GetCamModel(image_->sensor_id)->IsStereo()) {
+    if (is_stereo) {
         _TrackStereoFeatures(vTrackedFeatures);
     }
 

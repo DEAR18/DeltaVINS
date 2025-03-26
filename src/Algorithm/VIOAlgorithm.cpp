@@ -38,8 +38,8 @@ void VIOAlgorithm::_TrackFrame(const ImageData::Ptr imageData) {
 }
 
 void VIOAlgorithm::_Initialization(const ImageData::Ptr imageData) {
-    bool use_stereo = SensorConfig::Instance().GetCamModel(0)->IsStereo();
-    if (!use_stereo && !static_initializer_.Initialize(imageData)) {
+    // bool use_stereo = SensorConfig::Instance().GetCamModel(0)->IsStereo();
+    if (!static_initializer_.Initialize(imageData)) {
         LOGI("Initializating...");
         return;
     }
