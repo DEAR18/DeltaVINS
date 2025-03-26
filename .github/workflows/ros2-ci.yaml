@@ -1,0 +1,47 @@
+name: ROS2 CI with Docker
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: osrf/ros:humble-desktop  # 官方 ROS2 Humble 镜像
+      options: --ipc=host --shm-size=2g  # 提高编译性能的选项
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Create workspace
+      run: |
+        mkdir -p /ros2_ws/src  # 确保目录存在
+        cp -r ../DeltaVINS /ros2_ws/src/
+
+    # 安装项目特定依赖（如果需要）
+    - name: Install project dependencies
+      working-directory: /ros2_ws
+      run: |
+        sudo apt update
+        sudo apt install -y python3-colcon-common-extensions
+        rosdep update
+        rosdep install --from-paths src --ignore-src -r -y
+
+    # 构建项目
+    - name: Build workspace
+      working-directory: /ros2_ws
+      shell: bash
+      run: |
+        source /opt/ros/humble/setup.bash
+        colcon build --symlink-install --event-handlers console_direct+
+
+    # 可选：运行测试
+    - name: Run Tests
+      working-directory: /ros2_ws
+      shell: bash
+      run: |
+        source install/setup.bash
+        colcon test --event-handlers console_direct+
