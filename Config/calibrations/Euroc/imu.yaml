@@ -7,7 +7,7 @@ SensorId: 0
 GyroNoise: 2e-4  # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
 AccNoise: 2e-3   # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
 GyroBiasNoise: 2e-5 # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
-AccBiasNoise: 3e-3 # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+AccBiasNoise: 3e-3 # [ m / s^3 / sqrt(Hz) ]   ( accel bias diffusion )
 ImuSampleFps: 200
 
 # IMU to Body

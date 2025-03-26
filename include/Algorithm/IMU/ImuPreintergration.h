@@ -9,16 +9,15 @@ struct ImuPreintergration {
     int64_t t1;  // last data timestamp
     int64_t dT;  // delta time
 
-    Matrix3f dR;
-
+    Matrix3f dR;  // delta rotation
     Vector3f dV;  // delta linear velocity
     Vector3f dP;  // delta position
 
-    Matrix3f dRdg;  // jacobian rotation wrt gyroscope
-    Matrix3f dVda;  // jacobian linear velocity wrt accelerator
-    Matrix3f dVdg;  // jacobian linear velocity wrt gyroscope
-    Matrix3f dPda;  // jacobian position wrt accelerator
-    Matrix3f dPdg;  // jacobian position wrt gyroscope
+    Matrix3f dRdg;  // jacobian rotation wrt gyroscope bias
+    Matrix3f dVda;  // jacobian linear velocity wrt accelerator bias
+    Matrix3f dVdg;  // jacobian linear velocity wrt gyroscope bias
+    Matrix3f dPda;  // jacobian position wrt accelerator bias
+    Matrix3f dPdg;  // jacobian position wrt gyroscope bias
 
     Matrix9f Cov;  // covariance matrix r,v,p
 
