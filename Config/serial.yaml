@@ -16,8 +16,8 @@ UseGnss: 1
 UseStereo: 1
 
 # Sensor calibration path
-DataSourceConfigFilePath: ""
-CameraCalibrationPath: ""
+DataSourceConfigFilePath: "src/delta_vins/Config/Euroc.yaml"
+CalibrationPath: "src/delta_vins/Config/calibrations/Euroc"
 
 #FeatureTracker Parameters
 MaxNumToTrack: 350

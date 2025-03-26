@@ -70,9 +70,9 @@ Vector3f ImuBuffer::GetGravity() {
 bool ImuBuffer::GetDataByBinarySearch(ImuData& imuData) const {
     int index = binarySearch<long long>(imuData.timestamp, Left);
     if (index < 0) {
-        LOGE("t:%lld,imu0:%lld,imu1:%lld\n", imuData.timestamp,
-             buf_[getDeltaIndex(tail_, 3)].timestamp,
-             buf_[getDeltaIndex(head_, -1)].timestamp);
+        LOGE("t:%lld,imu0:%lld,imu1:%lld\n", (long long)imuData.timestamp,
+             (long long)buf_[getDeltaIndex(tail_, 3)].timestamp,
+             (long long)buf_[getDeltaIndex(head_, -1)].timestamp);
 
         throw std::runtime_error("No Imu data found,Please check timestamp1");
     }
@@ -101,7 +101,7 @@ inline Matrix3f vector2Jac(const Vector3f& x) {
  */
 bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
     if (ImuTerm.t0 >= ImuTerm.t1) {
-        LOGW("t0:%lld t1:%lld", ImuTerm.t0, ImuTerm.t1);
+        LOGW("t0:%lld t1:%lld", (long long)ImuTerm.t0, (long long)ImuTerm.t1);
         throw std::runtime_error("t0>t1");
     }
     int Index0 = binarySearch<long long>(ImuTerm.t0, Left);
@@ -109,8 +109,8 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
 
     int try_times = 0;
     while (Index1 < 0) {
-        LOGI("t1:%lld,imu1:%lld", ImuTerm.t1,
-             buf_[getDeltaIndex(head_, -1)].timestamp);
+        LOGI("t1:%lld,imu1:%lld", (long long)ImuTerm.t1,
+             (long long)buf_[getDeltaIndex(head_, -1)].timestamp);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         Index1 = binarySearch<long long>(ImuTerm.t1, Left);
         try_times++;
@@ -124,16 +124,18 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
     // }
 
     if (Index0 < 0 || Index1 < 0) {
-        LOGW("dt0:%lld dt1:%lld,dT:%lld", ImuTerm.t0 - buf_[Index0].timestamp,
-             ImuTerm.t1 - buf_[Index1].timestamp, ImuTerm.t1 - ImuTerm.t0);
+        LOGW("dt0:%lld dt1:%lld,dT:%lld",
+             (long long)ImuTerm.t0 - buf_[Index0].timestamp,
+             (long long)ImuTerm.t1 - buf_[Index1].timestamp,
+             (long long)ImuTerm.t1 - ImuTerm.t0);
         if (Index0 < 0) {
             LOGW("Error Code:%d", Index0);
-            LOGE("t0:%lld,imu0:%lld\n", ImuTerm.t0,
-                 buf_[getDeltaIndex(tail_, 3)].timestamp);
+            LOGE("t0:%lld,imu0:%lld\n", (long long)ImuTerm.t0,
+                 (long long)buf_[getDeltaIndex(tail_, 3)].timestamp);
         }
         if (Index1 < 0) {
-            LOGE("t1:%lld,imu1:%lld\n", ImuTerm.t1,
-                 buf_[getDeltaIndex(head_, -1)].timestamp);
+            LOGE("t1:%lld,imu1:%lld\n", (long long)ImuTerm.t1,
+                 (long long)buf_[getDeltaIndex(head_, -1)].timestamp);
         }
         throw std::runtime_error("No Imu data found.Please check timestamp2");
     }
@@ -233,7 +235,8 @@ bool ImuBuffer::ImuPreIntegration(ImuPreintergration& ImuTerm) const {
     static const int64_t max_dt =
         1e9 / SensorConfig::Instance().GetCameraParams(0).fps * 1.5;
     if (ImuTerm.dT > max_dt) {
-        LOGW("Detected a Frame Drop, dT:%lld max_dt:%lld", ImuTerm.dT, max_dt);
+        LOGW("Detected a Frame Drop, dT:%lld max_dt:%lld",
+             (long long)ImuTerm.dT, (long long)max_dt);
     }
 
     return true;

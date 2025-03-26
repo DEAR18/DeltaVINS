@@ -16,8 +16,8 @@ UseGnss: 1
 UseStereo: 1
 
 # Sensor calibration path
-DataSourceConfigFilePath: "/home/kc/Codes/DeltaVINS_ws/src/delta_vins/Config/OpenLORIS.yaml"
-CalibrationPath: "/home/kc/Codes/DeltaVINS_ws/src/delta_vins/Config/calibrations/OpenLORIS"
+DataSourceConfigFilePath: "src/delta_vins/Config/OpenLORIS.yaml"
+CalibrationPath: "src/delta_vins/Config/calibrations/OpenLORIS"
 
 #FeatureTracker Parameters
 MaxNumToTrack: 350
