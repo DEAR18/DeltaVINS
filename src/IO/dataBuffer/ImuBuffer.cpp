@@ -254,6 +254,7 @@ void ImuBuffer::OnImuReceived(const ImuData& imuData) {
 }
 
 Vector3f ImuBuffer::GetGravity(long long timestamp) {
+    return gravity_;
     BufferIndex index0 = binarySearch<long long>(timestamp, Left);
     if (index0 < 0) {
         std::lock_guard<std::mutex> lck(gravity_mutex_);

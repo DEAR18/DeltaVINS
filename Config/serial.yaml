@@ -23,4 +23,4 @@ CameraCalibrationPath: ""
 MaxNumToTrack: 350
 MaskSize: 41 #Must be Odd
 UseBackTracking: 1
-FastScoreThreshold: 10
+FastScoreThreshold: 15

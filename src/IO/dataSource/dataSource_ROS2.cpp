@@ -375,7 +375,7 @@ void DataSource_ROS2::StereoCallback(
                 cv::cvtColor(cv_ptr_left->image, image_data->image,
                              cv::COLOR_BGR2GRAY);
             } else {
-                image_data->image = cv_ptr_left->image;
+                image_data->image = cv_ptr_left->image.clone();
             }
             image_data->timestamp =
                 left->header.stamp.sec * 1e9 + left->header.stamp.nanosec;
@@ -384,7 +384,7 @@ void DataSource_ROS2::StereoCallback(
                 cv::cvtColor(cv_ptr_right->image, image_data->right_image,
                              cv::COLOR_BGR2GRAY);
             } else {
-                image_data->right_image = cv_ptr_right->image;
+                image_data->right_image = cv_ptr_right->image.clone();
             }
             if (is_bag_) {
                 if (image_data_cache_) {
