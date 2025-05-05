@@ -10,7 +10,15 @@ enum DataSrcType {
     DataSrcROS2_bag
 };
 
-enum class ROS2SensorType { MonoCamera, StereoCamera, IMU, ACC, GYRO, GNSS };
+enum class ROS2SensorType {
+    MonoCamera,
+    StereoCamera,
+    IMU,
+    ACC,
+    GYRO,
+    GNSS,
+    ODOMETER
+};
 
 struct ROS2SensorTopic {
     ROS2SensorType type;
@@ -60,6 +68,7 @@ struct Config {
     static std::vector<ROS2SensorTopic> ROS2SensorTopics;
     static bool UseGnss;
     static bool UseStereo;
+    static bool UseOdometer;
     static bool UseBackTracking;
 };
 }  // namespace DeltaVins

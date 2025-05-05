@@ -5,11 +5,13 @@
 #include "Algorithm/IMU/ImuPreintergration.h"
 #include "Algorithm/vision/camModel/camModel.h"
 #include "IO/dataBuffer/imuBuffer.h"
+#include "IO/dataBuffer/OdometerBuffer.h"
 #include "precompile.h"
 #include "utils/SensorConfig.h"
 #include "utils/TickTock.h"
 #include "utils/constantDefine.h"
 #include "utils/utils.h"
+#include "utils/tf.h"
 
 namespace DeltaVins {
 SquareRootEKFSolver::SquareRootEKFSolver() {}
@@ -764,12 +766,65 @@ int SquareRootEKFSolver::_AddMsckfPointConstraint() {
     return nTotalObs;
 }
 
+void SquareRootEKFSolver::AddOdomVelocityConstraint() {
+    const auto& odom_buffer = OdometerBuffer::Instance();
+    if (odom_buffer.empty() || cam_states_.empty()) {
+        return;
+    }
+    const CamState* cam_state = cam_states_.back();
+    if (!cam_state->host_frame) {
+        return;
+    }
+
+    float odom_vel = 0.f;
+    if (!odom_buffer.OdomVelocity(cam_state->host_frame->timestamp,
+                                  &odom_vel)) {
+        return;
+    }
+    Vector3f odom_vel_obs(odom_vel, 0.f, 0.f);
+
+    Transform<float> Tbi;
+    Tfs<float>::Instance().GetTransform("body", "imu0", Tbi);
+    Vector3f V_in_body = Tbi.Rotation() * cam_state->Rwi.transpose() * (*vel_);
+    LOGD(
+        "Add odometer velocity constraint, predicted body vel: %f %f %f, "
+        "odometer forward vel: %f",
+        V_in_body(0), V_in_body(1), V_in_body(2), odom_vel);
+
+    Matrix3f dobs_dV = Tbi.Rotation() * cam_state->Rwi.transpose();
+    Vector3f V_in_IMU = cam_state->Rwi.transpose() * (*vel_);
+    Matrix3f dobs_dR = Tbi.Rotation() * crossMat(V_in_IMU);
+    Vector3f residual = odom_vel_obs - V_in_body;
+
+    // TODO: add chi2 test
+
+    Matrix3f sqrt_obs_info = Matrix3f::Identity();
+    sqrt_obs_info(0, 0) = 1.f / 0.3f;
+    sqrt_obs_info(1, 1) = 1.f / 1.f;
+    sqrt_obs_info(2, 2) = 1.f / 0.3f;
+    dobs_dV = sqrt_obs_info * dobs_dV;
+    dobs_dR = sqrt_obs_info * dobs_dR;
+    residual = sqrt_obs_info * residual;
+
+    int cam_state_filter_idx = IMU_STATE_DIM + slam_point_.size() * 3 +
+                               (cam_states_.size() - 1) * CAM_STATE_DIM;
+    stacked_matrix_.block<1, 3>(stacked_rows_, 3) = dobs_dV.row(0);
+    stacked_matrix_.block<1, 3>(stacked_rows_, cam_state_filter_idx) =
+        dobs_dR.row(0);
+    obs_residual_(stacked_rows_) = residual(0);
+    stacked_rows_ += 1;
+}
+
 int SquareRootEKFSolver::StackInformationFactorMatrix() {
     _ClearStackedMatrix();
 
     int nVisualObs = 0;
     nVisualObs += _AddSlamPointConstraint();
     nVisualObs += _AddMsckfPointConstraint();
+
+    if (Config::UseOdometer) {
+        AddOdomVelocityConstraint();
+    }
 
     if (!nVisualObs) {
         if (*static_) {

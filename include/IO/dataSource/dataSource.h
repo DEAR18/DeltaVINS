@@ -21,6 +21,10 @@ class DataSource : public AbstractModule {
             const NavSatFixData& navSatFixData) = 0;
     };
 
+    struct OdometerObserver {
+        virtual void OnOdometerReceived(const OdometerData& odometerData) = 0;
+    };
+
     using Ptr = std::shared_ptr<DataSource>;
 
     struct _ImageData {
@@ -44,6 +48,10 @@ class DataSource : public AbstractModule {
         std::lock_guard<std::mutex> lck(mtx_nav_sat_fix_observer_);
         nav_sat_fix_observers_.push_back(observer);
     }
+    void AddOdometerObserver(OdometerObserver* observer) {
+        std::lock_guard<std::mutex> lck(mtx_odometer_observer_);
+        odometer_observers_.push_back(observer);
+    }
     void DeleteImuObserver(ImuObserver* observer) {
         std::lock_guard<std::mutex> lck(mtx_imu_observer_);
         auto it =
@@ -63,14 +71,22 @@ class DataSource : public AbstractModule {
         if (it != nav_sat_fix_observers_.end())
             nav_sat_fix_observers_.erase(it);
     }
+    void DeleteOdometerObserver(OdometerObserver* observer) {
+        std::lock_guard<std::mutex> lck(mtx_odometer_observer_);
+        auto it = std::find(odometer_observers_.begin(),
+                            odometer_observers_.end(), observer);
+        if (it != odometer_observers_.end()) odometer_observers_.erase(it);
+    }
 
    protected:
     std::vector<ImuObserver*> imu_observers_;
     std::vector<ImageObserver*> image_observers_;
     std::vector<NavSatFixObserver*> nav_sat_fix_observers_;
+    std::vector<OdometerObserver*> odometer_observers_;
     std::mutex mtx_imu_observer_;
     std::mutex mtx_image_observer_;
     std::mutex mtx_nav_sat_fix_observer_;
+    std::mutex mtx_odometer_observer_;
 };
 
 }  // namespace DeltaVins

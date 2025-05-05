@@ -57,6 +57,7 @@ int Config::MaxNumToTrack;
 int Config::MaskSize;
 bool Config::UseGnss;
 bool Config::UseStereo;
+bool Config::UseOdometer;
 bool Config::UseBackTracking;
 std::vector<ROS2SensorTopic> Config::ROS2SensorTopics;
 int Config::FastScoreThreshold;
@@ -143,6 +144,7 @@ bool Config::loadConfigFile(const std::string& configFile) {
     config_file_cv["MaskSize"] >> MaskSize;
     config_file_cv["UseGnss"] >> UseGnss;
     config_file_cv["UseStereo"] >> UseStereo;
+    config_file_cv["UseOdometer"] >> UseOdometer;
     config_file_cv["UseBackTracking"] >> UseBackTracking;
     config_file_cv["FastScoreThreshold"] >> FastScoreThreshold;
 
@@ -182,6 +184,8 @@ bool Config::loadConfigFile(const std::string& configFile) {
                 topic.type = ROS2SensorType::GYRO;
             } else if (topic_type == "GNSS") {
                 topic.type = ROS2SensorType::GNSS;
+            } else if (topic_type == "Odometer") {
+                topic.type = ROS2SensorType::ODOMETER;
             } else {
                 throw std::runtime_error("Unknown ROS2 topic type: " +
                                          topic_type);
@@ -193,6 +197,13 @@ bool Config::loadConfigFile(const std::string& configFile) {
                 topic.topics.push_back(topic_name);
             }
             (*it)["TopicQueueSize"] >> topic.queue_size;
+
+            if ((topic.type == ROS2SensorType::GNSS && !Config::UseGnss) ||
+                (topic.type == ROS2SensorType::ODOMETER &&
+                 !Config::UseOdometer)) {
+                continue;
+            }
+
             ROS2SensorTopics.push_back(topic);
         }
     }

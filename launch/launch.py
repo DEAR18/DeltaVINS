@@ -11,6 +11,12 @@ def generate_launch_description():
     rviz_config_file = os.path.join(delta_vins_share_dir, 'rviz', 'delta_vins.rviz')
     config_file_path = os.path.join(delta_vins_share_dir, 'Config', 'Config.yaml')
 
+    declare_data_source_path_arg = DeclareLaunchArgument(
+        'DataSourcePath',
+        default_value='',
+        description='Path to the input dataset'
+    )
+
     rviz2_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -18,12 +24,15 @@ def generate_launch_description():
         arguments=['-d', rviz_config_file],
     )
     delta_vins_node = Node(
-            package='delta_vins',
-            executable='RunDeltaVINS',
-            name='RunDeltaVINS',
-            arguments=[config_file_path]
-        )
+        package='delta_vins',
+        executable='RunDeltaVINS',
+        name='RunDeltaVINS',
+        parameters=[{"DataSourcePath": LaunchConfiguration("DataSourcePath")}],
+        arguments=[config_file_path]
+    )
+
     return LaunchDescription([
+        declare_data_source_path_arg,
         rviz2_node,
         delta_vins_node,
     ])

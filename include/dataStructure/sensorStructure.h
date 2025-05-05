@@ -51,7 +51,7 @@ struct NavSatFixData {
 
 struct OdometerData {
     int64_t timestamp{0};
-
+    int sensor_id{0};
     int encoderL{0};
     int encoderR{0};
     float dEncoderL{0.f};
@@ -59,6 +59,12 @@ struct OdometerData {
 
     float velocity{0.f};
     float angularVelocity{0.f};
+
+    bool operator<(int64_t t) { return timestamp < t; }
+    bool operator>(int64_t t) { return timestamp > t; }
+    bool operator==(int64_t t) { return timestamp == t; }
+    bool operator<=(int64_t t) { return timestamp <= t; }
+    bool operator>=(int64_t t) { return timestamp >= t; }
 };
 
 }  // namespace DeltaVins
