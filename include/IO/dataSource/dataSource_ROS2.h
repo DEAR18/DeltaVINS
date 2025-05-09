@@ -5,11 +5,12 @@
 #include <rosbag2_cpp/reader.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/serialization.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 
 #include "dataSource.h"
-#include "sensor_msgs/msg/image.hpp"
-#include "sensor_msgs/msg/imu.hpp"
-#include "sensor_msgs/msg/nav_sat_fix.hpp"
 
 namespace DeltaVins {
 class DataSource_ROS2 : public DataSource, public rclcpp::Node {
@@ -35,6 +36,8 @@ class DataSource_ROS2 : public DataSource, public rclcpp::Node {
                         StereoType type, int sensor_id);
     void NavSatFixCallback(const sensor_msgs::msg::NavSatFix::SharedPtr msg,
                            int sensor_id);
+    void OdometerCallback(const nav_msgs::msg::Odometry::SharedPtr msg,
+                          int sensor_id);
 
    private:
     std::vector<rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr>
@@ -42,6 +45,9 @@ class DataSource_ROS2 : public DataSource, public rclcpp::Node {
 
     std::vector<rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr>
         imu_sub_;
+
+    std::vector<rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr>
+        odom_sub_;
 
     // TODO: only support one stereo camera now
     std::pair<rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr,
@@ -66,6 +72,7 @@ class DataSource_ROS2 : public DataSource, public rclcpp::Node {
     rclcpp::Serialization<sensor_msgs::msg::Image> image_serializer_;
     rclcpp::Serialization<sensor_msgs::msg::Imu> imu_serializer_;
     rclcpp::Serialization<sensor_msgs::msg::NavSatFix> nav_sat_fix_serializer_;
+    rclcpp::Serialization<nav_msgs::msg::Odometry> odom_serializer_;
     ImageData::Ptr image_data_cache_;
 };
 }  // namespace DeltaVins

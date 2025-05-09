@@ -22,3 +22,8 @@ ROSTopics:
       TopicQueueSize: 10
       SensorID: 0
       SensorType: "GYRO"
+    - 
+      TopicName: "/odom"
+      TopicQueueSize: 10
+      SensorID: 0
+      SensorType: "Odometer"

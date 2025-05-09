@@ -42,6 +42,8 @@ class SquareRootEKFSolver {
 
     void AddVelocityConstraint();
 
+    void AddOdomVelocityConstraint();
+
     int _AddPlaneContraint();
     int StackInformationFactorMatrix();
 

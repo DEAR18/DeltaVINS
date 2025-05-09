@@ -124,6 +124,18 @@ DataSource_ROS2::DataSource_ROS2(bool is_bag)
                 topic_map_[topic.topics[1]] = topic.sensor_id;
                 LOGI("Create stereo subscriber: %s, %s", topic_name.c_str(),
                      topic.topics[1].c_str());
+            } else if (topic.type == ROS2SensorType::ODOMETER) {
+                std::string topic_name = topic.topics[0];
+                // Create odom subscriber
+                odom_sub_.push_back(
+                    this->create_subscription<nav_msgs::msg::Odometry>(
+                        topic_name, 10,
+                        [this,
+                         topic](const nav_msgs::msg::Odometry::SharedPtr msg) {
+                            OdometerCallback(msg, topic.sensor_id);
+                        }));
+                topic_map_[topic_name] = topic.sensor_id;
+                LOGI("Create odometer subscriber: %s", topic_name.c_str());
             }
         }
 
@@ -416,6 +428,22 @@ void DataSource_ROS2::StereoCallback(
     } while (!cv_ptr_left_.empty() && !cv_ptr_right_.empty());
 }
 
+void DataSource_ROS2::OdometerCallback(
+    const nav_msgs::msg::Odometry::SharedPtr msg, int sensor_id) {
+    OdometerData odom_data;
+    odom_data.timestamp =
+        msg->header.stamp.sec * 1e9 + msg->header.stamp.nanosec;
+    odom_data.velocity = msg->twist.twist.linear.x;
+    odom_data.angularVelocity = msg->twist.twist.angular.z;
+    odom_data.sensor_id = sensor_id;
+    {
+        std::lock_guard<std::mutex> lck(mtx_odometer_observer_);
+        for (auto& observer : odometer_observers_) {
+            observer->OnOdometerReceived(odom_data);
+        }
+    }
+}
+
 // // void DataSource_ROS2::Join() {
 // //     if (modules_thread_->joinable()) modules_thread_->join();
 // //     run_ = false;
@@ -489,6 +517,14 @@ void DataSource_ROS2::DoWhatYouNeedToDo() {
             imu_serializer_.deserialize_message(&serialized_msg,
                                                 sensor_msg_imu.get());
             AccGyroCallback(sensor_msg_imu, false, sensor_id);
+        } else if (sensor_type == ROS2SensorType::ODOMETER) {
+            nav_msgs::msg::Odometry::SharedPtr sensor_msg_odom =
+                std::make_shared<nav_msgs::msg::Odometry>();
+            rclcpp::SerializedMessage serialized_msg(
+                *bag_message->serialized_data);
+            odom_serializer_.deserialize_message(&serialized_msg,
+                                                 sensor_msg_odom.get());
+            OdometerCallback(sensor_msg_odom, sensor_id);
         }
     } else {
         // sleep 100ms

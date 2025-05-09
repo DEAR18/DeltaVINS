@@ -10,12 +10,11 @@
 #if ENABLE_VISUALIZER
 #include "../../SlamVisualizer/SlamVisualizer.h"
 #elif ENABLE_VISUALIZER_TCP
-#include <IO/dataOuput/PoseOutputTCP.h>
+#include "IO/dataOuput/PoseOutputTCP.h"
 #endif
 
-#include <IO/dataOuput/DataOutputROS.h>
-#include <IO/dataOuput/DataRecorder.h>
-
+#include "IO/dataOuput/DataOutputROS.h"
+#include "IO/dataOuput/DataRecorder.h"
 #include "IO/dataSource/dataSource_Synthetic.h"
 #include "utils/TickTock.h"
 
@@ -24,6 +23,7 @@
 #endif
 
 #include "IO/dataBuffer/GnssBuffer.h"
+#include "IO/dataBuffer/OdometerBuffer.h"
 #include "utils/SensorConfig.h"
 
 using namespace DeltaVins;
@@ -122,6 +122,9 @@ bool InitSlamSystem(const char* configFile) {
     dataSourcePtr->AddImuObserver(&ImuBuffer::Instance());
     if (Config::UseGnss) {
         dataSourcePtr->AddNavSatFixObserver(&GnssBuffer::Instance());
+    }
+    if (Config::UseOdometer) {
+        dataSourcePtr->AddOdometerObserver(&OdometerBuffer::Instance());
     }
 
     return true;
